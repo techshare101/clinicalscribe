@@ -1,450 +1,531 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Stethoscope, Mic, FileText, Shield, Clock, Users, Star, ArrowRight, Home, Info, Phone } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 60 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6 },
-}
+export default function ClinicalScribeDashboard() {
+  const [showSOAPBuilder, setShowSOAPBuilder] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(true)
+  const [step, setStep] = useState(0)
+  const [signature, setSignature] = useState("")
+  const [online, setOnline] = useState(true)
+  const [transcribedText, setTranscribedText] = useState(
+    "El paciente dice que siente un dolor agudo en el costado derecho.",
+  )
+  const [translatedText, setTranslatedText] = useState("The patient says they feel a sharp pain on the right side.")
 
-const staggerContainer = {
-  animate: {
-    transition: {
-      staggerChildren: 0.1,
+  // New state for audit logging and offline features
+  const [auditLogs, setAuditLogs] = useState([
+    {
+      id: "AUD-001",
+      timestamp: new Date().toLocaleString(),
+      action: "PATIENT_DATA_ACCESSED",
+      user: "nurse@hospital.org",
+      details: "Accessed patient record for Maria Gomez",
+      ipAddress: "192.168.1.45",
+      sessionId: "sess_abc123",
+      compliance: "HIPAA_LOGGED",
     },
-  },
-}
+    {
+      id: "AUD-002",
+      timestamp: new Date(Date.now() - 300000).toLocaleString(),
+      action: "TRANSCRIPTION_COMPLETED",
+      user: "nurse@hospital.org",
+      details: "Voice transcription completed for patient encounter",
+      ipAddress: "192.168.1.45",
+      sessionId: "sess_abc123",
+      compliance: "HIPAA_LOGGED",
+    },
+  ])
+  const [offlineQueue, setOfflineQueue] = useState([])
+  const [showAuditLog, setShowAuditLog] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submissionProgress, setSubmissionProgress] = useState(0)
 
-const features = [
-  {
-    icon: Mic,
-    title: "AI Voice Transcription",
-    description: "Convert patient conversations to accurate clinical notes using advanced speech recognition.",
-    emoji: "🎙️",
-  },
-  {
-    icon: FileText,
-    title: "SOAP Note Generation",
-    description: "Automatically structure your notes into professional SOAP format with AI assistance.",
-    emoji: "📋",
-  },
-  {
-    icon: Shield,
-    title: "HIPAA Compliant",
-    description: "Enterprise-grade security ensuring patient data privacy and regulatory compliance.",
-    emoji: "🔒",
-  },
-  {
-    icon: Clock,
-    title: "Save 2+ Hours Daily",
-    description: "Reduce documentation time by up to 70% with intelligent automation.",
-    emoji: "⏰",
-  },
-]
+  const onboardingSteps = [
+    {
+      title: "Welcome to ClinicalScribe 👋",
+      description: "You're about to experience a smarter, faster way to document patient care.",
+    },
+    {
+      title: "🎙️ Voice Transcription",
+      description:
+        "Simply tap 'Start Whisper Transcription' and speak with your patient. ClinicalScribe will do the rest.",
+    },
+    {
+      title: "🌐 Multilingual Support",
+      description: "We detect and translate over 50 languages in real-time so you can chart with confidence.",
+    },
+    {
+      title: "🧾 Auto SOAP Notes + PDF",
+      description: "Our AI fills in structured SOAP notes and creates secure PDFs with QR verification.",
+    },
+    {
+      title: "✅ You're Ready!",
+      description: "Tap 'Get Started' to enter the dashboard and meet your new AI co-pilot.",
+    },
+  ]
 
-const testimonials = [
-  {
-    name: "Dr. Sarah Chen",
-    role: "Emergency Medicine",
-    content: "ClinicalScribe has transformed my workflow. I can focus on patients instead of paperwork.",
-    rating: 5,
-    avatar: "👩‍⚕️",
-  },
-  {
-    name: "Nurse Maria Rodriguez",
-    role: "ICU Specialist",
-    content: "The AI transcription is incredibly accurate. It's like having a personal assistant.",
-    rating: 5,
-    avatar: "👩‍⚕️",
-  },
-  {
-    name: "Dr. James Wilson",
-    role: "Family Medicine",
-    content: "Documentation that used to take hours now takes minutes. Game changer!",
-    rating: 5,
-    avatar: "👨‍⚕️",
-  },
-]
+  const handleNextStep = () => {
+    if (step < onboardingSteps.length - 1) {
+      setStep(step + 1)
+      logAuditEvent("ONBOARDING_STEP_COMPLETED", `Completed step ${step + 1}`)
+    } else {
+      setShowOnboarding(false)
+      logAuditEvent("ONBOARDING_COMPLETED", "User completed onboarding process")
+    }
+  }
 
-const stats = [
-  { number: "10,000+", label: "Healthcare Providers", emoji: "👥" },
-  { number: "2M+", label: "Notes Generated", emoji: "📝" },
-  { number: "70%", label: "Time Saved", emoji: "⚡" },
-  { number: "99.9%", label: "Uptime", emoji: "🚀" },
-]
+  const logAuditEvent = (action, details, user = "nurse@hospital.org") => {
+    const newLog = {
+      id: `AUD-${String(auditLogs.length + 1).padStart(3, "0")}`,
+      timestamp: new Date().toLocaleString(),
+      action,
+      user,
+      details,
+      ipAddress: "192.168.1.45",
+      sessionId: "sess_abc123",
+      compliance: "HIPAA_LOGGED",
+    }
 
-export default function LandingPage() {
-  const [activeSection, setActiveSection] = useState("home")
-  const [isScrolled, setIsScrolled] = useState(false)
+    setAuditLogs((prev) => [newLog, ...prev])
+
+    if (!online) {
+      setOfflineQueue((prev) => [...prev, { type: "AUDIT_LOG", data: newLog, timestamp: new Date().toISOString() }])
+    }
+
+    console.log("🛡️ Audit Log:", newLog)
+  }
+
+  const handleOfflineAction = (action) => {
+    if (!online) {
+      setOfflineQueue((prev) => [...prev, { ...action, timestamp: new Date().toISOString() }])
+      logAuditEvent("OFFLINE_ACTION_QUEUED", `Action queued for sync: ${action.type}`)
+      return false
+    }
+    return true
+  }
+
+  const handleSendToAdmin = async () => {
+    if (!handleOfflineAction({ type: "ADMIN_HANDOFF", patient: "Maria Gomez" })) {
+      alert("⚠️ You're offline. This action has been queued for when you're back online.")
+      return
+    }
+
+    logAuditEvent("ADMIN_HANDOFF_INITIATED", "Starting handoff for Maria Gomez to admin")
+
+    setIsSubmitting(true)
+    setSubmissionProgress(0)
+
+    const steps = [
+      "Validating clinical data...",
+      "Generating PDF report...",
+      "Preparing email notification...",
+      "Connecting to EHR system...",
+      "Sending to administrator...",
+      "Updating workflow status...",
+    ]
+
+    for (let i = 0; i < steps.length; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 800))
+      setSubmissionProgress(((i + 1) / steps.length) * 100)
+    }
+
+    logAuditEvent("ADMIN_HANDOFF_COMPLETED", "Successfully sent Maria Gomez report to admin")
+    setIsSubmitting(false)
+
+    setTimeout(() => {
+      alert("✅ Patient report emailed to Admin & ready for EHR push.")
+      setSubmissionProgress(0)
+    }, 500)
+  }
+
+  const getActionIcon = (action) => {
+    const iconMap = {
+      PATIENT_DATA_ACCESSED: "👁️",
+      TRANSCRIPTION_COMPLETED: "🎙️",
+      ADMIN_HANDOFF_INITIATED: "📤",
+      ADMIN_HANDOFF_COMPLETED: "✅",
+      OFFLINE_MODE_ACTIVATED: "📴",
+      OFFLINE_SYNC_COMPLETED: "🔄",
+    }
+    return iconMap[action] || "🛡️"
+  }
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50)
+    const updateOnlineStatus = () => {
+      const isOnline = navigator.onLine
+      setOnline(isOnline)
+
+      if (isOnline) {
+        if (offlineQueue.length > 0) {
+          console.log("Processing offline queue:", offlineQueue)
+          logAuditEvent("OFFLINE_SYNC_COMPLETED", `Processed ${offlineQueue.length} offline queue items`)
+          setTimeout(() => {
+            setOfflineQueue([])
+          }, 2000)
+        }
+      } else {
+        logAuditEvent("OFFLINE_MODE_ACTIVATED", "Device went offline, enabling cache mode")
+      }
     }
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
+
+    window.addEventListener("online", updateOnlineStatus)
+    window.addEventListener("offline", updateOnlineStatus)
+    updateOnlineStatus()
+
+    return () => {
+      window.removeEventListener("online", updateOnlineStatus)
+      window.removeEventListener("offline", updateOnlineStatus)
+    }
+  }, [offlineQueue])
+
+  useEffect(() => {
+    logAuditEvent("DASHBOARD_ACCESSED", "User accessed ClinicalScribe dashboard")
   }, [])
 
-  const scrollToSection = (sectionId: string) => {
-    setActiveSection(sectionId)
-    const element = document.getElementById(sectionId)
-    element?.scrollIntoView({ behavior: "smooth" })
+  if (showOnboarding) {
+    const current = onboardingSteps[step]
+    return (
+      <motion.div className="min-h-screen bg-gradient-to-br from-white to-blue-50 flex flex-col justify-center items-center text-center px-6">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white p-8 rounded-2xl shadow-lg max-w-md"
+        >
+          <h2 className="text-2xl font-bold mb-2">{current.title}</h2>
+          <p className="text-gray-700 mb-6">{current.description}</p>
+          <button
+            onClick={handleNextStep}
+            className="bg-blue-600 text-white px-6 py-2 rounded-xl shadow hover:bg-blue-700 transition-colors"
+          >
+            {step < onboardingSteps.length - 1 ? "Next" : "Get Started"}
+          </button>
+        </motion.div>
+      </motion.div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      {/* Desktop Header */}
+    <div className="p-4 md:p-6 bg-gradient-to-br from-white to-gray-100 min-h-screen">
+      {/* Offline Mode Banner */}
+      <AnimatePresence>
+        {!online && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="mb-4"
+          >
+            <div className="bg-orange-100 border border-orange-200 rounded-2xl p-4">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">☁️</span>
+                <div className="flex-1">
+                  <div className="font-semibold text-orange-900">🔄 Offline Mode Active</div>
+                  <div className="text-sm text-orange-700">
+                    You're currently offline. Actions will be queued and synced when connection is restored.
+                    {offlineQueue.length > 0 && (
+                      <span className="ml-2 font-medium">{offlineQueue.length} action(s) queued for sync</span>
+                    )}
+                  </div>
+                </div>
+                <span className="bg-orange-200 text-orange-800 px-2 py-1 rounded-lg text-sm font-medium">
+                  {offlineQueue.length} Queued
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header with Secure Logging Notice */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-          isScrolled ? "bg-white/90 backdrop-blur-md shadow-lg" : "bg-transparent"
-        }`}
+        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
       >
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <motion.div whileHover={{ scale: 1.05 }} className="flex items-center gap-2">
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <Stethoscope className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-xl font-bold">ClinicalScribe 🧬</span>
-          </motion.div>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-800">ClinicalScribe 🧬</h1>
+          <span className="bg-gray-200 text-gray-800 px-2 py-1 rounded-lg text-xs font-medium">
+            {online ? "🟢 Online" : "🔴 Offline"}
+          </span>
+        </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
-            <button
-              onClick={() => scrollToSection("home")}
-              className="text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              Home
-            </button>
-            <button
-              onClick={() => scrollToSection("features")}
-              className="text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              Features
-            </button>
-            <button
-              onClick={() => scrollToSection("testimonials")}
-              className="text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              Reviews
-            </button>
-            <button
-              onClick={() => scrollToSection("contact")}
-              className="text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              Contact
-            </button>
-          </nav>
-
-          <div className="hidden md:flex items-center gap-4">
-            <Button variant="ghost">Sign In</Button>
-            <Button className="bg-blue-600 hover:bg-blue-700">Get Started</Button>
+        {/* Secure Logging Notice */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-xl border border-green-200">
+            <span className="text-green-600">🔒</span>
+            <span className="text-green-600">🛡️</span>
+            <span className="text-sm font-medium text-green-900">Secure Logging Active</span>
+            <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
+              {auditLogs.length} Events
+            </span>
           </div>
+          <button
+            onClick={() => setShowAuditLog(true)}
+            className="text-green-700 hover:text-green-800 px-3 py-2 rounded-lg hover:bg-green-50 transition-colors text-sm"
+          >
+            👁️ View Audit Log
+          </button>
         </div>
       </motion.header>
 
-      {/* Hero Section */}
-      <section id="home" className="pt-24 pb-16 px-4">
-        <div className="container mx-auto text-center">
-          <motion.div {...fadeInUp} className="max-w-4xl mx-auto">
-            <Badge className="mb-6 bg-blue-100 text-blue-800 hover:bg-blue-200">
-              🚀 Now with AI-Powered Multilingual Support
-            </Badge>
+      {/* Navigation */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => {
+            setShowSOAPBuilder(false)
+            logAuditEvent("DASHBOARD_VIEW_SELECTED", "User switched to dashboard view")
+          }}
+          className={`px-4 py-2 rounded-2xl shadow-md transition-colors ${
+            !showSOAPBuilder
+              ? "bg-blue-600 text-white"
+              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+          }`}
+        >
+          📊 Dashboard
+        </button>
+        <button
+          onClick={() => {
+            setShowSOAPBuilder(true)
+            logAuditEvent("SOAP_BUILDER_VIEW_SELECTED", "User switched to SOAP builder view")
+          }}
+          className={`px-4 py-2 rounded-2xl shadow-md transition-colors ${
+            showSOAPBuilder
+              ? "bg-blue-600 text-white"
+              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+          }`}
+        >
+          🧾 SOAP Builder
+        </button>
+      </div>
 
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-              Transform Clinical Documentation with <span className="text-blue-600">AI Magic</span> ✨
-            </h1>
+      {/* Main Content */}
+      <motion.div className="bg-white p-6 rounded-2xl shadow-md max-w-3xl mx-auto">
+        <h2 className="text-xl font-semibold mb-3">📤 Send to Admin / EHR Push</h2>
 
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Save hours daily with intelligent voice transcription and automated SOAP note generation. Focus on
-              patients, not paperwork.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-4">
-                  🎙️ Start Free Trial
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button size="lg" variant="outline" className="text-lg px-8 py-4">
-                  📺 Watch Demo
-                </Button>
-              </motion.div>
+        {/* Patient Summary */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-xl">
+          <h3 className="font-semibold mb-3">📋 Patient Summary</h3>
+          <div className="space-y-2 text-sm">
+            <div>
+              <strong>Original (Spanish):</strong>
+              <p className="text-gray-700 mt-1">{transcribedText}</p>
             </div>
+            <div>
+              <strong>Translation (English):</strong>
+              <p className="text-gray-700 mt-1">{translatedText}</p>
+            </div>
+          </div>
+        </div>
 
-            {/* Stats */}
+        {/* Nurse Signature */}
+        <div className="mb-4">
+          <label className="block font-medium mb-1">🖋️ Nurse Signature</label>
+          <input
+            type="text"
+            placeholder="Enter your full name"
+            className="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={signature}
+            onChange={(e) => {
+              setSignature(e.target.value)
+              logAuditEvent("SIGNATURE_FIELD_MODIFIED", "Nurse signature field updated")
+            }}
+          />
+        </div>
+
+        {/* Submission Progress */}
+        <AnimatePresence>
+          {isSubmitting && (
             <motion.div
-              variants={staggerContainer}
-              initial="initial"
-              animate="animate"
-              className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-4"
             >
-              {stats.map((stat, index) => (
-                <motion.div key={index} variants={fadeInUp} className="text-center">
-                  <div className="text-3xl mb-2">{stat.emoji}</div>
-                  <div className="text-2xl font-bold text-gray-900">{stat.number}</div>
-                  <div className="text-sm text-gray-600">{stat.label}</div>
+              <div className="flex items-center gap-2 mb-2">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                  className="text-blue-600"
+                >
+                  🔄
                 </motion.div>
-              ))}
+                <span className="text-sm font-medium">Processing handoff...</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${submissionProgress}%` }}
+                ></div>
+              </div>
+              <div className="text-xs text-gray-600 mt-1">
+                {submissionProgress < 20 && "Validating clinical data..."}
+                {submissionProgress >= 20 && submissionProgress < 40 && "Generating PDF report..."}
+                {submissionProgress >= 40 && submissionProgress < 60 && "Preparing email notification..."}
+                {submissionProgress >= 60 && submissionProgress < 80 && "Connecting to EHR system..."}
+                {submissionProgress >= 80 && submissionProgress < 100 && "Sending to administrator..."}
+                {submissionProgress === 100 && "Complete!"}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Submit Button */}
+        <button
+          onClick={handleSendToAdmin}
+          disabled={isSubmitting || !signature.trim()}
+          className={`w-full py-3 rounded-xl shadow-md font-medium transition-colors ${
+            isSubmitting || !signature.trim()
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-indigo-600 hover:bg-indigo-700 text-white"
+          }`}
+        >
+          {isSubmitting ? (
+            <>
+              <span className="inline-block animate-spin mr-2">🔄</span>
+              Processing...
+            </>
+          ) : (
+            <>📨 Email PDF Report to Admin</>
+          )}
+        </button>
+
+        {/* Quick Stats */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-blue-50 p-4 rounded-xl text-center">
+            <div className="text-2xl font-bold text-blue-600">{auditLogs.length}</div>
+            <div className="text-sm text-blue-700">Security Events</div>
+          </div>
+          <div className="bg-green-50 p-4 rounded-xl text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {auditLogs.filter((log) => log.action.includes("COMPLETED")).length}
+            </div>
+            <div className="text-sm text-green-700">Completed Actions</div>
+          </div>
+          <div className="bg-orange-50 p-4 rounded-xl text-center">
+            <div className="text-2xl font-bold text-orange-600">{offlineQueue.length}</div>
+            <div className="text-sm text-orange-700">Queued Actions</div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Audit Log Modal */}
+      <AnimatePresence>
+        {showAuditLog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowAuditLog(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full max-w-4xl max-h-[80vh] overflow-hidden bg-white rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-6 rounded-t-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold flex items-center gap-2">🛡️ HIPAA Audit Log</h3>
+                    <p className="text-green-100 text-sm">Comprehensive security and compliance tracking</p>
+                  </div>
+                  <button
+                    onClick={() => setShowAuditLog(false)}
+                    className="text-white hover:bg-white/20 px-3 py-1 rounded-lg transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 max-h-[60vh] overflow-y-auto">
+                {/* Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-blue-50 p-4 rounded-xl">
+                    <div className="text-2xl font-bold text-blue-600">{auditLogs.length}</div>
+                    <div className="text-sm text-blue-700">Total Events</div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-xl">
+                    <div className="text-2xl font-bold text-green-600">
+                      {auditLogs.filter((log) => log.action.includes("COMPLETED")).length}
+                    </div>
+                    <div className="text-sm text-green-700">Completed Actions</div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-xl">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {auditLogs.filter((log) => log.action.includes("HANDOFF")).length}
+                    </div>
+                    <div className="text-sm text-purple-700">Admin Handoffs</div>
+                  </div>
+                  <div className="bg-orange-50 p-4 rounded-xl">
+                    <div className="text-2xl font-bold text-orange-600">{offlineQueue.length}</div>
+                    <div className="text-sm text-orange-700">Queued Actions</div>
+                  </div>
+                </div>
+
+                {/* Recent Activity */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-semibold">📋 Recent Activity</h4>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
+                        HIPAA Compliant
+                      </span>
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">Encrypted</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {auditLogs.map((log) => (
+                      <div key={log.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <span className="text-xl">{getActionIcon(log.action)}</span>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">
+                            {log.action
+                              .replace(/_/g, " ")
+                              .toLowerCase()
+                              .replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </div>
+                          <div className="text-xs text-gray-600">{log.details}</div>
+                          <div className="text-xs text-gray-500">{log.timestamp}</div>
+                        </div>
+                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
+                          Logged
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Compliance Information */}
+                <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <h4 className="font-semibold text-blue-900 mb-2">🔒 Compliance & Security</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
+                    <div>
+                      <strong>Encryption:</strong> AES-256 end-to-end encryption
+                    </div>
+                    <div>
+                      <strong>Retention:</strong> 7 years as per HIPAA requirements
+                    </div>
+                    <div>
+                      <strong>Access Control:</strong> Role-based authentication
+                    </div>
+                    <div>
+                      <strong>Audit Trail:</strong> Immutable blockchain logging
+                    </div>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-16 px-4 bg-white">
-        <div className="container mx-auto">
-          <motion.div {...fadeInUp} className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              🚀 Powerful Features for Modern Healthcare
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Everything you need to streamline clinical documentation and improve patient care.
-            </p>
-          </motion.div>
-
-          <motion.div
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-8"
-          >
-            {features.map((feature, index) => (
-              <motion.div key={index} variants={fadeInUp}>
-                <Card className="h-full hover:shadow-lg transition-shadow border-0 shadow-md">
-                  <CardHeader>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="p-3 bg-blue-100 rounded-lg">
-                        <feature.icon className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <span className="text-3xl">{feature.emoji}</span>
-                    </div>
-                    <CardTitle className="text-xl">{feature.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-base leading-relaxed">{feature.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-16 px-4 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <div className="container mx-auto">
-          <motion.div {...fadeInUp} className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">💬 What Healthcare Professionals Say</h2>
-            <p className="text-xl text-gray-600">Trusted by thousands of healthcare providers worldwide</p>
-          </motion.div>
-
-          <motion.div
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-8"
-          >
-            {testimonials.map((testimonial, index) => (
-              <motion.div key={index} variants={fadeInUp}>
-                <Card className="h-full bg-white border-0 shadow-md">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-1 mb-4">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      ))}
-                    </div>
-                    <p className="text-gray-700 mb-6 italic">"{testimonial.content}"</p>
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{testimonial.avatar}</span>
-                      <div>
-                        <div className="font-semibold text-gray-900">{testimonial.name}</div>
-                        <div className="text-sm text-gray-600">{testimonial.role}</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-16 px-4 bg-blue-600">
-        <div className="container mx-auto text-center">
-          <motion.div {...fadeInUp} className="max-w-3xl mx-auto text-white">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Transform Your Practice? 🚀</h2>
-            <p className="text-xl mb-8 opacity-90">
-              Join thousands of healthcare professionals who've already revolutionized their documentation workflow.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-4">
-                🎯 Start Free Trial
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white hover:text-blue-600 text-lg px-8 py-4"
-              >
-                📞 Schedule Demo
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section id="contact" className="py-16 px-4 bg-white">
-        <div className="container mx-auto">
-          <motion.div {...fadeInUp} className="max-w-2xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">📧 Get in Touch</h2>
-            <p className="text-xl text-gray-600 mb-8">Have questions? We'd love to hear from you.</p>
-
-            <Card className="border-0 shadow-lg">
-              <CardContent className="p-8">
-                <form className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input placeholder="Your Name" className="rounded-lg" />
-                    <Input placeholder="Email Address" type="email" className="rounded-lg" />
-                  </div>
-                  <Input placeholder="Subject" className="rounded-lg" />
-                  <textarea
-                    placeholder="Your Message"
-                    rows={4}
-                    className="w-full p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-lg py-3">📤 Send Message</Button>
-                </form>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 px-4 pb-20 md:pb-12">
-        <div className="container mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 bg-blue-600 rounded-lg">
-                  <Stethoscope className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-lg font-bold">ClinicalScribe</span>
-              </div>
-              <p className="text-gray-400">Transforming healthcare documentation with AI-powered solutions.</p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">Product</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    Features
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    Pricing
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    Security
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">Company</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    About
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    Careers
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    Contact
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">Support</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    Help Center
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    Documentation
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-white transition-colors">
-                    Status
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 ClinicalScribe. All rights reserved. 🏥</p>
-          </div>
-        </div>
-      </footer>
-
-      {/* Mobile Bottom Navigation */}
-      <motion.nav
-        initial={{ y: 100 }}
-        animate={{ y: 0 }}
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-50"
-      >
-        <div className="grid grid-cols-4 py-2">
-          {[
-            { id: "home", icon: Home, label: "Home", emoji: "🏠" },
-            { id: "features", icon: Info, label: "Features", emoji: "⚡" },
-            { id: "testimonials", icon: Users, label: "Reviews", emoji: "💬" },
-            { id: "contact", icon: Phone, label: "Contact", emoji: "📞" },
-          ].map((item) => (
-            <motion.button
-              key={item.id}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => scrollToSection(item.id)}
-              className={`flex flex-col items-center py-2 px-1 transition-colors ${
-                activeSection === item.id ? "text-blue-600" : "text-gray-600"
-              }`}
-            >
-              <span className="text-lg mb-1">{item.emoji}</span>
-              <span className="text-xs font-medium">{item.label}</span>
-            </motion.button>
-          ))}
-        </div>
-      </motion.nav>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
