@@ -66,6 +66,92 @@ export default function ClinicalScribeDashboard() {
     },
   ]
 
+  const styles = {
+    container: {
+      padding: "24px",
+      background: "linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)",
+      minHeight: "100vh",
+      fontFamily: "system-ui, -apple-system, sans-serif",
+    },
+    card: {
+      backgroundColor: "white",
+      borderRadius: "16px",
+      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+      padding: "24px",
+      marginBottom: "16px",
+    },
+    button: {
+      padding: "12px 24px",
+      borderRadius: "12px",
+      border: "none",
+      fontWeight: "600",
+      cursor: "pointer",
+      transition: "all 0.2s",
+      fontSize: "14px",
+    },
+    buttonPrimary: {
+      backgroundColor: "#3b82f6",
+      color: "white",
+    },
+    buttonSecondary: {
+      backgroundColor: "white",
+      color: "#374151",
+      border: "1px solid #d1d5db",
+    },
+    input: {
+      width: "100%",
+      padding: "12px",
+      border: "1px solid #d1d5db",
+      borderRadius: "12px",
+      fontSize: "14px",
+      outline: "none",
+    },
+    badge: {
+      padding: "4px 8px",
+      borderRadius: "6px",
+      fontSize: "12px",
+      fontWeight: "500",
+    },
+    progressBar: {
+      width: "100%",
+      height: "8px",
+      backgroundColor: "#e5e7eb",
+      borderRadius: "4px",
+      overflow: "hidden",
+    },
+    progressFill: {
+      height: "100%",
+      backgroundColor: "#3b82f6",
+      transition: "width 0.3s ease",
+    },
+    modal: {
+      position: "fixed" as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "16px",
+      zIndex: 50,
+    },
+    modalContent: {
+      backgroundColor: "white",
+      borderRadius: "16px",
+      maxWidth: "800px",
+      width: "100%",
+      maxHeight: "80vh",
+      overflow: "hidden",
+    },
+    header: {
+      background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+      color: "white",
+      padding: "24px",
+    },
+  }
+
   const handleNextStep = () => {
     if (step < onboardingSteps.length - 1) {
       setStep(step + 1)
@@ -187,17 +273,44 @@ export default function ClinicalScribeDashboard() {
   if (showOnboarding) {
     const current = onboardingSteps[step]
     return (
-      <motion.div className="min-h-screen bg-gradient-to-br from-white to-blue-50 flex flex-col justify-center items-center text-center px-6">
+      <motion.div
+        style={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #ffffff 0%, #dbeafe 100%)",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          textAlign: "center",
+          padding: "24px",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+        }}
+      >
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white p-8 rounded-2xl shadow-lg max-w-md"
+          style={{
+            backgroundColor: "white",
+            padding: "32px",
+            borderRadius: "16px",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+            maxWidth: "400px",
+            width: "100%",
+          }}
         >
-          <h2 className="text-2xl font-bold mb-2">{current.title}</h2>
-          <p className="text-gray-700 mb-6">{current.description}</p>
+          <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "8px", color: "#111827" }}>
+            {current.title}
+          </h2>
+          <p style={{ color: "#6b7280", marginBottom: "24px", lineHeight: "1.5" }}>{current.description}</p>
           <button
             onClick={handleNextStep}
-            className="bg-blue-600 text-white px-6 py-2 rounded-xl shadow hover:bg-blue-700 transition-colors"
+            style={{
+              ...styles.button,
+              ...styles.buttonPrimary,
+              width: "100%",
+            }}
+            onMouseOver={(e) => (e.target.style.backgroundColor = "#2563eb")}
+            onMouseOut={(e) => (e.target.style.backgroundColor = "#3b82f6")}
           >
             {step < onboardingSteps.length - 1 ? "Next" : "Get Started"}
           </button>
@@ -207,7 +320,7 @@ export default function ClinicalScribeDashboard() {
   }
 
   return (
-    <div className="p-4 md:p-6 bg-gradient-to-br from-white to-gray-100 min-h-screen">
+    <div style={styles.container}>
       {/* Offline Mode Banner */}
       <AnimatePresence>
         {!online && (
@@ -215,24 +328,36 @@ export default function ClinicalScribeDashboard() {
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
-            className="mb-4"
+            style={{
+              backgroundColor: "#fef3c7",
+              border: "1px solid #f59e0b",
+              borderRadius: "16px",
+              padding: "16px",
+              marginBottom: "16px",
+            }}
           >
-            <div className="bg-orange-100 border border-orange-200 rounded-2xl p-4">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">☁️</span>
-                <div className="flex-1">
-                  <div className="font-semibold text-orange-900">🔄 Offline Mode Active</div>
-                  <div className="text-sm text-orange-700">
-                    You're currently offline. Actions will be queued and synced when connection is restored.
-                    {offlineQueue.length > 0 && (
-                      <span className="ml-2 font-medium">{offlineQueue.length} action(s) queued for sync</span>
-                    )}
-                  </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "24px" }}>☁️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: "600", color: "#92400e" }}>🔄 Offline Mode Active</div>
+                <div style={{ fontSize: "14px", color: "#b45309" }}>
+                  You're currently offline. Actions will be queued and synced when connection is restored.
+                  {offlineQueue.length > 0 && (
+                    <span style={{ marginLeft: "8px", fontWeight: "500" }}>
+                      {offlineQueue.length} action(s) queued for sync
+                    </span>
+                  )}
                 </div>
-                <span className="bg-orange-200 text-orange-800 px-2 py-1 rounded-lg text-sm font-medium">
-                  {offlineQueue.length} Queued
-                </span>
               </div>
+              <span
+                style={{
+                  ...styles.badge,
+                  backgroundColor: "#fbbf24",
+                  color: "#92400e",
+                }}
+              >
+                {offlineQueue.length} Queued
+              </span>
             </div>
           </motion.div>
         )}
@@ -242,28 +367,64 @@ export default function ClinicalScribeDashboard() {
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "24px",
+          flexWrap: "wrap",
+          gap: "16px",
+        }}
       >
-        <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-800">ClinicalScribe 🧬</h1>
-          <span className="bg-gray-200 text-gray-800 px-2 py-1 rounded-lg text-xs font-medium">
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <h1 style={{ fontSize: "32px", fontWeight: "bold", color: "#111827", margin: 0 }}>ClinicalScribe 🧬</h1>
+          <span
+            style={{
+              ...styles.badge,
+              backgroundColor: online ? "#d1fae5" : "#fee2e2",
+              color: online ? "#065f46" : "#991b1b",
+            }}
+          >
             {online ? "🟢 Online" : "🔴 Offline"}
           </span>
         </div>
 
         {/* Secure Logging Notice */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-xl border border-green-200">
-            <span className="text-green-600">🔒</span>
-            <span className="text-green-600">🛡️</span>
-            <span className="text-sm font-medium text-green-900">Secure Logging Active</span>
-            <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              backgroundColor: "#ecfdf5",
+              padding: "12px 16px",
+              borderRadius: "12px",
+              border: "1px solid #a7f3d0",
+            }}
+          >
+            <span>🔒</span>
+            <span>🛡️</span>
+            <span style={{ fontSize: "14px", fontWeight: "500", color: "#065f46" }}>Secure Logging Active</span>
+            <span
+              style={{
+                ...styles.badge,
+                backgroundColor: "#a7f3d0",
+                color: "#065f46",
+              }}
+            >
               {auditLogs.length} Events
             </span>
           </div>
           <button
             onClick={() => setShowAuditLog(true)}
-            className="text-green-700 hover:text-green-800 px-3 py-2 rounded-lg hover:bg-green-50 transition-colors text-sm"
+            style={{
+              ...styles.button,
+              backgroundColor: "#ecfdf5",
+              color: "#065f46",
+              border: "1px solid #a7f3d0",
+            }}
+            onMouseOver={(e) => (e.target.style.backgroundColor = "#d1fae5")}
+            onMouseOut={(e) => (e.target.style.backgroundColor = "#ecfdf5")}
           >
             👁️ View Audit Log
           </button>
@@ -271,17 +432,16 @@ export default function ClinicalScribeDashboard() {
       </motion.header>
 
       {/* Navigation */}
-      <div className="flex gap-2 mb-6">
+      <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
         <button
           onClick={() => {
             setShowSOAPBuilder(false)
             logAuditEvent("DASHBOARD_VIEW_SELECTED", "User switched to dashboard view")
           }}
-          className={`px-4 py-2 rounded-2xl shadow-md transition-colors ${
-            !showSOAPBuilder
-              ? "bg-blue-600 text-white"
-              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
-          }`}
+          style={{
+            ...styles.button,
+            ...(showSOAPBuilder ? styles.buttonSecondary : styles.buttonPrimary),
+          }}
         >
           📊 Dashboard
         </button>
@@ -290,47 +450,59 @@ export default function ClinicalScribeDashboard() {
             setShowSOAPBuilder(true)
             logAuditEvent("SOAP_BUILDER_VIEW_SELECTED", "User switched to SOAP builder view")
           }}
-          className={`px-4 py-2 rounded-2xl shadow-md transition-colors ${
-            showSOAPBuilder
-              ? "bg-blue-600 text-white"
-              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
-          }`}
+          style={{
+            ...styles.button,
+            ...(!showSOAPBuilder ? styles.buttonSecondary : styles.buttonPrimary),
+          }}
         >
           🧾 SOAP Builder
         </button>
       </div>
 
       {/* Main Content */}
-      <motion.div className="bg-white p-6 rounded-2xl shadow-md max-w-3xl mx-auto">
-        <h2 className="text-xl font-semibold mb-3">📤 Send to Admin / EHR Push</h2>
+      <motion.div style={{ ...styles.card, maxWidth: "800px", margin: "0 auto" }}>
+        <h2 style={{ fontSize: "20px", fontWeight: "600", marginBottom: "12px", color: "#111827" }}>
+          📤 Send to Admin / EHR Push
+        </h2>
 
         {/* Patient Summary */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-xl">
-          <h3 className="font-semibold mb-3">📋 Patient Summary</h3>
-          <div className="space-y-2 text-sm">
-            <div>
+        <div
+          style={{
+            marginBottom: "24px",
+            padding: "16px",
+            backgroundColor: "#f9fafb",
+            borderRadius: "12px",
+          }}
+        >
+          <h3 style={{ fontWeight: "600", marginBottom: "12px", color: "#111827" }}>📋 Patient Summary</h3>
+          <div style={{ fontSize: "14px" }}>
+            <div style={{ marginBottom: "8px" }}>
               <strong>Original (Spanish):</strong>
-              <p className="text-gray-700 mt-1">{transcribedText}</p>
+              <p style={{ color: "#6b7280", marginTop: "4px", margin: 0 }}>{transcribedText}</p>
             </div>
             <div>
               <strong>Translation (English):</strong>
-              <p className="text-gray-700 mt-1">{translatedText}</p>
+              <p style={{ color: "#6b7280", marginTop: "4px", margin: 0 }}>{translatedText}</p>
             </div>
           </div>
         </div>
 
         {/* Nurse Signature */}
-        <div className="mb-4">
-          <label className="block font-medium mb-1">🖋️ Nurse Signature</label>
+        <div style={{ marginBottom: "16px" }}>
+          <label style={{ display: "block", fontWeight: "500", marginBottom: "4px", color: "#111827" }}>
+            🖋️ Nurse Signature
+          </label>
           <input
             type="text"
             placeholder="Enter your full name"
-            className="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            style={styles.input}
             value={signature}
             onChange={(e) => {
               setSignature(e.target.value)
               logAuditEvent("SIGNATURE_FIELD_MODIFIED", "Nurse signature field updated")
             }}
+            onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
+            onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
           />
         </div>
 
@@ -341,25 +513,27 @@ export default function ClinicalScribeDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="mb-4"
+              style={{ marginBottom: "16px" }}
             >
-              <div className="flex items-center gap-2 mb-2">
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-                  className="text-blue-600"
+                  style={{ color: "#3b82f6" }}
                 >
                   🔄
                 </motion.div>
-                <span className="text-sm font-medium">Processing handoff...</span>
+                <span style={{ fontSize: "14px", fontWeight: "500" }}>Processing handoff...</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div style={styles.progressBar}>
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${submissionProgress}%` }}
-                ></div>
+                  style={{
+                    ...styles.progressFill,
+                    width: `${submissionProgress}%`,
+                  }}
+                />
               </div>
-              <div className="text-xs text-gray-600 mt-1">
+              <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
                 {submissionProgress < 20 && "Validating clinical data..."}
                 {submissionProgress >= 20 && submissionProgress < 40 && "Generating PDF report..."}
                 {submissionProgress >= 40 && submissionProgress < 60 && "Preparing email notification..."}
@@ -375,37 +549,67 @@ export default function ClinicalScribeDashboard() {
         <button
           onClick={handleSendToAdmin}
           disabled={isSubmitting || !signature.trim()}
-          className={`w-full py-3 rounded-xl shadow-md font-medium transition-colors ${
-            isSubmitting || !signature.trim()
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-              : "bg-indigo-600 hover:bg-indigo-700 text-white"
-          }`}
+          style={{
+            ...styles.button,
+            width: "100%",
+            backgroundColor: isSubmitting || !signature.trim() ? "#d1d5db" : "#6366f1",
+            color: isSubmitting || !signature.trim() ? "#9ca3af" : "white",
+            cursor: isSubmitting || !signature.trim() ? "not-allowed" : "pointer",
+          }}
         >
           {isSubmitting ? (
             <>
-              <span className="inline-block animate-spin mr-2">🔄</span>
+              <span style={{ display: "inline-block", marginRight: "8px" }}>🔄</span>
               Processing...
             </>
           ) : (
-            <>📨 Email PDF Report to Admin</>
+            "📨 Email PDF Report to Admin"
           )}
         </button>
 
         {/* Quick Stats */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-blue-50 p-4 rounded-xl text-center">
-            <div className="text-2xl font-bold text-blue-600">{auditLogs.length}</div>
-            <div className="text-sm text-blue-700">Security Events</div>
+        <div
+          style={{
+            marginTop: "24px",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "16px",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#dbeafe",
+              padding: "16px",
+              borderRadius: "12px",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#1d4ed8" }}>{auditLogs.length}</div>
+            <div style={{ fontSize: "14px", color: "#1e40af" }}>Security Events</div>
           </div>
-          <div className="bg-green-50 p-4 rounded-xl text-center">
-            <div className="text-2xl font-bold text-green-600">
+          <div
+            style={{
+              backgroundColor: "#dcfce7",
+              padding: "16px",
+              borderRadius: "12px",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#16a34a" }}>
               {auditLogs.filter((log) => log.action.includes("COMPLETED")).length}
             </div>
-            <div className="text-sm text-green-700">Completed Actions</div>
+            <div style={{ fontSize: "14px", color: "#15803d" }}>Completed Actions</div>
           </div>
-          <div className="bg-orange-50 p-4 rounded-xl text-center">
-            <div className="text-2xl font-bold text-orange-600">{offlineQueue.length}</div>
-            <div className="text-sm text-orange-700">Queued Actions</div>
+          <div
+            style={{
+              backgroundColor: "#fed7aa",
+              padding: "16px",
+              borderRadius: "12px",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#ea580c" }}>{offlineQueue.length}</div>
+            <div style={{ fontSize: "14px", color: "#c2410c" }}>Queued Actions</div>
           </div>
         </div>
       </motion.div>
@@ -417,26 +621,33 @@ export default function ClinicalScribeDashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            style={styles.modal}
             onClick={() => setShowAuditLog(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-4xl max-h-[80vh] overflow-hidden bg-white rounded-2xl shadow-2xl"
+              style={styles.modalContent}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-6 rounded-t-2xl">
-                <div className="flex items-center justify-between">
+              <div style={styles.header}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <h3 className="text-xl font-bold flex items-center gap-2">🛡️ HIPAA Audit Log</h3>
-                    <p className="text-green-100 text-sm">Comprehensive security and compliance tracking</p>
+                    <h3 style={{ fontSize: "20px", fontWeight: "bold", margin: 0 }}>🛡️ HIPAA Audit Log</h3>
+                    <p style={{ margin: "4px 0 0 0", opacity: 0.9 }}>Comprehensive security and compliance tracking</p>
                   </div>
                   <button
                     onClick={() => setShowAuditLog(false)}
-                    className="text-white hover:bg-white/20 px-3 py-1 rounded-lg transition-colors"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.2)",
+                      border: "none",
+                      color: "white",
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                    }}
                   >
                     ✕
                   </button>
@@ -444,69 +655,108 @@ export default function ClinicalScribeDashboard() {
               </div>
 
               {/* Content */}
-              <div className="p-6 max-h-[60vh] overflow-y-auto">
+              <div style={{ padding: "24px", maxHeight: "60vh", overflowY: "auto" }}>
                 {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-blue-50 p-4 rounded-xl">
-                    <div className="text-2xl font-bold text-blue-600">{auditLogs.length}</div>
-                    <div className="text-sm text-blue-700">Total Events</div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                    gap: "16px",
+                    marginBottom: "24px",
+                  }}
+                >
+                  <div style={{ backgroundColor: "#dbeafe", padding: "16px", borderRadius: "12px" }}>
+                    <div style={{ fontSize: "24px", fontWeight: "bold", color: "#1d4ed8" }}>{auditLogs.length}</div>
+                    <div style={{ fontSize: "14px", color: "#1e40af" }}>Total Events</div>
                   </div>
-                  <div className="bg-green-50 p-4 rounded-xl">
-                    <div className="text-2xl font-bold text-green-600">
+                  <div style={{ backgroundColor: "#dcfce7", padding: "16px", borderRadius: "12px" }}>
+                    <div style={{ fontSize: "24px", fontWeight: "bold", color: "#16a34a" }}>
                       {auditLogs.filter((log) => log.action.includes("COMPLETED")).length}
                     </div>
-                    <div className="text-sm text-green-700">Completed Actions</div>
+                    <div style={{ fontSize: "14px", color: "#15803d" }}>Completed Actions</div>
                   </div>
-                  <div className="bg-purple-50 p-4 rounded-xl">
-                    <div className="text-2xl font-bold text-purple-600">
+                  <div style={{ backgroundColor: "#e9d5ff", padding: "16px", borderRadius: "12px" }}>
+                    <div style={{ fontSize: "24px", fontWeight: "bold", color: "#7c3aed" }}>
                       {auditLogs.filter((log) => log.action.includes("HANDOFF")).length}
                     </div>
-                    <div className="text-sm text-purple-700">Admin Handoffs</div>
+                    <div style={{ fontSize: "14px", color: "#6d28d9" }}>Admin Handoffs</div>
                   </div>
-                  <div className="bg-orange-50 p-4 rounded-xl">
-                    <div className="text-2xl font-bold text-orange-600">{offlineQueue.length}</div>
-                    <div className="text-sm text-orange-700">Queued Actions</div>
+                  <div style={{ backgroundColor: "#fed7aa", padding: "16px", borderRadius: "12px" }}>
+                    <div style={{ fontSize: "24px", fontWeight: "bold", color: "#ea580c" }}>{offlineQueue.length}</div>
+                    <div style={{ fontSize: "14px", color: "#c2410c" }}>Queued Actions</div>
                   </div>
                 </div>
 
                 {/* Recent Activity */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-lg font-semibold">📋 Recent Activity</h4>
-                    <div className="flex items-center gap-2">
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <h4 style={{ fontSize: "18px", fontWeight: "600", margin: 0 }}>📋 Recent Activity</h4>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <span style={{ ...styles.badge, backgroundColor: "#dcfce7", color: "#15803d" }}>
                         HIPAA Compliant
                       </span>
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">Encrypted</span>
+                      <span style={{ ...styles.badge, backgroundColor: "#dbeafe", color: "#1e40af" }}>Encrypted</span>
                     </div>
                   </div>
 
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                  <div style={{ maxHeight: "300px", overflowY: "auto" }}>
                     {auditLogs.map((log) => (
-                      <div key={log.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                        <span className="text-xl">{getActionIcon(log.action)}</span>
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">
+                      <div
+                        key={log.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "12px",
+                          padding: "12px",
+                          backgroundColor: "#f9fafb",
+                          borderRadius: "8px",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        <span style={{ fontSize: "20px" }}>{getActionIcon(log.action)}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: "500", fontSize: "14px" }}>
                             {log.action
                               .replace(/_/g, " ")
                               .toLowerCase()
                               .replace(/\b\w/g, (l) => l.toUpperCase())}
                           </div>
-                          <div className="text-xs text-gray-600">{log.details}</div>
-                          <div className="text-xs text-gray-500">{log.timestamp}</div>
+                          <div style={{ fontSize: "12px", color: "#6b7280" }}>{log.details}</div>
+                          <div style={{ fontSize: "12px", color: "#9ca3af" }}>{log.timestamp}</div>
                         </div>
-                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
-                          Logged
-                        </span>
+                        <span style={{ ...styles.badge, backgroundColor: "#dcfce7", color: "#15803d" }}>Logged</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Compliance Information */}
-                <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <h4 className="font-semibold text-blue-900 mb-2">🔒 Compliance & Security</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
+                <div
+                  style={{
+                    marginTop: "24px",
+                    backgroundColor: "#dbeafe",
+                    border: "1px solid #93c5fd",
+                    borderRadius: "12px",
+                    padding: "16px",
+                  }}
+                >
+                  <h4 style={{ fontWeight: "600", color: "#1e3a8a", marginBottom: "8px" }}>🔒 Compliance & Security</h4>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                      gap: "16px",
+                      fontSize: "14px",
+                      color: "#1e40af",
+                    }}
+                  >
                     <div>
                       <strong>Encryption:</strong> AES-256 end-to-end encryption
                     </div>
