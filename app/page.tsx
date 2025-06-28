@@ -66,92 +66,6 @@ export default function ClinicalScribeDashboard() {
     },
   ]
 
-  const styles = {
-    container: {
-      padding: "24px",
-      background: "linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)",
-      minHeight: "100vh",
-      fontFamily: "system-ui, -apple-system, sans-serif",
-    },
-    card: {
-      backgroundColor: "white",
-      borderRadius: "16px",
-      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-      padding: "24px",
-      marginBottom: "16px",
-    },
-    button: {
-      padding: "12px 24px",
-      borderRadius: "12px",
-      border: "none",
-      fontWeight: "600",
-      cursor: "pointer",
-      transition: "all 0.2s",
-      fontSize: "14px",
-    },
-    buttonPrimary: {
-      backgroundColor: "#3b82f6",
-      color: "white",
-    },
-    buttonSecondary: {
-      backgroundColor: "white",
-      color: "#374151",
-      border: "1px solid #d1d5db",
-    },
-    input: {
-      width: "100%",
-      padding: "12px",
-      border: "1px solid #d1d5db",
-      borderRadius: "12px",
-      fontSize: "14px",
-      outline: "none",
-    },
-    badge: {
-      padding: "4px 8px",
-      borderRadius: "6px",
-      fontSize: "12px",
-      fontWeight: "500",
-    },
-    progressBar: {
-      width: "100%",
-      height: "8px",
-      backgroundColor: "#e5e7eb",
-      borderRadius: "4px",
-      overflow: "hidden",
-    },
-    progressFill: {
-      height: "100%",
-      backgroundColor: "#3b82f6",
-      transition: "width 0.3s ease",
-    },
-    modal: {
-      position: "fixed" as const,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "16px",
-      zIndex: 50,
-    },
-    modalContent: {
-      backgroundColor: "white",
-      borderRadius: "16px",
-      maxWidth: "800px",
-      width: "100%",
-      maxHeight: "80vh",
-      overflow: "hidden",
-    },
-    header: {
-      background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
-      color: "white",
-      padding: "24px",
-    },
-  }
-
   const handleNextStep = () => {
     if (step < onboardingSteps.length - 1) {
       setStep(step + 1)
@@ -305,8 +219,15 @@ export default function ClinicalScribeDashboard() {
           <button
             onClick={handleNextStep}
             style={{
-              ...styles.button,
-              ...styles.buttonPrimary,
+              padding: "12px 24px",
+              borderRadius: "12px",
+              border: "none",
+              fontWeight: "600",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              fontSize: "14px",
+              backgroundColor: "#3b82f6",
+              color: "white",
               width: "100%",
             }}
             onMouseOver={(e) => (e.target.style.backgroundColor = "#2563eb")}
@@ -320,7 +241,14 @@ export default function ClinicalScribeDashboard() {
   }
 
   return (
-    <div style={styles.container}>
+    <div
+      style={{
+        padding: "24px",
+        background: "linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)",
+        minHeight: "100vh",
+        fontFamily: "system-ui, -apple-system, sans-serif",
+      }}
+    >
       {/* Offline Mode Banner */}
       <AnimatePresence>
         {!online && (
@@ -351,7 +279,10 @@ export default function ClinicalScribeDashboard() {
               </div>
               <span
                 style={{
-                  ...styles.badge,
+                  padding: "4px 8px",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: "500",
                   backgroundColor: "#fbbf24",
                   color: "#92400e",
                 }}
@@ -380,7 +311,10 @@ export default function ClinicalScribeDashboard() {
           <h1 style={{ fontSize: "32px", fontWeight: "bold", color: "#111827", margin: 0 }}>ClinicalScribe 🧬</h1>
           <span
             style={{
-              ...styles.badge,
+              padding: "4px 8px",
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: "500",
               backgroundColor: online ? "#d1fae5" : "#fee2e2",
               color: online ? "#065f46" : "#991b1b",
             }}
@@ -407,7 +341,10 @@ export default function ClinicalScribeDashboard() {
             <span style={{ fontSize: "14px", fontWeight: "500", color: "#065f46" }}>Secure Logging Active</span>
             <span
               style={{
-                ...styles.badge,
+                padding: "4px 8px",
+                borderRadius: "6px",
+                fontSize: "12px",
+                fontWeight: "500",
                 backgroundColor: "#a7f3d0",
                 color: "#065f46",
               }}
@@ -418,10 +355,15 @@ export default function ClinicalScribeDashboard() {
           <button
             onClick={() => setShowAuditLog(true)}
             style={{
-              ...styles.button,
+              padding: "12px 24px",
+              borderRadius: "12px",
+              border: "1px solid #a7f3d0",
+              fontWeight: "600",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              fontSize: "14px",
               backgroundColor: "#ecfdf5",
               color: "#065f46",
-              border: "1px solid #a7f3d0",
             }}
             onMouseOver={(e) => (e.target.style.backgroundColor = "#d1fae5")}
             onMouseOut={(e) => (e.target.style.backgroundColor = "#ecfdf5")}
@@ -439,8 +381,15 @@ export default function ClinicalScribeDashboard() {
             logAuditEvent("DASHBOARD_VIEW_SELECTED", "User switched to dashboard view")
           }}
           style={{
-            ...styles.button,
-            ...(showSOAPBuilder ? styles.buttonSecondary : styles.buttonPrimary),
+            padding: "12px 24px",
+            borderRadius: "12px",
+            border: showSOAPBuilder ? "1px solid #d1d5db" : "none",
+            fontWeight: "600",
+            cursor: "pointer",
+            transition: "all 0.2s",
+            fontSize: "14px",
+            backgroundColor: showSOAPBuilder ? "white" : "#3b82f6",
+            color: showSOAPBuilder ? "#374151" : "white",
           }}
         >
           📊 Dashboard
@@ -451,8 +400,15 @@ export default function ClinicalScribeDashboard() {
             logAuditEvent("SOAP_BUILDER_VIEW_SELECTED", "User switched to SOAP builder view")
           }}
           style={{
-            ...styles.button,
-            ...(!showSOAPBuilder ? styles.buttonSecondary : styles.buttonPrimary),
+            padding: "12px 24px",
+            borderRadius: "12px",
+            border: !showSOAPBuilder ? "1px solid #d1d5db" : "none",
+            fontWeight: "600",
+            cursor: "pointer",
+            transition: "all 0.2s",
+            fontSize: "14px",
+            backgroundColor: !showSOAPBuilder ? "white" : "#3b82f6",
+            color: !showSOAPBuilder ? "#374151" : "white",
           }}
         >
           🧾 SOAP Builder
@@ -460,7 +416,16 @@ export default function ClinicalScribeDashboard() {
       </div>
 
       {/* Main Content */}
-      <motion.div style={{ ...styles.card, maxWidth: "800px", margin: "0 auto" }}>
+      <motion.div
+        style={{
+          backgroundColor: "white",
+          borderRadius: "16px",
+          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+          padding: "24px",
+          maxWidth: "800px",
+          margin: "0 auto",
+        }}
+      >
         <h2 style={{ fontSize: "20px", fontWeight: "600", marginBottom: "12px", color: "#111827" }}>
           📤 Send to Admin / EHR Push
         </h2>
@@ -495,7 +460,14 @@ export default function ClinicalScribeDashboard() {
           <input
             type="text"
             placeholder="Enter your full name"
-            style={styles.input}
+            style={{
+              width: "100%",
+              padding: "12px",
+              border: "1px solid #d1d5db",
+              borderRadius: "12px",
+              fontSize: "14px",
+              outline: "none",
+            }}
             value={signature}
             onChange={(e) => {
               setSignature(e.target.value)
@@ -525,10 +497,20 @@ export default function ClinicalScribeDashboard() {
                 </motion.div>
                 <span style={{ fontSize: "14px", fontWeight: "500" }}>Processing handoff...</span>
               </div>
-              <div style={styles.progressBar}>
+              <div
+                style={{
+                  width: "100%",
+                  height: "8px",
+                  backgroundColor: "#e5e7eb",
+                  borderRadius: "4px",
+                  overflow: "hidden",
+                }}
+              >
                 <div
                   style={{
-                    ...styles.progressFill,
+                    height: "100%",
+                    backgroundColor: "#3b82f6",
+                    transition: "width 0.3s ease",
                     width: `${submissionProgress}%`,
                   }}
                 />
@@ -550,11 +532,16 @@ export default function ClinicalScribeDashboard() {
           onClick={handleSendToAdmin}
           disabled={isSubmitting || !signature.trim()}
           style={{
-            ...styles.button,
+            padding: "12px 24px",
+            borderRadius: "12px",
+            border: "none",
+            fontWeight: "600",
+            cursor: isSubmitting || !signature.trim() ? "not-allowed" : "pointer",
+            transition: "all 0.2s",
+            fontSize: "14px",
             width: "100%",
             backgroundColor: isSubmitting || !signature.trim() ? "#d1d5db" : "#6366f1",
             color: isSubmitting || !signature.trim() ? "#9ca3af" : "white",
-            cursor: isSubmitting || !signature.trim() ? "not-allowed" : "pointer",
           }}
         >
           {isSubmitting ? (
@@ -621,18 +608,43 @@ export default function ClinicalScribeDashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            style={styles.modal}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "16px",
+              zIndex: 50,
+            }}
             onClick={() => setShowAuditLog(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              style={styles.modalContent}
+              style={{
+                backgroundColor: "white",
+                borderRadius: "16px",
+                maxWidth: "800px",
+                width: "100%",
+                maxHeight: "80vh",
+                overflow: "hidden",
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div style={styles.header}>
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+                  color: "white",
+                  padding: "24px",
+                }}
+              >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <h3 style={{ fontSize: "20px", fontWeight: "bold", margin: 0 }}>🛡️ HIPAA Audit Log</h3>
@@ -699,10 +711,30 @@ export default function ClinicalScribeDashboard() {
                   >
                     <h4 style={{ fontSize: "18px", fontWeight: "600", margin: 0 }}>📋 Recent Activity</h4>
                     <div style={{ display: "flex", gap: "8px" }}>
-                      <span style={{ ...styles.badge, backgroundColor: "#dcfce7", color: "#15803d" }}>
+                      <span
+                        style={{
+                          padding: "4px 8px",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: "500",
+                          backgroundColor: "#dcfce7",
+                          color: "#15803d",
+                        }}
+                      >
                         HIPAA Compliant
                       </span>
-                      <span style={{ ...styles.badge, backgroundColor: "#dbeafe", color: "#1e40af" }}>Encrypted</span>
+                      <span
+                        style={{
+                          padding: "4px 8px",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: "500",
+                          backgroundColor: "#dbeafe",
+                          color: "#1e40af",
+                        }}
+                      >
+                        Encrypted
+                      </span>
                     </div>
                   </div>
 
@@ -731,7 +763,18 @@ export default function ClinicalScribeDashboard() {
                           <div style={{ fontSize: "12px", color: "#6b7280" }}>{log.details}</div>
                           <div style={{ fontSize: "12px", color: "#9ca3af" }}>{log.timestamp}</div>
                         </div>
-                        <span style={{ ...styles.badge, backgroundColor: "#dcfce7", color: "#15803d" }}>Logged</span>
+                        <span
+                          style={{
+                            padding: "4px 8px",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                            fontWeight: "500",
+                            backgroundColor: "#dcfce7",
+                            color: "#15803d",
+                          }}
+                        >
+                          Logged
+                        </span>
                       </div>
                     ))}
                   </div>

@@ -1,12 +1,19 @@
 {
+  "name": "clinical-scribe",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "lint": "next lint",
+    "start": "next start"
+  },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
     "@radix-ui/react-checkbox": "latest",
     "@radix-ui/react-progress": "latest",
     "@radix-ui/react-select": "latest",
     "@radix-ui/react-separator": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "latest",
