@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
+import Recorder from "@/components/Recorder"
+import { SOAPGenerator } from "@/components/SOAPGenerator"
 import {
   Mic,
   Square,
@@ -21,6 +23,9 @@ import {
   FileText,
   CheckCircle,
   RefreshCw,
+  Stethoscope,
+  ArrowRight,
+  Sparkles,
 } from "lucide-react"
 
 // Language configurations
@@ -39,468 +44,449 @@ const languages = [
 
 // Mock transcription data
 const mockTranscriptions = {
-  en: "Patient reports experiencing chest pain for the past 2 hours. Pain is described as sharp and radiating to the left arm. No shortness of breath reported. Patient has a history of hypertension and takes medication regularly.",
-  es: "El paciente reporta dolor en el pecho durante las últimas 2 horas. El dolor se describe como agudo e irradiándose al brazo izquierdo. No se reporta dificultad para respirar. El paciente tiene antecedentes de hipertensión y toma medicamentos regularmente.",
-  fr: "Le patient signale une douleur thoracique depuis 2 heures. La douleur est décrite comme aiguë et irradiant vers le bras gauche. Aucun essoufflement signalé. Le patient a des antécédents d'hypertension et prend des médicaments régulièrement.",
+  en: "Patient reports experiencing chest pain for the past 2 hours. Pain is described as sharp and radiating to the left arm. No shortness of breath reported. Patient has a history of hypertension and takes medication regularly. Physical examination reveals blood pressure 150/90, heart rate 88 bpm, temperature 98.6°F. Heart sounds are regular with no murmurs. Lungs are clear to auscultation bilaterally. No peripheral edema noted.",
+  es: "El paciente reporta dolor en el pecho durante las últimas 2 horas. El dolor se describe como agudo e irradiándose al brazo izquierdo. No se reporta dificultad para respirar. El paciente tiene antecedentes de hipertensión y toma medicamentos regularmente. El examen físico revela presión arterial 150/90, frecuencia cardíaca 88 lpm, temperatura 98.6°F.",
+  fr: "Le patient signale une douleur thoracique depuis 2 heures. La douleur est décrite comme aiguë et irradiant vers le bras gauche. Aucun essoufflement signalé. Le patient a des antécédents d'hypertension et prend des médicaments régulièrement. L'examen physique révèle une pression artérielle de 150/90, une fréquence cardiaque de 88 bpm.",
 }
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
-  transition: { duration: 0.3 },
+  exit: { opacity: 0, y: -20 }
 }
 
-export default function MultilingualTranscription() {
+export default function TranscriptionPage() {
   const [isRecording, setIsRecording] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [recordingTime, setRecordingTime] = useState(0)
-  const [audioLevel, setAudioLevel] = useState(0)
   const [sourceLanguage, setSourceLanguage] = useState("en")
   const [targetLanguage, setTargetLanguage] = useState("es")
   const [transcriptionText, setTranscriptionText] = useState("")
-  const [translatedText, setTranslatedText] = useState("")
-  const [isTranslating, setIsTranslating] = useState(false)
+  const [translationText, setTranslationText] = useState("")
   const [confidence, setConfidence] = useState(0)
-  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [currentTranscript, setCurrentTranscript] = useState("")
+  const [showSOAPGenerator, setShowSOAPGenerator] = useState(false)
+  const [audioLevel, setAudioLevel] = useState(0)
+  const audioLevelRef = useRef<number>(0)
 
-  const recordingInterval = useRef<NodeJS.Timeout>()
-  const audioLevelInterval = useRef<NodeJS.Timeout>()
-
-  // Simulate recording timer
+  // Simulate audio level animation
   useEffect(() => {
+    let interval: NodeJS.Timeout
     if (isRecording) {
-      recordingInterval.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1)
-      }, 1000)
-
-      // Simulate audio level fluctuation
-      audioLevelInterval.current = setInterval(() => {
-        setAudioLevel(Math.random() * 100)
+      interval = setInterval(() => {
+        audioLevelRef.current = Math.random() * 100
+        setAudioLevel(audioLevelRef.current)
       }, 100)
     } else {
-      if (recordingInterval.current) clearInterval(recordingInterval.current)
-      if (audioLevelInterval.current) clearInterval(audioLevelInterval.current)
       setAudioLevel(0)
     }
-
-    return () => {
-      if (recordingInterval.current) clearInterval(recordingInterval.current)
-      if (audioLevelInterval.current) clearInterval(audioLevelInterval.current)
-    }
+    return () => clearInterval(interval)
   }, [isRecording])
 
-  const startRecording = () => {
+  const handleStartRecording = () => {
     setIsRecording(true)
-    setRecordingTime(0)
     setTranscriptionText("")
-    setTranslatedText("")
+    setTranslationText("")
     setConfidence(0)
-    setDetectedLanguage(null)
+    setShowSOAPGenerator(false)
   }
 
-  const stopRecording = () => {
+  const handleStopRecording = () => {
     setIsRecording(false)
     // Simulate transcription process
     setTimeout(() => {
       const mockText = mockTranscriptions[sourceLanguage as keyof typeof mockTranscriptions] || mockTranscriptions.en
       setTranscriptionText(mockText)
-      setConfidence(languages.find((l) => l.code === sourceLanguage)?.confidence || 95)
-      setDetectedLanguage(sourceLanguage)
-
-      // Auto-translate after transcription
-      setTimeout(() => {
-        setIsTranslating(true)
+      setCurrentTranscript(mockText)
+      setConfidence(languages.find(l => l.code === sourceLanguage)?.confidence || 95)
+      
+      // Auto-translate if different target language
+      if (sourceLanguage !== targetLanguage) {
         setTimeout(() => {
-          const targetMockText =
-            mockTranscriptions[targetLanguage as keyof typeof mockTranscriptions] || mockTranscriptions.en
-          setTranslatedText(targetMockText)
-          setIsTranslating(false)
-        }, 2000)
-      }, 1000)
-    }, 1500)
+          const targetText = mockTranscriptions[targetLanguage as keyof typeof mockTranscriptions] || mockTranscriptions.en
+          setTranslationText(targetText)
+        }, 1500)
+      }
+    }, 2000)
   }
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+  const handleTranscriptGenerated = (transcript: string) => {
+    setCurrentTranscript(transcript)
+    setTranscriptionText(transcript)
+    setConfidence(95)
+    setShowSOAPGenerator(true)
+    // Scroll to SOAP generator
+    setTimeout(() => {
+      const element = document.querySelector('[data-soap-generator]')
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' })
+      }
+    }, 100)
+  }
+
+  const generateSOAPFromTranscript = () => {
+    setShowSOAPGenerator(true)
+    setTimeout(() => {
+      const element = document.querySelector('[data-soap-generator]')
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' })
+      }
+    }, 100)
   }
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
-    // You could add a toast notification here
-  }
-
-  const getLanguageByCode = (code: string) => {
-    return languages.find((l) => l.code === code)
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4">
-      <div className="container mx-auto max-w-6xl">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-8"
+        >
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl">
+            <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl">
               <Languages className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">🔤 Multilingual Transcription Studio</h1>
+            <h1 className="text-4xl font-bold text-blue-900 dark:text-blue-100">
+              Medical Transcription & Translation
+            </h1>
           </div>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Record patient conversations in any language and get instant transcription with real-time translation
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Real-time multilingual transcription with AI-powered SOAP note generation
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recording Controls */}
-          <motion.div {...fadeInUp} className="lg:col-span-1">
-            <Card className="h-fit sticky top-4">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">🎙️ Recording Controls</CardTitle>
-                <CardDescription>Start recording and configure languages</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Language Selection */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">🗣️ Source Language</label>
-                    <Select value={sourceLanguage} onValueChange={setSourceLanguage}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {languages.map((lang) => (
-                          <SelectItem key={lang.code} value={lang.code}>
-                            <div className="flex items-center gap-2">
-                              <span>{lang.flag}</span>
-                              <span>{lang.name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">🌍 Target Language</label>
-                    <Select value={targetLanguage} onValueChange={setTargetLanguage}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {languages.map((lang) => (
-                          <SelectItem key={lang.code} value={lang.code}>
-                            <div className="flex items-center gap-2">
-                              <span>{lang.flag}</span>
-                              <span>{lang.name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Recording Interface */}
-                <div className="text-center space-y-4">
-                  <div className="relative">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={isRecording ? stopRecording : startRecording}
-                      className={`w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl transition-all ${
-                        isRecording ? "bg-red-500 hover:bg-red-600 animate-pulse" : "bg-blue-600 hover:bg-blue-700"
-                      }`}
-                    >
-                      {isRecording ? <Square className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
-                    </motion.button>
-
-                    {isRecording && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -inset-2 border-4 border-red-300 rounded-full animate-ping"
-                      />
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-2xl font-mono font-bold text-gray-900">{formatTime(recordingTime)}</div>
-                    <div className="text-sm text-gray-600">{isRecording ? "🔴 Recording..." : "⏸️ Ready to record"}</div>
-                  </div>
-
-                  {/* Audio Level Indicator */}
-                  {isRecording && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Volume2 className="h-4 w-4 text-gray-600" />
-                        <div className="flex-1">
-                          <Progress value={audioLevel} className="h-2" />
-                        </div>
-                      </div>
-                      <div className="flex justify-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <motion.div
-                            key={i}
-                            animate={{
-                              height: audioLevel > i * 20 ? [4, 16, 4] : 4,
-                            }}
-                            transition={{
-                              duration: 0.5,
-                              repeat: Number.POSITIVE_INFINITY,
-                              delay: i * 0.1,
-                            }}
-                            className="w-1 bg-blue-500 rounded-full"
-                          />
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
-
-                {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)}>
-                    <Settings className="h-4 w-4 mr-1" />
-                    Settings
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-1" />
-                    Export
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Transcription Results */}
-          <motion.div {...fadeInUp} className="lg:col-span-2 space-y-6">
-            {/* Language Detection */}
-            <AnimatePresence>
-              {detectedLanguage && (
-                <motion.div {...fadeInUp}>
-                  <Card className="border-green-200 bg-green-50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                        <div className="flex-1">
-                          <div className="font-medium text-green-900">Language Detected</div>
-                          <div className="text-sm text-green-700">
-                            {getLanguageByCode(detectedLanguage)?.flag} {getLanguageByCode(detectedLanguage)?.name}
-                            <Badge variant="secondary" className="ml-2">
-                              {confidence}% confidence
+        {/* Language Selection */}
+        <motion.div
+          variants={fadeInUp}
+          initial="initial"
+          animate="animate"
+          className="mb-8"
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                Language Configuration
+              </CardTitle>
+              <CardDescription>
+                Select source and target languages for transcription and translation
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Source Language</label>
+                  <Select value={sourceLanguage} onValueChange={setSourceLanguage}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {languages.map((lang) => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          <div className="flex items-center gap-2">
+                            <span>{lang.flag}</span>
+                            <span>{lang.name}</span>
+                            <Badge variant="secondary" className="ml-auto">
+                              {lang.confidence}%
                             </Badge>
                           </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Target Language</label>
+                  <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {languages.map((lang) => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          <div className="flex items-center gap-2">
+                            <span>{lang.flag}</span>
+                            <span>{lang.name}</span>
+                            <Badge variant="secondary" className="ml-auto">
+                              {lang.confidence}%
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-            {/* Original Transcription */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    📝 Original Transcription
-                    {getLanguageByCode(sourceLanguage) && (
-                      <Badge variant="outline">
-                        {getLanguageByCode(sourceLanguage)?.flag} {getLanguageByCode(sourceLanguage)?.name}
-                      </Badge>
-                    )}
-                  </div>
-                  {transcriptionText && (
-                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(transcriptionText)}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
+        {/* Recording Interface */}
+        <motion.div
+          variants={fadeInUp}
+          initial="initial"
+          animate="animate"
+          transition={{ delay: 0.1 }}
+          className="mb-8"
+        >
+          <Card className="border-2 border-dashed border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-900">
+                <Mic className="h-5 w-5" />
+                Live Recording & Transcription
+              </CardTitle>
+              <CardDescription>
+                Record medical consultations with real-time transcription
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Recorder onTranscriptGenerated={handleTranscriptGenerated} />
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Demo Recording Controls */}
+        <motion.div
+          variants={fadeInUp}
+          initial="initial"
+          animate="animate"
+          transition={{ delay: 0.2 }}
+          className="mb-8"
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Volume2 className="h-5 w-5" />
+                Demo Recording
+              </CardTitle>
+              <CardDescription>
+                Try the demo with simulated medical transcription
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Recording Controls */}
+              <div className="flex items-center justify-center gap-4">
+                <Button
+                  onClick={isRecording ? handleStopRecording : handleStartRecording}
+                  size="lg"
+                  className={`${
+                    isRecording
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-green-600 hover:bg-green-700"
+                  } text-white px-8 py-3`}
+                >
+                  {isRecording ? (
+                    <>
+                      <Square className="mr-2 h-5 w-5" />
+                      Stop Recording
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="mr-2 h-5 w-5" />
+                      Start Demo Recording
+                    </>
                   )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {transcriptionText ? (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                    <Textarea
-                      value={transcriptionText}
-                      onChange={(e) => setTranscriptionText(e.target.value)}
-                      className="min-h-[120px] text-base leading-relaxed"
-                      placeholder="Transcribed text will appear here..."
-                    />
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <div className="flex items-center gap-4">
-                        <span>📊 Confidence: {confidence}%</span>
-                        <span>📝 {transcriptionText.split(" ").length} words</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Volume2 className="h-4 w-4 mr-1" />
-                          Play
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <Mic className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Start recording to see transcription results</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                </Button>
+              </div>
 
-            {/* Translation Preview */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    🌍 Translation Preview
-                    {getLanguageByCode(targetLanguage) && (
-                      <Badge variant="outline">
-                        {getLanguageByCode(targetLanguage)?.flag} {getLanguageByCode(targetLanguage)?.name}
-                      </Badge>
-                    )}
-                  </div>
-                  {translatedText && (
+              {/* Audio Level Indicator */}
+              <AnimatePresence>
+                {isRecording && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Volume2 className="h-4 w-4 text-green-600" />
+                      <span className="text-sm text-green-700">Recording...</span>
+                    </div>
+                    <Progress value={audioLevel} className="h-2" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Transcription Results */}
+        <AnimatePresence>
+          {transcriptionText && (
+            <motion.div
+              variants={fadeInUp}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="mb-8"
+            >
+              <Card className="border-blue-200 bg-blue-50/50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-blue-900">
+                      <FileText className="h-5 w-5" />
+                      Transcription Result
+                    </CardTitle>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => copyToClipboard(translatedText)}>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        {confidence}% Confidence
+                      </Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(transcriptionText)}
+                      >
                         <Copy className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
                     </div>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isTranslating ? (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-                      className="inline-block"
-                    >
-                      <Languages className="h-8 w-8 text-blue-600" />
-                    </motion.div>
-                    <p className="mt-4 text-gray-600">🔄 Translating...</p>
-                    <Progress value={66} className="w-48 mx-auto mt-2" />
-                  </motion.div>
-                ) : translatedText ? (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                    <Textarea
-                      value={translatedText}
-                      onChange={(e) => setTranslatedText(e.target.value)}
-                      className="min-h-[120px] text-base leading-relaxed"
-                      placeholder="Translation will appear here..."
-                    />
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <div className="flex items-center gap-4">
-                        <span>🎯 Translation Quality: High</span>
-                        <span>📝 {translatedText.split(" ").length} words</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Volume2 className="h-4 w-4 mr-1" />
-                          Play
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : transcriptionText ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <Globe className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Translation will appear automatically</p>
                   </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <Languages className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Record audio to see translation</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* SOAP Note Generation */}
-            <AnimatePresence>
-              {translatedText && (
-                <motion.div {...fadeInUp}>
-                  <Card className="border-blue-200 bg-blue-50">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">🧾 Generate SOAP Note</CardTitle>
-                      <CardDescription>Convert your transcription into a structured clinical note</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex gap-3">
-                        <Button className="flex-1">
-                          <FileText className="h-4 w-4 mr-2" />
-                          Generate from Original
-                        </Button>
-                        <Button variant="outline" className="flex-1">
-                          <Globe className="h-4 w-4 mr-2" />
-                          Generate from Translation
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        </div>
-
-        {/* Settings Panel */}
-        <AnimatePresence>
-          {showSettings && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-              onClick={() => setShowSettings(false)}
-            >
-              <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-                <CardHeader>
-                  <CardTitle>⚙️ Transcription Settings</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Audio Quality</label>
-                    <Select defaultValue="high">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low (faster)</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High (recommended)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <CardContent>
+                  <Textarea
+                    value={transcriptionText}
+                    onChange={(e) => setTranscriptionText(e.target.value)}
+                    className="min-h-[120px] bg-white resize-none"
+                    placeholder="Transcription will appear here..."
+                  />
+                  <div className="flex items-center justify-between mt-4">
+                    <span className="text-sm text-gray-500">
+                      {transcriptionText.length} characters
+                    </span>
+                    <Button
+                      onClick={generateSOAPFromTranscript}
+                      className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+                    >
+                      <Stethoscope className="mr-2 h-4 w-4" />
+                      Generate SOAP Note
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Auto-translate</label>
-                    <Select defaultValue="enabled">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="enabled">Enabled</SelectItem>
-                        <SelectItem value="disabled">Disabled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button onClick={() => setShowSettings(false)} className="w-full">
-                    Save Settings
-                  </Button>
                 </CardContent>
               </Card>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Translation Results */}
+        <AnimatePresence>
+          {translationText && sourceLanguage !== targetLanguage && (
+            <motion.div
+              variants={fadeInUp}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="mb-8"
+            >
+              <Card className="border-purple-200 bg-purple-50/50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-purple-900">
+                      <Languages className="h-5 w-5" />
+                      Translation Result
+                    </CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(translationText)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    value={translationText}
+                    onChange={(e) => setTranslationText(e.target.value)}
+                    className="min-h-[120px] bg-white resize-none"
+                    placeholder="Translation will appear here..."
+                  />
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* SOAP Generator */}
+        <AnimatePresence>
+          {showSOAPGenerator && currentTranscript && (
+            <motion.div
+              variants={fadeInUp}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="mb-8"
+            >
+              <div className="mb-4">
+                <div className="flex items-center gap-2 text-center justify-center">
+                  <Separator className="flex-1" />
+                  <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full">
+                    <Sparkles className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900">AI SOAP Generation</span>
+                  </div>
+                  <Separator className="flex-1" />
+                </div>
+              </div>
+              <SOAPGenerator
+                initialTranscript={currentTranscript}
+                patientName=""
+                encounterType="Medical Consultation"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Features Info */}
+        <motion.div
+          variants={fadeInUp}
+          initial="initial"
+          animate="animate"
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-amber-900">
+                <CheckCircle className="h-5 w-5" />
+                Platform Features
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+                <div>
+                  <h4 className="font-semibold text-amber-900 mb-2">Real-time Transcription</h4>
+                  <ul className="space-y-1 text-amber-800">
+                    <li>• Live audio processing</li>
+                    <li>• Multi-language support</li>
+                    <li>• High accuracy rates</li>
+                    <li>• Noise reduction</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-amber-900 mb-2">AI Translation</h4>
+                  <ul className="space-y-1 text-amber-800">
+                    <li>• 10+ language pairs</li>
+                    <li>• Medical terminology</li>
+                    <li>• Context-aware translation</li>
+                    <li>• Quality confidence scores</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-amber-900 mb-2">SOAP Generation</h4>
+                  <ul className="space-y-1 text-amber-800">
+                    <li>• Structured clinical notes</li>
+                    <li>• Professional formatting</li>
+                    <li>• Export capabilities</li>
+                    <li>• Copy individual sections</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </div>
   )
