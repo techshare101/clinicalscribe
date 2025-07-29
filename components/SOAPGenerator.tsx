@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import SignatureAndPDF from '@/components/SignatureAndPDF';
 import {
   FileText,
   Loader2,
@@ -491,6 +492,21 @@ ${soapNote.plan}`;
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Signature and PDF Generation */}
+      {soapNote && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <SignatureAndPDF
+            soapNote={soapNote}
+            patientName={patientNameInput}
+            encounterType={encounterTypeInput}
+          />
+        </motion.div>
+      )}
     </div>
   );
 }
