@@ -1,0 +1,147 @@
+# 🎞️ ClinicalScribe Demo Storyboard
+
+## 🎬 Frame 1: Intro (0:00–0:05)
+**Visual**:  
+- Animated logo zoom-in  
+- Background: abstract hospital UI elements  
+
+**On-Screen Text**:  
+> “ClinicalScribe”  
+> “AI for Every Nurse”
+
+**Voiceover**:  
+> “Meet ClinicalScribe — the future of nursing documentation.”
+
+---
+
+## 🎬 Frame 2: Feature Icons Fly-In (0:05–0:10)
+**Visual**:  
+- Icons fly in one-by-one with soft bounce effect  
+> 🌍🧠📸🔁🔔🧾👥📊🧬🔐
+
+**On-Screen Text**:  
+> “10 Smarter Features”
+
+**Voiceover**:  
+> “AI-powered. Privacy-first. Built for real nurses.”
+
+---
+
+## 🎬 Frame 3: Login (0:10–0:15)
+**Visual**:  
+- Nurse enters email/password on `/auth/signup`  
+- Smooth redirect to dashboard
+
+**On-Screen Text**:  
+> “Secure. Simple. HIPAA-ready.”
+
+**Voiceover**:  
+> “Secure sign-in. Your data stays yours.”
+
+---
+
+## 🎬 Frame 4: Transcription (0:15–0:25)
+**Visual**:  
+- “🎤 Record” clicked  
+- Waveform animates  
+- Text appears in real-time
+
+**On-Screen Text**:  
+> “🎙️ ‘Patient reports mild chest pain…’”
+
+**Voiceover**:  
+> “Multilingual voice-to-text powered by Whisper AI.”
+
+---
+
+## 🎬 Frame 5: AI Charting (0:25–0:35)
+**Visual**:  
+- Transcript populates SOAP fields automatically  
+- “🧠 Suggestions” box highlights key phrases
+
+**On-Screen Text**:  
+> “🧠 Chief Complaint: Chest Pain”  
+> “🧠 History: Last episode 2 weeks ago”
+
+**Voiceover**:  
+> “AI turns words into structured notes instantly.”
+
+---
+
+## 🎬 Frame 6: PDF & EHR Export (0:35–0:45)
+**Visual**:  
+- Click “📄 Export PDF”  
+- Modal opens with QR code + signature pad  
+- File downloads
+
+**On-Screen Text**:  
+> “🧾 One-Click PDF”  
+> “🔒 EHR-Ready • HIPAA Compliant”
+
+**Voiceover**:  
+> “One-click PDFs. EHR-ready. HIPAA-compliant.”
+
+---
+
+## 🎬 Frame 7: Smart Alerts (0:45–0:50)
+**Visual**:  
+- Flashing notification: “🔔 Patient feels dizzy”  
+- Nurse clicks “Acknowledge”
+
+**On-Screen Text**:  
+> “🔔 Alert: Dizziness Reported”  
+> “🕒 Sent to Charge Nurse”
+
+**Voiceover**:  
+> “Smart alerts keep you ahead of risks.”
+
+---
+
+## 🎬 Frame 8: Collaboration (0:50–0:55)
+**Visual**:  
+- “📤 Send to Colleague” button clicked  
+- Dropdown selects “Dr. Martinez”
+
+**On-Screen Text**:  
+> “🤝 Shift Handoff Complete”
+
+**Voiceover**:  
+> “Shift handoffs made seamless.”
+
+---
+
+## 🎬 Frame 9: Agent Add-ons (0:55–1:00)
+**Visual**:  
+- Gear icon clicked → “🧬 Agent Marketplace”  
+- Toggle enabled for “Cultural Navigator”
+
+**On-Screen Text**:  
+> “🧬 Add-Ons Available”  
+> “🌐 Cultural Navigator • 🎓 Language Tutor”
+
+**Voiceover**:  
+> “Custom agents for every care context.”
+
+---
+
+## 🎬 Frame 10: Outro (1:00–1:05)
+**Visual**:  
+- Logo + pulsing CTA  
+- Website URL fades in
+
+**On-Screen Text**:  
+> “clinical-scribe.ai”  
+> “🚀 Book Your Pilot Today”
+
+**Voiceover**:  
+> “ClinicalScribe. Where AI meets empathy.”
+
+---
+
+## 💡 Bonus Frame (End Slide for Decks)
+**Visual**:  
+- QR code + “Scan to Try Live Demo”
+
+**On-Screen Text**:  
+> “Scan to Access Demo”  
+> “📅 Schedule a Pilot: calendly.com/kojo/demo”
