@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, getDocs, query, where, limit } from 'firebase/firestore'
 import { 
   Save, 
   User, 
@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import BodyMap from '@/components/body-map/BodyMap'
+import { usePatientsSearch } from '@/hooks/use-patients-search'
 
 interface SOAPNote {
   subjective: string
@@ -34,6 +35,9 @@ interface SOAPNote {
   painLevel: string
   userId?: string
   createdAt?: any
+  patientName?: string
+  patientId?: string
+  fhirExport?: { status: 'none' | 'ready' | 'posting' | 'success' | 'error'; lastAt?: any; detail?: string }
 }
 
 interface GPTAnalysis {
@@ -49,6 +53,9 @@ export default function SoapEntry2() {
   const [assessment, setAssessment] = useState('')
   const [plan, setPlan] = useState('')
   const [painLevel, setPainLevel] = useState('')
+  const [patientName, setPatientName] = useState('')
+  const [patientId, setPatientId] = useState<string | undefined>(undefined)
+  const { results: patientSuggestions } = usePatientsSearch(patientName)
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -144,6 +151,24 @@ export default function SoapEntry2() {
     setSaveStatus('idle')
 
     try {
+      // Resolve patientId if only name provided: find or create minimal patient record
+      let resolvedPatientId = patientId
+      const trimmedName = (patientName || '').trim()
+      if (!resolvedPatientId && trimmedName) {
+        const lower = trimmedName.toLowerCase()
+        const patientsRef = collection(db, 'patients')
+        const snap = await getDocs(query(patientsRef, where('name_lower', '==', lower), limit(1)))
+        if (!snap.empty) {
+          resolvedPatientId = snap.docs[0].id
+        } else {
+          const newDoc = await addDoc(patientsRef, {
+            name: trimmedName,
+            name_lower: lower,
+          })
+          resolvedPatientId = newDoc.id
+        }
+      }
+
       const soapNote: SOAPNote = {
         subjective: subjective.trim(),
         objective: objective.trim(),
@@ -151,23 +176,28 @@ export default function SoapEntry2() {
         plan: plan.trim(),
         painLevel: painLevel.trim(),
         userId: user.uid,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        patientName: trimmedName || undefined,
+        patientId: resolvedPatientId,
+        fhirExport: { status: 'none' }
       }
 
       // Save to Firestore
       const docRef = await addDoc(collection(db, 'soapNotes'), soapNote)
       console.log('SOAP Note saved with ID:', docRef.id)
-      
+
       setSaveStatus('success')
-      
+
       // Reset form after successful save
       setSubjective('')
       setObjective('')
       setAssessment('')
       setPlan('')
       setPainLevel('')
+      setPatientName('')
+      setPatientId(undefined)
       setGptAnalysis(null)
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => setSaveStatus('idle'), 3000)
     } catch (err) {
@@ -244,12 +274,52 @@ ${plan}`
             <div className="space-y-2">
               <label className="flex items-center gap-2 font-medium text-gray-700">
                 <User className="h-4 w-4" />
-                Patient Name
+                Patient
               </label>
-              <Input
-                placeholder="Enter patient name"
-                className="bg-white"
-              />
+              <div className="relative">
+                <Input
+                  placeholder="Search or enter patient name"
+                  className="bg-white pr-24"
+                  value={patientName}
+                  onChange={(e) => {
+                    setPatientName(e.target.value)
+                    setPatientId(undefined) // reset selection when typing
+                  }}
+                />
+                {patientId ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="absolute right-1 top-1"
+                    onClick={() => setPatientId(undefined)}
+                  >
+                    Clear
+                  </Button>
+                ) : null}
+                {/* Suggestions dropdown */}
+                {!patientId && patientName.trim().length >= 2 && patientSuggestions.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border bg-white shadow">
+                    {patientSuggestions.map((p: { id: string; name: string; mrn?: string }) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100"
+                        onClick={() => {
+                          setPatientName(p.name)
+                          setPatientId(p.id)
+                        }}
+                      >
+                        <div className="font-medium">{p.name}</div>
+                        {p.mrn && <div className="text-xs text-gray-500">MRN: {p.mrn}</div>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {patientId && (
+                  <div className="mt-1 text-xs text-gray-600">Selected patient ID: {patientId}</div>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <label className="flex items-center gap-2 font-medium text-gray-700">
