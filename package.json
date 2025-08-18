@@ -6,7 +6,11 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "qa:cards:sh": "bash ./qa-cards-1-2.sh",
+    "qa:cards:ps": "powershell -ExecutionPolicy Bypass -File ./qa-cards-1-2.ps1",
+    "get-id-token": "node ./scripts/get-id-token.js",
+    "set-admin": "node ./scripts/set-admin.js"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
@@ -16,6 +20,7 @@
     "@radix-ui/react-progress": "latest",
     "@radix-ui/react-select": "latest",
     "@radix-ui/react-separator": "latest",
+    "@sparticuz/chromium": "^126.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^11.10.0",
@@ -24,6 +29,7 @@
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
     "openai": "^5.8.2",
+    "puppeteer-core": "^22.6.0",
     "react": "^19",
     "react-dom": "^19",
     "react-firebase-hooks": "^5.1.1",
