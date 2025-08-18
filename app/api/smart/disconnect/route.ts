@@ -1,14 +1,19 @@
+import { NextRequest, NextResponse } from 'next/server'
+
 export const runtime = 'nodejs'
 
-import { NextResponse } from 'next/server'
-
-export async function POST() {
-  const res = NextResponse.json({ ok: true })
-  // Expire SMART cookies to disconnect the session
-  const expired = new Date(0)
-  res.cookies.set('smart_access_token', '', { path: '/', expires: expired, httpOnly: true })
-  res.cookies.set('smart_fhir_base', '', { path: '/', expires: expired, httpOnly: true })
-  res.cookies.set('smart_state', '', { path: '/', expires: expired, httpOnly: true })
-  res.cookies.set('smart_code_verifier', '', { path: '/', expires: expired, httpOnly: true })
+export async function POST(req: NextRequest) {
+  const res = NextResponse.redirect(new URL('/', req.nextUrl.origin))
+  const cookieOpts = {
+    path: '/',
+    sameSite: 'lax' as const,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+  }
+  // Clear cookies by setting empty values and maxAge in the past
+  res.cookies.set('smart_access_token', '', { ...cookieOpts, maxAge: 0 })
+  res.cookies.set('smart_fhir_base', '', { ...cookieOpts, maxAge: 0 })
+  res.cookies.set('smart_state', '', { ...cookieOpts, maxAge: 0 })
+  res.cookies.set('smart_code_verifier', '', { ...cookieOpts, maxAge: 0 })
   return res
 }

@@ -1,29 +1,49 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { auth } from "@/lib/firebase";
+import { useRouter, useSearchParams } from "next/navigation";
+import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Menu, ClipboardList, Mic, FileText, ShieldCheck, Edit, History } from "lucide-react";
+import { Bell, Menu, ClipboardList, Mic, FileText, ShieldCheck, Edit, History, Link as LinkIcon } from "lucide-react";
+import { EhrStatusBadge } from "@/components/EhrStatusBadge";
+import { PaywallCard } from "@/components/PaywallCard";
+import { toast } from "@/lib/toast";
 
 export default function ClinicalDashboard() {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<any>(null); // Explicitly type as any
   const router = useRouter();
+  const search = useSearchParams();
+  const [betaActive, setBetaActive] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
+        // Load profile.betaActive from Firestore
+        try {
+          const profileSnap = await getDoc(doc(db, 'profiles', currentUser.uid));
+          const data = profileSnap.data();
+          setBetaActive(!!data?.betaActive);
+        } catch {
+          setBetaActive(false);
+        }
       } else {
-        router.push("/"); // Redirect to landing if not logged in
+        router.push("/");
       }
     });
-
     return () => unsubscribe();
   }, [router]);
+
+  useEffect(() => {
+    if (search?.get("upgraded") === "true") {
+      // Optionally show a toast here if you have one wired globally
+      // toast({ title: "Beta unlocked successfully! 🎉" });
+    }
+  }, [search]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -38,6 +58,16 @@ export default function ClinicalDashboard() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (betaActive === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
+        <div className="max-w-md w-full">
+          <PaywallCard />
         </div>
       </div>
     );
@@ -64,6 +94,14 @@ export default function ClinicalDashboard() {
         <div className="flex items-center justify-between mb-6">
           <Button variant="ghost" className="md:hidden" onClick={toggleSidebar}><Menu /></Button>
           <div className="flex items-center gap-4">
+            <EhrStatusBadge />
+            <a
+              href="/smart/launch/default"
+              className="inline-flex items-center gap-1 text-sm text-indigo-700 hover:text-indigo-900"
+              title="Connect to EHR via SMART on FHIR"
+            >
+              <LinkIcon size={16} /> Connect to EHR
+            </a>
             <Bell className="text-gray-600" />
             <Button variant="outline" onClick={handleLogout}>Logout</Button>
           </div>

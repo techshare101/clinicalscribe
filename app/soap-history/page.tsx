@@ -23,6 +23,8 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog'
 import { ExportToEHR } from './_components/ExportToEHR'
+import { EhrStatusBadge } from '@/components/EhrStatusBadge'
+import { DownloadPdfButton } from '@/components/DownloadPdfButton'
 
 interface SOAPNote {
   id: string
@@ -145,6 +147,9 @@ export default function SOAPHistoryPage() {
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <CardTitle>SOAP Notes</CardTitle>
+            <div className="flex items-center gap-3">
+              <EhrStatusBadge />
+            </div>
             <div className="flex items-center gap-3 relative">
               <Button
                 variant={filter === 'all' ? 'default' : 'outline'}
@@ -318,6 +323,12 @@ export default function SOAPHistoryPage() {
                                 author={undefined}
                                 attachment={undefined}
                               />
+                              {/* If a storage path exists for this note, show a download button */}
+                              {(selectedNote as any).storagePath && (
+                                <div className="mt-3">
+                                  <DownloadPdfButton pdfPath={(selectedNote as any).storagePath} />
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}

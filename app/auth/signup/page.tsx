@@ -18,7 +18,13 @@ export default function SignUpPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const user = cred.user;
+      // Initialize profile document with betaActive false
+      await setDoc(doc(db, 'profiles', user.uid), { betaActive: false, createdAt: Date.now() }, { merge: true });
+      // Set session cookie for server routes
+      const idToken = await user.getIdToken();
+      await setSession(idToken);
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Failed to create account.");

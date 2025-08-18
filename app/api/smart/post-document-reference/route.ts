@@ -4,38 +4,41 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
   try {
-    const token = req.cookies.get('smart_access_token')?.value
-    const fhirBase = req.cookies.get('smart_fhir_base')?.value
+    const access = req.cookies.get('smart_access_token')?.value
+    const fhirBaseCookie = req.cookies.get('smart_fhir_base')?.value
 
-    if (!token || !fhirBase) {
+    if (!access || !fhirBaseCookie) {
       return NextResponse.json({ error: 'Not connected to SMART/EHR' }, { status: 401 })
     }
 
-    const docRef = await req.json()
-    const target = `${fhirBase.replace(/\/$/, '')}/DocumentReference`
+    const fhirBase = (process.env.SMART_FHIR_BASE || fhirBaseCookie).replace(/\/$/, '')
 
-    const resp = await fetch(target, {
+    const docRef = await req.json().catch(() => null)
+    if (!docRef || typeof docRef !== 'object') {
+      return NextResponse.json({ error: 'Invalid DocumentReference payload' }, { status: 400 })
+    }
+
+    const target = `${fhirBase}/DocumentReference`
+    const res = await fetch(target, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/fhir+json',
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${access}`,
       },
       body: JSON.stringify(docRef),
     })
 
-    const json = await resp.json().catch(() => ({}))
-
-    if (!resp.ok) {
-      return NextResponse.json({ error: json || 'EHR post failed' }, { status: resp.status || 500 })
+    const responseBody = await res.json().catch(async () => ({ text: await res.text().catch(() => '') }))
+    if (!res.ok) {
+      return NextResponse.json(
+        { posted: false, server: fhirBase, error: responseBody?.issue || responseBody || 'EHR post failed' },
+        { status: res.status }
+      )
     }
 
-    return NextResponse.json({
-      posted: true,
-      server: fhirBase,
-      resourceId: json?.id,
-      response: json,
-    })
+    const resourceId = responseBody?.id || (res.headers.get('location') || '').split('/').pop() || null
+    return NextResponse.json({ posted: true, server: fhirBase, resourceId, response: responseBody })
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Server error posting to EHR' }, { status: 500 })
+    return NextResponse.json({ posted: false, error: err?.message || 'Server error' }, { status: 500 })
   }
 }

@@ -1,0 +1,57 @@
+{
+  "info": {
+    "_postman_id": "a2f9c8a2-9d40-44d9-9d56-0c7b33ad5c7f",
+    "name": "ClinicalScribe Security Smoke",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Minimal security smoke tests for Signed URL endpoint (owner vs other user)."
+  },
+  "item": [
+    {
+      "name": "Signed URL (allowed: own path)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{ID_TOKEN}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"path\": \"pdfs/{{UID}}/{{TEST_FILENAME}}\",\n  \"expiresInSec\": 300\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/api/storage/signed-url",
+          "host": ["{{BASE_URL}}"],
+          "path": ["api", "storage", "signed-url"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Signed URL (forbidden: other user's path)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{ID_TOKEN}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"path\": \"pdfs/{{OTHER_UID}}/{{TEST_FILENAME}}\",\n  \"expiresInSec\": 300\n}"
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/api/storage/signed-url",
+          "host": ["{{BASE_URL}}"],
+          "path": ["api", "storage", "signed-url"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    { "key": "BASE_URL", "value": "http://localhost:3000" },
+    { "key": "ID_TOKEN", "value": "" },
+    { "key": "UID", "value": "" },
+    { "key": "OTHER_UID", "value": "someone_else_uid" },
+    { "key": "TEST_FILENAME", "value": "test.pdf" }
+  ]
+}

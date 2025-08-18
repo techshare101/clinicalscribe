@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Navigation } from "@/components/Navigation"
 import "./globals.css"
+import Toaster from "@/components/Toaster"
 
 export const metadata: Metadata = {
   title: "ClinicalScribe",
@@ -19,6 +20,7 @@ export default function RootLayout({
       <body>
         <Navigation />
         {children}
+        <Toaster />
       </body>
     </html>
   )
