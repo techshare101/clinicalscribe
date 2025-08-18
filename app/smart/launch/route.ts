@@ -51,22 +51,78 @@ export async function GET(req: NextRequest) {
   const codeVerifier = base64UrlEncode(crypto.randomBytes(32))
   const codeChallenge = base64UrlEncode(crypto.createHash('sha256').update(codeVerifier).digest())
   const state = crypto.randomBytes(8).toString('hex')
+  const nonce = crypto.randomBytes(16).toString('hex')
 
-  const redirect = new URL(`/smart/callback`, req.nextUrl.origin)
+  // Redirect URI: prefer NEXT_PUBLIC_BASE_URL for stability across environments
+  const redirectPath = process.env.SMART_REDIRECT_PATH || '/api/smart/callback'
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin
+  const configuredRedirect = /^https?:\/\//i.test(redirectPath)
+    ? redirectPath
+    : new URL(redirectPath, baseUrl).toString()
 
-  const authorizeHref = deriveAuthorizeEndpoint(fhirBase)
+  // Safety net: if configuredRedirect origin doesn't match current origin, rewrite to current
+  const currentOrigin = new URL(baseUrl).origin
+  let redirectUri = configuredRedirect
+  try {
+    const cfg = new URL(configuredRedirect)
+    if (cfg.origin !== currentOrigin) {
+      cfg.protocol = new URL(currentOrigin).protocol
+      cfg.host = new URL(currentOrigin).host
+      redirectUri = cfg.toString()
+    }
+  } catch {
+    // ignore
+  }
+
+  // Choose authorize endpoint: SMART_ISSUER if provided, else derive from fhirBase
+  let authorizeHref = ''
+  const issuer = process.env.SMART_ISSUER?.replace(/\/$/, '')
+  if (issuer) {
+    authorizeHref = `${issuer}/authorize`
+  } else {
+    authorizeHref = deriveAuthorizeEndpoint(fhirBase)
+  }
+
   const authorizeUrl = new URL(authorizeHref)
+  const requestedScopes = (process.env.SMART_SCOPES || 'openid fhirUser offline_access patient/*.read')
+    .split(/\s+/)
+    .filter(Boolean)
+
+  // If no launch param provided, drop any launch/* scopes for Standalone flow
+  const launchParam = searchParams.get('launch')
+  const effectiveScopes = launchParam
+    ? requestedScopes
+    : requestedScopes.filter((s) => !s.startsWith('launch/'))
+
   authorizeUrl.searchParams.set('response_type', 'code')
   authorizeUrl.searchParams.set('client_id', clientId)
-  authorizeUrl.searchParams.set('redirect_uri', redirect.toString())
-  authorizeUrl.searchParams.set(
-    'scope',
-    process.env.SMART_SCOPES || 'launch/patient patient/*.write openid fhirUser offline_access'
-  )
+  authorizeUrl.searchParams.set('redirect_uri', redirectUri)
+  authorizeUrl.searchParams.set('scope', effectiveScopes.join(' '))
   authorizeUrl.searchParams.set('state', state)
   authorizeUrl.searchParams.set('code_challenge', codeChallenge)
   authorizeUrl.searchParams.set('code_challenge_method', 'S256')
   authorizeUrl.searchParams.set('aud', fhirBase)
+  if (launchParam) authorizeUrl.searchParams.set('launch', launchParam)
+  if (effectiveScopes.includes('openid')) authorizeUrl.searchParams.set('nonce', nonce)
+
+  // Optional debug mode
+  if (searchParams.get('debug') === '1') {
+    return NextResponse.json({
+      authorizeUrl: authorizeUrl.toString(),
+      authorizeHref,
+      params: {
+        clientId,
+        redirectUri,
+        scope: effectiveScopes.join(' '),
+        state,
+        codeChallengeMethod: 'S256',
+        aud: fhirBase,
+        nonce: effectiveScopes.includes('openid') ? nonce : undefined,
+        launch: launchParam || undefined,
+      },
+      baseUrlUsed: baseUrl,
+    })
+  }
 
   const res = NextResponse.redirect(authorizeUrl.toString())
   const cookieOpts = {
@@ -78,5 +134,6 @@ export async function GET(req: NextRequest) {
   res.cookies.set('smart_code_verifier', codeVerifier, cookieOpts)
   res.cookies.set('smart_fhir_base', fhirBase, cookieOpts)
   res.cookies.set('smart_state', state, cookieOpts)
+  res.cookies.set('smart_redirect_uri', redirectUri, cookieOpts)
   return res
 }

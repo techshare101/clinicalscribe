@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && request.auth.token.role == "admin"; }
+
+    // private user folders
+    match /recordings/{uid}/{allPaths=**} {
+      allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
+    match /images/{uid}/{allPaths=**} {
+      allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
+    match /pdfs/{uid}/{allPaths=**} {
+      allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

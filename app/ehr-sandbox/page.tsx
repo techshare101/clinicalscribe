@@ -88,7 +88,7 @@ export default function EHRExportSandboxPage() {
           <CardContent className="space-y-6">
             <div>
               <a
-                href={`/smart/launch?fhirBase=${encodeURIComponent('https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4')}`}
+                href="/smart/launch/default"
                 className="inline-flex items-center px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
               >
                 Connect to EHR (SMART)

@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
-import { uploadPDFToStorage } from '@/lib/supabase'
+import { uploadToFirebase } from '@/lib/storage'
+import { auth } from '@/lib/firebase'
 import { FileText, Upload, Download, Signature, CheckCircle, AlertCircle, Trash2 } from 'lucide-react'
 
 interface SOAPNote {
@@ -26,17 +27,19 @@ interface SignatureAndPDFProps {
   encounterType?: string
 }
 
-export default function SignatureAndPDF({ 
-  soapNote, 
-  patientName = '', 
-  encounterType = '' 
+export default function SignatureAndPDF({
+  soapNote,
+  patientName = '',
+  encounterType = '',
+  watermark = true,
 }: SignatureAndPDFProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [doctorName, setDoctorName] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [uploadUrl, setUploadUrl] = useState<string | null>(null)
+  const [uploadUrl, setUploadUrl] = useState<string | null>(null) // legacy field; no longer used for Firebase
+  const [uploadedPath, setUploadedPath] = useState<string | null>(null)
   const [lastPoint, setLastPoint] = useState<{ x: number; y: number } | null>(null)
 
   // Initialize canvas
@@ -52,7 +55,7 @@ export default function SignatureAndPDF({
     ctx.lineJoin = 'round'
     ctx.lineWidth = 2
     ctx.strokeStyle = '#000000'
-    
+
     // Set canvas background to white
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -100,12 +103,12 @@ export default function SignatureAndPDF({
     if (!ctx) return
 
     const coords = getCoordinates(e)
-    
+
     ctx.beginPath()
     ctx.moveTo(lastPoint.x, lastPoint.y)
     ctx.lineTo(coords.x, coords.y)
     ctx.stroke()
-    
+
     setLastPoint(coords)
   }
 
@@ -133,12 +136,12 @@ export default function SignatureAndPDF({
     if (!ctx) return
 
     const coords = getCoordinates(e)
-    
+
     ctx.beginPath()
     ctx.moveTo(lastPoint.x, lastPoint.y)
     ctx.lineTo(coords.x, coords.y)
     ctx.stroke()
-    
+
     setLastPoint(coords)
   }
 
@@ -181,9 +184,9 @@ export default function SignatureAndPDF({
   const generateHTMLContent = (): string => {
     const canvas = canvasRef.current
     const signatureDataUrl = canvas?.toDataURL('image/png') || ''
-    
+
     const currentDate = new Date().toLocaleString()
-    
+
     return `
       <!DOCTYPE html>
       <html>
@@ -191,17 +194,17 @@ export default function SignatureAndPDF({
           <meta charset="utf-8">
           <title>SOAP Note - ${patientName || 'Patient'}</title>
           <style>
-            body { 
-              font-family: 'Arial', sans-serif; 
-              line-height: 1.6; 
+            body {
+              font-family: 'Arial', sans-serif;
+              line-height: 1.6;
               margin: 40px;
               color: #333;
               background: white;
             }
-            .header { 
-              text-align: center; 
-              border-bottom: 3px solid #2563eb; 
-              padding-bottom: 20px; 
+            .header {
+              text-align: center;
+              border-bottom: 3px solid #2563eb;
+              padding-bottom: 20px;
               margin-bottom: 30px;
             }
             .header h1 {
@@ -229,16 +232,16 @@ export default function SignatureAndPDF({
             .metadata-row:last-child {
               margin-bottom: 0;
             }
-            .section { 
-              margin-bottom: 25px; 
+            .section {
+              margin-bottom: 25px;
               padding: 20px;
               border-left: 5px solid #e5e7eb;
               background: #fafafa;
               border-radius: 0 8px 8px 0;
             }
-            .section-title { 
-              font-weight: bold; 
-              font-size: 18px; 
+            .section-title {
+              font-weight: bold;
+              font-size: 18px;
               color: #1f2937;
               margin-bottom: 12px;
               text-transform: uppercase;
@@ -249,8 +252,8 @@ export default function SignatureAndPDF({
               line-height: 1.7;
               color: #374151;
             }
-            .signature-section { 
-              margin-top: 40px; 
+            .signature-section {
+              margin-top: 40px;
               padding: 25px;
               border: 2px solid #d1d5db;
               border-radius: 12px;
@@ -261,9 +264,9 @@ export default function SignatureAndPDF({
               margin-bottom: 15px;
               font-size: 18px;
             }
-            .signature-image { 
-              max-width: 400px; 
-              height: auto; 
+            .signature-image {
+              max-width: 400px;
+              height: auto;
               border: 1px solid #d1d5db;
               border-radius: 6px;
               margin: 15px 0;
@@ -279,19 +282,46 @@ export default function SignatureAndPDF({
             .objective { border-left-color: #3b82f6; }
             .assessment { border-left-color: #f59e0b; }
             .plan { border-left-color: #ef4444; }
-            
+
             @media print {
               body { margin: 20px; }
               .signature-section { break-inside: avoid; }
             }
+            ${watermark ? `
+            .watermark {
+              position: fixed;
+              top: 0; left: 0; right: 0; bottom: 0;
+              pointer-events: none;
+              background-image: repeating-linear-gradient(
+                45deg,
+                rgba(37, 99, 235, 0.08) 0,
+                rgba(37, 99, 235, 0.08) 40px,
+                rgba(255, 255, 255, 0.0) 40px,
+                rgba(255, 255, 255, 0.0) 120px
+              );
+            }
+            .watermark-text {
+              position: fixed;
+              top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg);
+              font-size: 48px;
+              color: rgba(37, 99, 235, 0.15);
+              font-weight: 800;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+            }
+            ` : ''}
           </style>
         </head>
         <body>
+          ${watermark ? `
+          <div class="watermark" aria-hidden="true"></div>
+          <div class="watermark-text" aria-hidden="true">ClinicalScribe Beta</div>
+          ` : ''}
           <div class="header">
             <h1>SOAP Note</h1>
             <p>Clinical Documentation System</p>
           </div>
-          
+
           <div class="metadata">
             <div class="metadata-row">
               <strong>Patient Name:</strong>
@@ -370,22 +400,20 @@ export default function SignatureAndPDF({
     try {
       const htmlContent = generateHTMLContent()
       const blob = new Blob([htmlContent], { type: 'text/html' })
-      
-      const filename = `SOAP_Note_${patientName?.replace(/\s+/g, '_') || 'Patient'}_${Date.now()}.html`
-      
-      setStatusMessage('☁️ Uploading to Supabase...')
-      
-      const result = await uploadPDFToStorage(blob, filename)
-      
-      if (result.success) {
-        setStatusMessage('✅ Document uploaded and signed successfully!')
-        setUploadUrl(result.url || null)
-      } else {
-        setStatusMessage(`❌ Upload failed: ${result.error}`)
-      }
+
+      setStatusMessage('☁️ Uploading to Storage...')
+
+      const user = auth.currentUser
+      if (!user) throw new Error('Not signed in')
+
+      const { path } = await uploadToFirebase('pdfs', blob, user.uid, 'html')
+
+      setUploadedPath(path)
+      setUploadUrl(null)
+      setStatusMessage('✅ Document uploaded successfully!')
     } catch (error) {
       console.error('Document generation error:', error)
-      setStatusMessage('❌ Failed to generate document')
+      setStatusMessage('❌ Failed to generate or upload document')
     } finally {
       setIsGenerating(false)
     }
@@ -503,9 +531,9 @@ export default function SignatureAndPDF({
               className="flex items-center gap-2"
             >
               <Upload className="h-4 w-4" />
-              {isGenerating ? 'Processing...' : 'Sign & Upload to Supabase'}
+              {isGenerating ? 'Processing...' : 'Sign & Upload to Storage'}
             </Button>
-            
+
             <Button
               variant="outline"
               onClick={downloadDocument}
@@ -514,28 +542,53 @@ export default function SignatureAndPDF({
               <Download className="h-4 w-4" />
               Download Document
             </Button>
+
+            {uploadedPath && (
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  try {
+                    const user = auth.currentUser
+                    const idToken = await user?.getIdToken()
+                    if (!idToken) {
+                      alert('Please sign in to open the document.')
+                      return
+                    }
+                    const res = await fetch('/api/storage/signed-url', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+                      body: JSON.stringify({ path: uploadedPath, expiresInSec: 300 }),
+                    })
+                    const { url, error } = await res.json()
+                    if (error || !url) throw new Error(error || 'No URL returned')
+                    window.open(url, '_blank')
+                  } catch (e) {
+                    console.error(e)
+                    // keep a simple alert here to avoid adding extra imports to this component
+                    alert('Could not generate download link.')
+                  }
+                }}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Open Signed Link
+              </Button>
+            )}
           </div>
 
           {/* Status Message */}
           {statusMessage && (
-            <Alert className={uploadUrl ? 'border-green-200 bg-green-50' : 'border-blue-200 bg-blue-50'}>
-              {uploadUrl ? (
+            <Alert className={uploadedPath ? 'border-green-200 bg-green-50' : 'border-blue-200 bg-blue-50'}>
+              {uploadedPath ? (
                 <CheckCircle className="h-4 w-4 text-green-600" />
               ) : (
                 <AlertCircle className="h-4 w-4 text-blue-600" />
               )}
-              <AlertDescription className={uploadUrl ? 'text-green-800' : 'text-blue-800'}>
+              <AlertDescription className={uploadedPath ? 'text-green-800' : 'text-blue-800'}>
                 {statusMessage}
-                {uploadUrl && (
-                  <div className="mt-2">
-                    <a 
-                      href={uploadUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 underline font-medium"
-                    >
-                      📄 View uploaded document →
-                    </a>
+                {uploadedPath && (
+                  <div className="mt-2 text-xs text-gray-600 break-all">
+                    Saved: {uploadedPath}
                   </div>
                 )}
               </AlertDescription>

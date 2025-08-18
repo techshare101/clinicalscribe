@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import { collection, addDoc, serverTimestamp, getDocs, query, where, limit } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, getDocs, query, where, limit, doc, updateDoc } from 'firebase/firestore'
 import { 
   Save, 
   User, 
@@ -26,6 +26,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import BodyMap from '@/components/body-map/BodyMap'
 import { usePatientsSearch } from '@/hooks/use-patients-search'
+import { renderAndUploadPDF } from '@/lib/pdf'
+import { toast } from '@/lib/toast'
 
 interface SOAPNote {
   subjective: string
@@ -185,6 +187,29 @@ export default function SoapEntry2() {
       // Save to Firestore
       const docRef = await addDoc(collection(db, 'soapNotes'), soapNote)
       console.log('SOAP Note saved with ID:', docRef.id)
+
+      // After save, render and upload a PDF, then persist storagePath
+      try {
+        // mark pdf as pending
+        await updateDoc(doc(db, 'soapNotes', docRef.id), { pdf: { status: 'pending' } })
+        const html = `
+          <h1>SOAP Note</h1>
+          <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+          <p><strong>Patient:</strong> ${trimmedName || 'Unknown'}</p>
+          <p><strong>Pain Level:</strong> ${painLevel || 'N/A'}</p>
+          <h2>Subjective</h2><div>${subjective.replace(/\n/g,'<br/>')}</div>
+          <h2>Objective</h2><div>${objective.replace(/\n/g,'<br/>')}</div>
+          <h2>Assessment</h2><div>${assessment.replace(/\n/g,'<br/>')}</div>
+          <h2>Plan</h2><div>${plan.replace(/\n/g,'<br/>')}</div>
+        `
+        const { path } = await renderAndUploadPDF(html, user.uid, docRef.id, 'ClinicalScribe Beta')
+        await updateDoc(doc(db, 'soapNotes', docRef.id), { storagePath: path, pdf: { status: 'done', path } })
+        toast({ message: 'PDF generated and saved', variant: 'success' })
+      } catch (e) {
+        console.error('PDF generation failed', e)
+        await updateDoc(doc(db, 'soapNotes', docRef.id), { pdf: { status: 'error' } }).catch(() => {})
+        toast({ message: 'PDF generation failed', variant: 'error' })
+      }
 
       setSaveStatus('success')
 
