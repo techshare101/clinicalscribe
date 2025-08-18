@@ -12,7 +12,9 @@ import { EhrStatusBadge } from "@/components/EhrStatusBadge";
 import { PaywallCard } from "@/components/PaywallCard";
 import { toast } from "@/lib/toast";
 
-export default function ClinicalDashboard() {
+export const dynamic = "force-dynamic";
+
+function ClinicalDashboardInner() {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<any>(null); // Explicitly type as any
   const router = useRouter();
@@ -143,4 +145,8 @@ export default function ClinicalDashboard() {
       </main>
     </div>
   );
+}
+
+export default function ClinicalDashboardPage() {
+  return <ClinicalDashboardInner />;
 }
