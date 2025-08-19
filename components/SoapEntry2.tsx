@@ -166,6 +166,7 @@ export default function SoapEntry2() {
           const newDoc = await addDoc(patientsRef, {
             name: trimmedName,
             name_lower: lower,
+            ownerId: user.uid,
           })
           resolvedPatientId = newDoc.id
         }
