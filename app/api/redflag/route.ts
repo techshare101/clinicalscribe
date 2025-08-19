@@ -1,15 +1,47 @@
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
+const RPM = Number(process.env.REDFLAG_RPM || 5)
+const WINDOW_SEC = Number(process.env.REDFLAG_WINDOW_SEC || 60)
+type Bucket = { ts: number[] }
+const buckets = new Map<string, Bucket>()
+
+function getKey(req: Request) {
+  const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0]?.trim() || 'unknown'
+  const hint = req.headers.get('x-user-id') || ''
+  return hint ? `${ip}:${hint}` : ip
+}
+
+function isRateLimited(req: Request) {
+  const key = getKey(req)
+  const now = Date.now()
+  const windowMs = WINDOW_SEC * 1000
+  let b = buckets.get(key)
+  if (!b) {
+    b = { ts: [] }
+    buckets.set(key, b)
+  }
+  b.ts = b.ts.filter(t => now - t < windowMs)
+  if (b.ts.length >= RPM) return true
+  b.ts.push(now)
+  return false
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
 export async function POST(req: Request) {
   try {
+    if (isRateLimited(req)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429 }
+      )
+    }
+
     const { soapNote } = await req.json()
 
-    // Construct the prompt for GPT-4o
     const prompt = `
       You are a clinical decision support system. Analyze the following SOAP note for potential red flags that might require referral or special attention.
       
