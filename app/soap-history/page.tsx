@@ -28,7 +28,7 @@ import { DownloadPdfButton } from '@/components/DownloadPdfButton'
 
 interface SOAPNote {
   id: string
-  userId: string
+  uid: string
   subjective: string
   objective: string
   assessment: string
@@ -63,9 +63,10 @@ export default function SOAPHistoryPage() {
     if (!user) return
 
     const base = collection(db, 'soapNotes')
-    const q = filterPatientId
-      ? query(base, where('patientId', '==', filterPatientId), orderBy('createdAt', 'desc'))
-      : query(base, orderBy('createdAt', 'desc'))
+    const constraints: any[] = [where('uid', '==', user.uid)]
+    if (filterPatientId) constraints.push(where('patientId', '==', filterPatientId))
+    constraints.push(orderBy('createdAt', 'desc'))
+    const q = query(base, ...constraints)
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const notes: SOAPNote[] = []
@@ -257,7 +258,7 @@ export default function SOAPHistoryPage() {
                                 <h3 className="font-medium mb-2">Audit Information</h3>
                                 <div className="text-sm space-y-1">
                                   <div><span className="font-medium">Created:</span> {formatDate(selectedNote.createdAt)}</div>
-                                  <div><span className="font-medium">User ID:</span> {selectedNote.userId}</div>
+                                  <div><span className="font-medium">User ID:</span> {selectedNote.uid}</div>
                                 </div>
                               </div>
                               <div>

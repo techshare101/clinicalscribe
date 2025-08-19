@@ -35,7 +35,7 @@ interface SOAPNote {
   assessment: string
   plan: string
   painLevel: string
-  userId?: string
+  uid?: string
   createdAt?: any
   patientName?: string
   patientId?: string
@@ -178,7 +178,7 @@ export default function SoapEntry2() {
         assessment: assessment.trim(),
         plan: plan.trim(),
         painLevel: painLevel.trim(),
-        userId: user.uid,
+        uid: user.uid,
         createdAt: serverTimestamp(),
         patientName: trimmedName || undefined,
         patientId: resolvedPatientId,

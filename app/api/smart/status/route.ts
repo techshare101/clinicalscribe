@@ -1,15 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { adminDb } from '@/lib/firebaseAdmin'
 
 export const runtime = 'nodejs'
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const access = req.cookies.get('smart_access_token')?.value
-    const fhirBase = req.cookies.get('smart_fhir_base')?.value
-
-    const connected = Boolean(access && fhirBase)
-    return NextResponse.json({ connected, fhirBase: fhirBase ?? null })
+    const snap = await adminDb.collection('smart').doc('config').get()
+    if (!snap.exists) {
+      return NextResponse.json({ connected: false, message: 'No SMART config' })
+    }
+    const data = snap.data() as any
+    const token = data?.access_token || data?.token
+    if (!token) {
+      return NextResponse.json({ connected: false, message: 'No token' })
+    }
+    // Optionally, we could attempt a lightweight FHIR ping here with the token.
+    return NextResponse.json({ connected: true })
   } catch (err: any) {
-    return NextResponse.json({ connected: false, fhirBase: null, error: err?.message || 'Unknown error' }, { status: 500 })
+    console.error('SMART status error', err)
+    return NextResponse.json({ connected: false, error: err?.message || 'Internal error' }, { status: 500 })
   }
 }
