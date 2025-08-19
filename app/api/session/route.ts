@@ -26,6 +26,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message || 'Failed to create session' }, { status: 500 })
   }
 }
+export async function GET() {
+  return NextResponse.json({ ok: true })
+}
+
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true })
