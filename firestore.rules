@@ -8,8 +8,8 @@ service cloud.firestore {
 
     // User profiles
     match /profiles/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
-      allow write: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) || isAdmin();
+      allow read, update, delete: if isOwner(uid) || isAdmin();
     }
 
     // Recordings belong to ownerId
@@ -18,10 +18,10 @@ service cloud.firestore {
       allow read, write: if isOwner(resource.data.ownerId) || isAdmin();
     }
 
-    // Reports/PDF metadata belong to ownerId
+    // Reports belong to userId (author)
     match /reports/{docId} {
-      allow create: if isSignedIn();
-      allow read, write: if isOwner(resource.data.ownerId) || isAdmin();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
     }
 
     // Patients belong to ownerId
