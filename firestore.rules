@@ -8,8 +8,8 @@ service cloud.firestore {
 
     // User profiles
     match /profiles/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
-      allow write: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) || isAdmin();
+      allow read, update, delete: if isOwner(uid) || isAdmin();
     }
 
     // Recordings belong to ownerId
