@@ -2,32 +2,19 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { auth } from "@/lib/firebase";
-
 import { Loader2 } from "lucide-react";
+import { getSignedUrlForPath } from "@/lib/storage";
 
 export function DownloadPdfButton({ pdfPath }: { pdfPath: string }) {
   const [loading, setLoading] = useState(false);
   async function handleClick() {
     try {
       setLoading(true);
-      const user = auth.currentUser;
-      const idToken = await user?.getIdToken();
-      if (!idToken) {
-        // Fallback: prompt sign-in
-        console.warn("Please sign in to download.");
-        return;
-      }
-      const res = await fetch("/api/storage/signed-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ path: pdfPath, expiresInSec: 300 }),
-      });
-      const { url, error } = await res.json();
-      if (error || !url) throw new Error(error || "No URL returned");
+      const url = await getSignedUrlForPath(pdfPath);
       window.open(url, "_blank");
     } catch (e) {
       console.error("Could not generate download link.", e);
+      alert("Download failed. Please ensure you are signed in.");
     } finally {
       setLoading(false);
     }
