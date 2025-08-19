@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { EhrStatusBadge } from "@/components/EhrStatusBadge";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -41,8 +43,9 @@ export default function DashboardPage() {
           const fresh = await getDoc(ref);
           setProfile(fresh.exists() ? fresh.data() : initial);
         }
-      } catch {
+      } catch (e) {
         setProfile(null);
+        setErrorMsg("Failed to load your profile. This may be due to Firestore rules or missing indexes.");
       } finally {
         setLoadingProfile(false);
       }
@@ -72,6 +75,17 @@ export default function DashboardPage() {
       <main className="p-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-gray-600 mt-2">Redirecting…</p>
+      </main>
+    );
+  }
+
+  if (errorMsg) {
+    return (
+      <main className="p-6">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-red-700">
+          {errorMsg}
+        </div>
       </main>
     );
   }
