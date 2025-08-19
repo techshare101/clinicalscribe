@@ -24,19 +24,8 @@ export default function LoginPage() {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const user = cred.user;
       const idToken = await user.getIdToken();
-
-      // Call server session route to set HttpOnly cookies
-      const resp = await fetch("/api/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      });
-      if (!resp.ok) {
-        throw new Error("Failed to establish session");
-      }
-      const { role } = await resp.json();
-
-      router.push(role === "admin" ? "/admin" : "/dashboard");
+      await setSession(idToken);
+      router.push("/dashboard");
     } catch (err: any) {
       setError(err?.message || "Login failed");
     } finally {
