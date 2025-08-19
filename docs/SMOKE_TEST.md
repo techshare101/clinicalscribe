@@ -27,3 +27,8 @@ Use this checklist to verify core flows end-to-end after deploying Firestore rul
 ## 6. SMART on FHIR (Optional)
 - [ ] Visit `/smart/launch/default?debug=1`.
 - [ ] Expect the Epic sandbox login page.
+## 7. Profiles
+
+- After signup or first login, verify a document exists at `profiles/{your uid}` in Firestore.
+- If the document does not exist, reload the Dashboard once. The app will auto-create a default profile if missing.
+- If you still see “Failed to load your profile,” ensure Firestore rules are published for `profiles/{uid}` and try again.

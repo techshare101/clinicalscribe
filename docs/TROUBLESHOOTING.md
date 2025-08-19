@@ -36,3 +36,11 @@ Common issues and quick fixes.
 ## Rate Limiting (/api/redflag)
 - Default limit is 5 requests per minute per key (IP + optional user hint).
 - Configure via `REDFLAG_RPM` and `REDFLAG_WINDOW_SEC` environment variables.
+## Profiles
+
+- Symptom: “Failed to load your profile”
+  - Ensure Firestore rules are published and include:
+    - `match /profiles/{uid} { allow read, write: if request.auth != null && request.auth.uid == uid; }`
+  - Confirm you are logged in and that the `__session` cookie exists in DevTools.
+  - Sign up a fresh test user to force creation of `profiles/{uid}`, or reload Dashboard once to allow auto-create.
+  - Verify in Firebase Console → Firestore Database → Data that `profiles/{uid}` exists.
