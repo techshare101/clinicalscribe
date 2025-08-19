@@ -26,8 +26,16 @@ service cloud.firestore {
 
     // Patients belong to ownerId
     match /patients/{pid} {
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow read, write: if isOwner(resource.data.ownerId) || isAdmin();
+    }
+
+    // SOAP Notes belong to userId (author)
+    match /soapNotes/{id} {
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.createdAt != null;
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
     }
 
     // Sessions belong to ownerId
