@@ -2,51 +2,49 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() { return request.auth != null; }
-    function isAdmin() { return isSignedIn() && request.auth.token.role == "admin"; }
-    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
-
-    // User profiles
+    // --- PROFILES ---
+    // Each user can only manage their own profile.
     match /profiles/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
-      allow write: if isOwner(uid) || isAdmin();
+      allow read, update, delete: if request.auth != null
+                                  && (resource.data.uid == request.auth.uid
+                                      || get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == "admin");
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
     }
 
-    // Recordings belong to ownerId
-    match /recordings/{docId} {
-      allow create: if isSignedIn();
-      allow read, write: if isOwner(resource.data.ownerId) || isAdmin();
+    // --- PATIENTS ---
+    // Only the owner (nurse) can manage their patients.
+    match /patients/{patientId} {
+      allow create: if request.auth != null
+                    && request.resource.data.ownerId == request.auth.uid;
+      allow read, update, delete: if request.auth != null
+                                  && resource.data.ownerId == request.auth.uid;
     }
 
-    // Reports/PDF metadata belong to ownerId
-    match /reports/{docId} {
-      allow create: if isSignedIn();
-      allow read, write: if isOwner(resource.data.ownerId) || isAdmin();
+    // --- SOAP NOTES ---
+    // Notes are linked to a user (author) and patient.
+    match /soapNotes/{noteId} {
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.createdAt != null;
+      allow read, update, delete: if request.auth != null
+                                  && resource.data.uid == request.auth.uid;
     }
 
-    // Patients belong to ownerId
-    match /patients/{pid} {
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow read, write: if isOwner(resource.data.ownerId) || isAdmin();
+    // --- REPORTS ---
+    // Reports follow the same pattern as SOAP notes.
+    match /reports/{reportId} {
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.createdAt != null;
+      allow read, update, delete: if request.auth != null
+                                  && resource.data.uid == request.auth.uid;
     }
 
-    // SOAP Notes belong to userId (author)
-    match /soapNotes/{id} {
-      allow create: if isSignedIn()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.createdAt != null;
-      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
-    }
-
-    // Sessions belong to ownerId
-    match /sessions/{sid} {
-      allow create: if isSignedIn();
-      allow read, write: if isOwner(resource.data.ownerId) || isAdmin();
-    }
-
-    // Default deny
-    match /{document=**} {
-      allow read, write: if false;
+    // --- ADMIN ---
+    match /admin/{docId} {
+      allow read, write: if request.auth != null
+                         && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == "admin";
     }
   }
 }

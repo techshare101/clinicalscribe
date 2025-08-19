@@ -1,96 +1,91 @@
 export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
+import { adminDb } from '@/lib/firebaseAdmin'
 
 export async function POST(req: NextRequest) {
-  const debug = req.nextUrl.searchParams.get('debug') === '1'
   try {
-    const access = req.cookies.get('smart_access_token')?.value
-    const fhirBaseCookie = req.cookies.get('smart_fhir_base')?.value
-
-    if (!access || !fhirBaseCookie) {
-      const payload = { error: 'Not connected to SMART/EHR' }
-      return NextResponse.json(debug ? { ok: false, ...payload } : payload, { status: 401 })
+    const { reportId } = (await req.json()) as { reportId?: string }
+    if (!reportId) {
+      return NextResponse.json({ ok: false, status: 400, message: 'Missing reportId' }, { status: 400 })
     }
 
-    const fhirBase = (process.env.SMART_FHIR_BASE || fhirBaseCookie).replace(/\/$/, '')
-
-    const docRef = await req.json().catch(() => null)
-    if (!docRef || typeof docRef !== 'object') {
-      const payload = { error: 'Invalid DocumentReference payload' }
-      return NextResponse.json(debug ? { ok: false, ...payload } : payload, { status: 400 })
+    // Load SMART config
+    const cfgSnap = await adminDb.collection('smart').doc('config').get()
+    if (!cfgSnap.exists) {
+      return NextResponse.json({ ok: false, status: 0, message: 'No SMART config' }, { status: 500 })
+    }
+    const cfg = cfgSnap.data() as any
+    const token = cfg?.access_token || cfg?.token
+    const base = (cfg?.fhir_base || process.env.SMART_FHIR_BASE || 'https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4').replace(/\/$/, '')
+    if (!token || !base) {
+      return NextResponse.json({ ok: false, status: 0, message: 'Missing access_token or fhir_base' }, { status: 500 })
     }
 
-    const target = `${fhirBase}/DocumentReference`
-    const headers = {
-      'Content-Type': 'application/fhir+json',
-      Authorization: `Bearer ${access}`,
+    // Load report
+    const reportSnap = await adminDb.collection('reports').doc(reportId).get()
+    if (!reportSnap.exists) {
+      return NextResponse.json({ ok: false, status: 404, message: 'Report not found' }, { status: 404 })
+    }
+    const data = reportSnap.data() as any
+
+    // Build FHIR DocumentReference
+    const fhirDocRef = {
+      resourceType: 'DocumentReference',
+      status: 'current',
+      type: { text: data?.type || 'SOAP Note' },
+      subject: { reference: `Patient/${data?.patientId || 'example'}` },
+      author: [
+        {
+          reference: `Practitioner/${data?.uid || data?.userId || 'unknown'}`,
+          display: data?.author || data?.authorName || 'Clinician',
+        },
+      ],
+      date: new Date().toISOString(),
+      content: [
+        {
+          attachment: {
+            contentType: data?.contentType || 'application/pdf',
+            url: data?.pdfUrl || data?.url || '',
+          },
+        },
+      ],
     }
 
-    const res = await fetch(target, {
+    // POST to Epic FHIR sandbox
+    const resp = await fetch(`${base}/DocumentReference`, {
       method: 'POST',
-      headers,
-      body: JSON.stringify(docRef),
+      headers: {
+        'Content-Type': 'application/fhir+json',
+        Accept: 'application/fhir+json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(fhirDocRef),
     })
 
-    const text = await res.text().catch(() => '')
-    let responseBody: any
-    try {
-      responseBody = JSON.parse(text)
-    } catch {
-      responseBody = { text }
+    const status = resp.status
+    const wwwAuth = resp.headers.get('www-authenticate') || resp.headers.get('WWW-Authenticate') || null
+    const bodyText = await resp.text().catch(() => '')
+
+    if (resp.ok || status === 201) {
+      let id: string | undefined
+      try {
+        id = JSON.parse(bodyText)?.id
+      } catch {}
+      return NextResponse.json({ ok: true, status, id, response: bodyText, base })
     }
 
-    if (!res.ok) {
-      const payload = {
-        posted: false,
-        server: fhirBase,
-        status: res.status,
-        error: responseBody?.issue || responseBody || 'EHR post failed',
-      }
-      return NextResponse.json(
-        debug
-          ? {
-              ok: false,
-              ...payload,
-              debug: {
-                target,
-                usedFhirBase: fhirBase,
-                request: {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/fhir+json', Authorization: 'Bearer ***' },
-                  body: docRef,
-                },
-                response: { status: res.status, body: responseBody },
-              },
-            }
-          : payload,
-        { status: res.status }
-      )
-    }
-
-    const resourceId = responseBody?.id || (res.headers.get('location') || '').split('/').pop() || null
-    const payload = { posted: true, server: fhirBase, resourceId, response: responseBody }
     return NextResponse.json(
-      debug
-        ? {
-            ok: true,
-            ...payload,
-            debug: {
-              target,
-              usedFhirBase: fhirBase,
-              request: {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/fhir+json', Authorization: 'Bearer ***' },
-                body: docRef,
-              },
-              response: { status: res.status, body: responseBody },
-            },
-          }
-        : payload
+      {
+        ok: false,
+        status,
+        message: bodyText || 'Epic returned error',
+        wwwAuthenticate: wwwAuth,
+        base,
+      },
+      { status }
     )
   } catch (err: any) {
-    const payload = { posted: false, error: err?.message || 'Server error' }
-    return NextResponse.json(debug ? { ok: false, ...payload } : payload, { status: 500 })
+    return NextResponse.json({ ok: false, status: 500, message: err?.message || 'Internal error' }, { status: 500 })
   }
 }
