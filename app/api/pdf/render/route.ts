@@ -5,7 +5,7 @@ import puppeteer from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
 import { adminBucket } from '@/lib/firebaseAdmin'
 
-function ok<T>(data: T, init?: number | ResponseInit) {
+function ok<T>(data: T, init?: ResponseInit) {
   return NextResponse.json(data as any, init)
 }
 
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
     const content = String(html || '')
 
-    const executablePath = await chromium.executablePath
+    const executablePath = await chromium.executablePath()
     const browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
