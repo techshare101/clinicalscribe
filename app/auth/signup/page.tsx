@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import { doc, setDoc } from "firebase/firestore";
+import { setSession } from "@/lib/session";
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
