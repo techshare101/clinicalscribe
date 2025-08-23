@@ -3,25 +3,45 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/firebase"; // Firebase auth instance
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 
 export default function LandingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null); // Explicitly type as any
 
   // Check if user is logged in
   useEffect(() => {
+    const path = window.location.pathname;
+
+    // Block auto-redirect if in Stripe checkout flow or payment-related pages
+    const isCheckoutFlow =
+      path === "/success" ||
+      path === "/cancel" ||
+      path.startsWith("/success") ||
+      path.startsWith("/cancel") ||
+      searchParams?.get("checkout") ||
+      searchParams?.get("session_id") ||
+      searchParams?.get("activated") ||
+      searchParams?.get("pending");
+
+    console.log("Auth redirect check:", { path, isCheckoutFlow, hasUser: !!user });
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
+      if (currentUser && !isCheckoutFlow) {
+        console.log("✅ Redirecting authenticated user to dashboard", { path, isCheckoutFlow });
         setUser(currentUser);
-        router.push("/dashboard"); // Redirect to dashboard if logged in
+        router.push("/dashboard");
+      } else if (currentUser && isCheckoutFlow) {
+        console.log("🚫 Skipping redirect - user in checkout flow", { path, isCheckoutFlow });
+        setUser(currentUser);
       }
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, [router, searchParams, user]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100">
