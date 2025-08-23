@@ -16,13 +16,16 @@ const stripe = new Stripe(stripeKey || "sk_missing", {
 });
 
 export async function POST(req: Request) {
+  console.log('🔄 Stripe Checkout: Request received at', new Date().toISOString());
+  
   try {
     // Parse request body with error handling
     let body: any = {};
     try {
       body = await req.json();
+      console.log('✅ Stripe Checkout: Request body parsed successfully');
     } catch (parseErr) {
-      console.error("❌ Failed to parse request body:", parseErr);
+      console.error("❌ Stripe Checkout: Failed to parse request body:", parseErr);
       return NextResponse.json(
         { error: "Invalid request body. Must be JSON." },
         { status: 400 }
@@ -31,14 +34,17 @@ export async function POST(req: Request) {
 
     const { priceId, idToken } = body;
 
-    console.log('🔄 Checkout request received:', { 
+    console.log('🔄 Stripe Checkout: Request details:', { 
       priceId: priceId ? 'present' : 'missing', 
       idToken: idToken ? 'present' : 'missing',
-      actualPriceId: priceId
+      actualPriceId: priceId,
+      tokenLength: idToken?.length || 0,
+      timestamp: new Date().toISOString()
     });
 
     // Validate required fields
     if (!priceId) {
+      console.error('❌ Stripe Checkout: Missing priceId');
       return NextResponse.json(
         { error: "Missing priceId in request body" },
         { status: 400 }
@@ -46,6 +52,7 @@ export async function POST(req: Request) {
     }
 
     if (!idToken) {
+      console.error('❌ Stripe Checkout: Missing idToken');
       return NextResponse.json(
         { error: "Missing idToken in request body" },
         { status: 400 }
@@ -54,33 +61,65 @@ export async function POST(req: Request) {
 
     // Check if Stripe is properly configured
     if (!stripeKey || stripeKey.startsWith("sk_missing")) {
-      console.error('❌ STRIPE_SECRET_KEY is not configured');
+      console.error('❌ Stripe Checkout: STRIPE_SECRET_KEY is not configured');
       return NextResponse.json(
         { error: "Server misconfigured: STRIPE_SECRET_KEY is missing" },
         { status: 500 }
       );
     }
 
-    // Verify Firebase token
+    // Verify Firebase token with enhanced debugging
     console.log('🔐 Verifying Firebase token...');
     console.log('Token length:', idToken?.length || 0);
     console.log('Token starts with:', idToken?.substring(0, 20) || 'null');
+    console.log('Server time before verification:', new Date().toISOString());
     
     let decoded, userId;
+    const verificationStartTime = Date.now();
+    
     try {
       decoded = await adminAuth.verifyIdToken(idToken);
       userId = decoded.uid;
+      const verificationEndTime = Date.now();
+      
       console.log('✅ Token verified for user:', userId);
+      console.log('Verification took (ms):', verificationEndTime - verificationStartTime);
       console.log('Token issued at:', new Date(decoded.iat * 1000).toISOString());
       console.log('Token expires at:', new Date(decoded.exp * 1000).toISOString());
-      console.log('Current time:', new Date().toISOString());
+      console.log('Current server time:', new Date().toISOString());
+      console.log('Time until expiry (ms):', (decoded.exp * 1000) - Date.now());
+      console.log('Token age (ms):', Date.now() - (decoded.iat * 1000));
+      
+      // Check if token is close to expiry (within 5 minutes)
+      const timeUntilExpiry = (decoded.exp * 1000) - Date.now();
+      if (timeUntilExpiry < 5 * 60 * 1000) {
+        console.warn('⚠️ Token expires soon:', timeUntilExpiry / 1000, 'seconds remaining');
+      }
+      
     } catch (authErr: any) {
+      const verificationEndTime = Date.now();
+      
       console.error('❌ Firebase token verification failed:', {
         error: authErr.message,
         code: authErr.code,
+        type: authErr.constructor?.name,
         tokenProvided: !!idToken,
-        tokenLength: idToken?.length || 0
+        tokenLength: idToken?.length || 0,
+        verificationTime: verificationEndTime - verificationStartTime,
+        serverTime: new Date().toISOString(),
+        tokenPreview: idToken ? idToken.substring(0, 50) + '...' : 'null'
       });
+      
+      // Enhanced error analysis
+      if (authErr.code === 'auth/id-token-expired') {
+        console.error('🕒 Token has expired');
+      } else if (authErr.code === 'auth/invalid-id-token') {
+        console.error('📝 Token format is invalid');
+      } else if (authErr.code === 'auth/project-not-found') {
+        console.error('🏗️ Firebase project configuration issue');
+      } else {
+        console.error('❓ Unknown authentication error');
+      }
       
       // Provide more specific error messages based on the error type
       let errorMessage = "Invalid or expired authentication token";
@@ -93,7 +132,14 @@ export async function POST(req: Request) {
       }
       
       return NextResponse.json(
-        { error: errorMessage },
+        { 
+          error: errorMessage,
+          debug: {
+            code: authErr.code,
+            verificationTime: verificationEndTime - verificationStartTime,
+            serverTime: new Date().toISOString()
+          }
+        },
         { status: 401 }
       );
     }

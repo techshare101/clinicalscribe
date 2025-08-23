@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
+import { useToast } from '@/hooks/use-toast'
 import { uploadToFirebase } from '@/lib/storage'
 import { auth } from '@/lib/firebase'
 import { FileText, Upload, Download, Signature, CheckCircle, AlertCircle, Trash2 } from 'lucide-react'
@@ -31,7 +32,6 @@ export default function SignatureAndPDF({
   soapNote,
   patientName = '',
   encounterType = '',
-  watermark = true,
 }: SignatureAndPDFProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
@@ -41,6 +41,7 @@ export default function SignatureAndPDF({
   const [uploadUrl, setUploadUrl] = useState<string | null>(null) // legacy field; no longer used for Firebase
   const [uploadedPath, setUploadedPath] = useState<string | null>(null)
   const [lastPoint, setLastPoint] = useState<{ x: number; y: number } | null>(null)
+  const { toast } = useToast()
 
   // Initialize canvas
   React.useEffect(() => {
@@ -287,7 +288,7 @@ export default function SignatureAndPDF({
               body { margin: 20px; }
               .signature-section { break-inside: avoid; }
             }
-            ${watermark ? `
+            ${true ? `
             .watermark {
               position: fixed;
               top: 0; left: 0; right: 0; bottom: 0;
@@ -313,7 +314,7 @@ export default function SignatureAndPDF({
           </style>
         </head>
         <body>
-          ${watermark ? `
+          ${true ? `
           <div class="watermark" aria-hidden="true"></div>
           <div class="watermark-text" aria-hidden="true">ClinicalScribe Beta</div>
           ` : ''}
@@ -385,51 +386,203 @@ export default function SignatureAndPDF({
 
   const generateAndUploadPDF = async () => {
     if (!doctorName.trim()) {
-      setStatusMessage('❌ Please enter your name.')
+      toast({
+        title: "Name Required",
+        description: "Please enter your name before generating the PDF.",
+        variant: "destructive"
+      })
       return
     }
 
     if (isSignatureEmpty()) {
-      setStatusMessage('❌ Please provide your signature.')
+      toast({
+        title: "Signature Required", 
+        description: "Please provide your signature before generating the PDF.",
+        variant: "destructive"
+      })
       return
     }
 
     setIsGenerating(true)
-    setStatusMessage('📄 Generating document...')
+    setStatusMessage('📄 Generating PDF document...')
 
     try {
-      const htmlContent = generateHTMLContent()
-      const blob = new Blob([htmlContent], { type: 'text/html' })
-
-      setStatusMessage('☁️ Uploading to Storage...')
-
       const user = auth.currentUser
-      if (!user) throw new Error('Not signed in')
+      if (!user) {
+        throw new Error('Please sign in to generate PDF')
+      }
 
-      const { path } = await uploadToFirebase('pdfs', blob, user.uid, 'html')
-
-      setUploadedPath(path)
-      setUploadUrl(null)
-      setStatusMessage('✅ Document uploaded successfully!')
-    } catch (error) {
-      console.error('Document generation error:', error)
-      setStatusMessage('❌ Failed to generate or upload document')
+      // Get fresh ID token for authentication
+      const idToken = await user.getIdToken(true)
+      
+      // Generate HTML content for PDF
+      const htmlContent = generateHTMLContent()
+      
+      setStatusMessage('☁️ Uploading to Storage...')
+      
+      // Call PDF render API
+      const response = await fetch('/api/pdf/render', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          html: htmlContent,
+          ownerId: user.uid
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to generate PDF')
+      }
+      
+      if (result.success && result.url) {
+        setUploadedPath(result.filePath)
+        setUploadUrl(result.url)
+        setStatusMessage('✅ PDF uploaded successfully!')
+        
+        toast({
+          title: "PDF Generated Successfully!",
+          description: "Your document has been generated and uploaded to secure storage.",
+          variant: "default"
+        })
+        
+        console.log('🎉 PDF generated and uploaded:', result.filePath)
+      } else {
+        throw new Error('PDF generation failed - no URL returned')
+      }
+      
+    } catch (error: any) {
+      console.error('[SignatureAndPDF] PDF generation error:', error)
+      setStatusMessage(`❌ PDF generation failed`)
+      
+      toast({
+        title: "PDF Generation Failed",
+        description: error.message || "An error occurred while generating the PDF. Please try again.",
+        variant: "destructive"
+      })
     } finally {
       setIsGenerating(false)
     }
   }
 
-  const downloadDocument = () => {
-    const htmlContent = generateHTMLContent()
-    const blob = new Blob([htmlContent], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `SOAP_Note_${patientName?.replace(/\s+/g, '_') || 'Patient'}_${Date.now()}.html`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+  const handleGetSignedUrl = async () => {
+    try {
+      const user = auth.currentUser
+      const idToken = await user?.getIdToken()
+      if (!idToken) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to open the document.",
+          variant: "destructive"
+        })
+        return
+      }
+      const res = await fetch('/api/storage/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ path: uploadedPath, expiresInSec: 300 }),
+      })
+      const { url, error } = await res.json()
+      if (error || !url) throw new Error(error || 'No URL returned')
+      window.open(url, '_blank')
+      
+      toast({
+        title: "Document Opened",
+        description: "Your document is opening in a new tab.",
+        variant: "default"
+      })
+    } catch (e: any) {
+      console.error('[SignatureAndPDF] Get signed URL error:', e)
+      
+      toast({
+        title: "Failed to Open Document",
+        description: e.message || "Could not generate download link. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const downloadDocument = async () => {
+    if (!doctorName.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter your name before downloading.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (isSignatureEmpty()) {
+      toast({
+        title: "Signature Required",
+        description: "Please provide your signature before downloading.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const user = auth.currentUser
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to download the document.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Get fresh ID token for authentication
+      const idToken = await user.getIdToken(true)
+      
+      // Generate HTML content for PDF
+      const htmlContent = generateHTMLContent()
+      
+      // Call PDF render API
+      const response = await fetch('/api/pdf/render', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          html: htmlContent,
+          ownerId: user.uid
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to generate PDF')
+      }
+      
+      if (result.success && result.url) {
+        // Download the PDF directly
+        window.open(result.url, '_blank')
+        
+        toast({
+          title: "Download Started",
+          description: "Your PDF document is being downloaded.",
+          variant: "default"
+        })
+      } else {
+        throw new Error('PDF generation failed - no URL returned')
+      }
+      
+    } catch (error: any) {
+      console.error('[SignatureAndPDF] PDF download error:', error)
+      
+      toast({
+        title: "Download Failed",
+        description: error.message || "Failed to download PDF. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
   return (
@@ -531,7 +684,7 @@ export default function SignatureAndPDF({
               className="flex items-center gap-2"
             >
               <Upload className="h-4 w-4" />
-              {isGenerating ? 'Processing...' : 'Sign & Upload to Storage'}
+              {isGenerating ? 'Processing...' : 'Generate & Upload PDF'}
             </Button>
 
             <Button
@@ -540,38 +693,25 @@ export default function SignatureAndPDF({
               className="flex items-center gap-2"
             >
               <Download className="h-4 w-4" />
-              Download Document
+              Download PDF
             </Button>
 
             {uploadedPath && (
               <Button
                 variant="secondary"
-                onClick={async () => {
-                  try {
-                    const user = auth.currentUser
-                    const idToken = await user?.getIdToken()
-                    if (!idToken) {
-                      alert('Please sign in to open the document.')
-                      return
-                    }
-                    const res = await fetch('/api/storage/signed-url', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-                      body: JSON.stringify({ path: uploadedPath, expiresInSec: 300 }),
-                    })
-                    const { url, error } = await res.json()
-                    if (error || !url) throw new Error(error || 'No URL returned')
-                    window.open(url, '_blank')
-                  } catch (e) {
-                    console.error(e)
-                    // keep a simple alert here to avoid adding extra imports to this component
-                    alert('Could not generate download link.')
+                onClick={() => {
+                  if (uploadUrl) {
+                    // Use the direct signed URL from PDF render response
+                    window.open(uploadUrl, '_blank')
+                  } else {
+                    // Fallback: generate new signed URL via API
+                    handleGetSignedUrl()
                   }
                 }}
                 className="flex items-center gap-2"
               >
                 <Download className="h-4 w-4" />
-                Open Signed Link
+                {uploadUrl ? 'Download PDF' : 'Open Signed Link'}
               </Button>
             )}
           </div>

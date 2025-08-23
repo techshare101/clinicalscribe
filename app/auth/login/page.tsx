@@ -21,13 +21,38 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
+      console.log('🔑 Login: Starting authentication...');
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const user = cred.user;
+      console.log('✅ Login: Firebase authentication successful for user:', user.uid);
+      
+      console.log('🎫 Login: Getting ID token...');
       const idToken = await user.getIdToken();
+      console.log('✅ Login: ID token obtained, length:', idToken.length);
+      
+      console.log('🍪 Login: Setting session...');
       await setSession(idToken);
+      console.log('✅ Login: Session set successfully, redirecting to dashboard');
+      
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err?.message || "Login failed");
+      console.error('❌ Login: Error occurred:', err);
+      
+      // Provide more specific error messages
+      let errorMessage = "Login failed";
+      if (err.message?.includes('session')) {
+        errorMessage = `Login successful, but session creation failed: ${err.message}`;
+      } else if (err.code === 'auth/user-not-found') {
+        errorMessage = "No account found with this email address.";
+      } else if (err.code === 'auth/wrong-password') {
+        errorMessage = "Incorrect password.";
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = "Please enter a valid email address.";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

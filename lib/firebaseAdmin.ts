@@ -1,30 +1,65 @@
 import * as admin from "firebase-admin";
 
 if (!admin.apps.length) {
-  try {
-    // Try application default credentials first (works in production/Vercel)
-    admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-    });
-    console.log('✅ Firebase Admin initialized with application default credentials');
-  } catch (error) {
-    console.log('⚠️  Application default credentials not available, falling back to service account');
+  // In local development, always use service account to avoid metadata server issues
+  const isLocal = process.env.NODE_ENV === 'development' || !process.env.VERCEL;
+  
+  if (isLocal) {
+    console.log('🏠 Local development detected, using service account credentials');
     
-    // Fallback to service account for local development
     try {
+      if (!process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable is required for local development');
+      }
+      
       const serviceAccount = JSON.parse(
-        Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64!, "base64").toString()
+        Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString()
       );
       
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
       });
-      console.log('✅ Firebase Admin initialized with service account credentials');
-    } catch (serviceAccountError) {
-      console.error('❌ Failed to initialize Firebase Admin with either method:', serviceAccountError);
-      throw serviceAccountError;
+      
+      console.log('✅ Firebase Admin initialized with service account credentials (local)');
+    } catch (error: any) {
+      console.error('❌ Failed to initialize Firebase Admin with service account:', error.message);
+      throw new Error(`Firebase Admin initialization failed: ${error.message}`);
+    }
+  } else {
+    console.log('☁️ Production environment detected, using application default credentials');
+    
+    try {
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+      });
+      
+      console.log('✅ Firebase Admin initialized with application default credentials (production)');
+    } catch (error: any) {
+      console.error('❌ Failed to initialize Firebase Admin with application default credentials:', error.message);
+      
+      // Fallback to service account even in production if available
+      if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+        console.log('🔄 Falling back to service account credentials...');
+        try {
+          const serviceAccount = JSON.parse(
+            Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString()
+          );
+          
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+            storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+          });
+          
+          console.log('✅ Firebase Admin initialized with service account credentials (fallback)');
+        } catch (serviceAccountError: any) {
+          console.error('❌ Service account fallback also failed:', serviceAccountError.message);
+          throw new Error(`Firebase Admin initialization failed: ${serviceAccountError.message}`);
+        }
+      } else {
+        throw new Error(`Firebase Admin initialization failed: ${error.message}`);
+      }
     }
   }
 }
