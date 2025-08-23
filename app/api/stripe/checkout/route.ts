@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getAuth } from "firebase-admin/auth";
-import { getApp, getApps, initializeApp, cert } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { adminAuth } from "@/lib/firebaseAdmin";
 import { getAppUrl } from "@/lib/env";
 
 // Validate critical environment variables at startup
@@ -12,23 +10,7 @@ if (!stripeKey) {
   console.error("❌ Missing STRIPE_SECRET_KEY in environment");
 }
 
-// Initialize Firebase Admin
-if (!getApps().length) {
-  try {
-    const serviceAccount = JSON.parse(
-      Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64!, 'base64').toString()
-    )
-    
-    initializeApp({
-      credential: cert(serviceAccount),
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    })
-  } catch (firebaseErr) {
-    console.error("❌ Firebase initialization failed:", firebaseErr);
-  }
-}
-
-const db = getFirestore()
+// Initialize Stripe with validation
 const stripe = new Stripe(stripeKey || "sk_missing", {
   // Let Stripe SDK use its default compatible API version
 });
@@ -81,15 +63,37 @@ export async function POST(req: Request) {
 
     // Verify Firebase token
     console.log('🔐 Verifying Firebase token...');
+    console.log('Token length:', idToken?.length || 0);
+    console.log('Token starts with:', idToken?.substring(0, 20) || 'null');
+    
     let decoded, userId;
     try {
-      decoded = await getAuth().verifyIdToken(idToken);
+      decoded = await adminAuth.verifyIdToken(idToken);
       userId = decoded.uid;
       console.log('✅ Token verified for user:', userId);
+      console.log('Token issued at:', new Date(decoded.iat * 1000).toISOString());
+      console.log('Token expires at:', new Date(decoded.exp * 1000).toISOString());
+      console.log('Current time:', new Date().toISOString());
     } catch (authErr: any) {
-      console.error('❌ Firebase token verification failed:', authErr);
+      console.error('❌ Firebase token verification failed:', {
+        error: authErr.message,
+        code: authErr.code,
+        tokenProvided: !!idToken,
+        tokenLength: idToken?.length || 0
+      });
+      
+      // Provide more specific error messages based on the error type
+      let errorMessage = "Invalid or expired authentication token";
+      if (authErr.code === 'auth/id-token-expired') {
+        errorMessage = "Authentication token has expired. Please refresh and try again.";
+      } else if (authErr.code === 'auth/invalid-id-token') {
+        errorMessage = "Invalid authentication token format. Please log out and log back in.";
+      } else if (authErr.code === 'auth/project-not-found') {
+        errorMessage = "Server configuration error. Please contact support.";
+      }
+      
       return NextResponse.json(
-        { error: "Invalid or expired authentication token" },
+        { error: errorMessage },
         { status: 401 }
       );
     }
