@@ -107,12 +107,27 @@ export default function PricingPage() {
     setLoading(priceId)
 
     try {
-      const idToken = await auth.currentUser.getIdToken(true)
+      // Enhanced authentication handling
+      console.log('🔄 Pricing: Refreshing authentication state...');
+      await auth.currentUser.reload();
+      
+      // Force refresh the ID token to ensure it's not expired
+      console.log('🎫 Pricing: Getting fresh ID token...');
+      const idToken = await auth.currentUser.getIdToken(true);
+      
+      // Validate token is not empty
+      if (!idToken) {
+        throw new Error("Failed to retrieve authentication token");
+      }
+      
+      console.log('✅ Pricing: Token obtained, length:', idToken.length);
+      console.log('💳 Pricing: Creating checkout session...');
       
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`, // Add as header for debugging
         },
         body: JSON.stringify({
           priceId: priceId,
@@ -120,18 +135,39 @@ export default function PricingPage() {
         }),
       })
 
+      console.log('💳 Pricing: Checkout API response status:', response.status);
+
       const data = await response.json()
+      console.log('💳 Pricing: Checkout API response data:', data);
 
       if (!response.ok) {
+        // Handle specific auth errors
+        if (response.status === 401 || data.error?.includes('authentication') || data.error?.includes('token')) {
+          console.warn('🔐 Pricing: Authentication error detected');
+          alert('Authentication issue detected. Please try logging out and back in, then try again.');
+        } else {
+          console.error('❌ Pricing: Checkout failed:', data.error);
+        }
         throw new Error(data.error || 'Failed to create checkout session')
       }
 
       if (data.url) {
+        console.log('🎉 Pricing: Redirecting to Stripe Checkout...');
         window.location.href = data.url
+      } else {
+        throw new Error('No checkout URL returned from server');
       }
     } catch (error: any) {
-      console.error('Subscription error:', error)
-      alert(`Failed to start subscription: ${error.message}`)
+      console.error('❌ Pricing: Subscription error:', error);
+      
+      // Handle specific Firebase auth errors
+      if (error.code === 'auth/id-token-expired' || error.code === 'auth/user-token-expired') {
+        alert('Your session has expired. Please log out and log back in, then try again.');
+      } else if (error.code === 'auth/network-request-failed') {
+        alert('Network error. Please check your connection and try again.');
+      } else {
+        alert(`Failed to start subscription: ${error.message}`);
+      }
     } finally {
       setLoading(null)
     }

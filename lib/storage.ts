@@ -4,6 +4,32 @@ import { storage, auth } from "./firebase";
 
 export type BucketFolder = "recordings" | "images" | "pdfs";
 
+/**
+ * Server-only PDF generation to avoid Firebase Storage retry errors
+ * Use this instead of uploadToFirebase for PDFs
+ */
+export async function generateAndUploadPDF(html: string): Promise<{ url: string; path: string }> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not authenticated");
+
+  const idToken = await user.getIdToken(true);
+  const response = await fetch("/api/pdf/render", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ html, ownerId: user.uid }),
+  });
+  
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "PDF generation failed");
+  
+  return { url: result.url, path: result.path };
+}
+
+export type BucketFolder = "recordings" | "images" | "pdfs";
+
 function randomId() {
   // crypto.randomUUID with fallback for older browsers/environments
   try {

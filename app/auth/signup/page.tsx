@@ -20,16 +20,44 @@ export default function SignUpPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      console.log('🔐 Signup: Creating user account...');
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       const user = cred.user;
+      console.log('✅ Signup: User account created:', user.uid);
+      
+      console.log('📄 Signup: Creating user profile...');
       // Initialize profile document with betaActive false
       await setDoc(doc(db, 'profiles', user.uid), { betaActive: false, createdAt: Date.now() }, { merge: true });
+      console.log('✅ Signup: User profile created');
+      
+      console.log('🎫 Signup: Getting ID token...');
       // Set session cookie for server routes
       const idToken = await user.getIdToken();
+      console.log('✅ Signup: ID token obtained, length:', idToken.length);
+      
+      console.log('🍪 Signup: Setting session...');
       await setSession(idToken);
+      console.log('✅ Signup: Session set successfully, redirecting to dashboard');
+      
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Failed to create account.");
+      console.error('❌ Signup: Error occurred:', err);
+      
+      // Provide more specific error messages
+      let errorMessage = "Failed to create account.";
+      if (err.message?.includes('session')) {
+        errorMessage = `Account created successfully, but session creation failed: ${err.message}`;
+      } else if (err.code === 'auth/email-already-in-use') {
+        errorMessage = "An account with this email already exists.";
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = "Password is too weak. Please choose a stronger password.";
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = "Please enter a valid email address.";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     }
   };
 
