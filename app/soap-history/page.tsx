@@ -25,6 +25,7 @@ import {
 import { ExportToEHR } from './_components/ExportToEHR'
 import { EhrStatusBadge } from '@/components/EhrStatusBadge'
 import { DownloadPdfButton } from '@/components/DownloadPdfButton'
+import PatientSearch from '@/components/PatientSearch'
 
 interface SOAPNote {
   id: string
@@ -45,7 +46,7 @@ interface SOAPNote {
 export default function SOAPHistoryPage() {
   const [user, setUser] = useState<FirebaseUser | null>(null)
   const [soapNotes, setSoapNotes] = useState<SOAPNote[]>([])
-  const [filter, setFilter] = useState<'all' | 'flagged' | 'non-flagged'>('all')
+  const [filter, setFilter] = useState<'all' | 'flagged' | 'non-flagged' | 'pdf-available'>('all')
   const [filterPatientId, setFilterPatientId] = useState<string | null>(null)
   const [patientSearch, setPatientSearch] = useState('')
   const [patientOptions, setPatientOptions] = useState<{ id: string; name: string }[]>([])
@@ -127,6 +128,7 @@ export default function SOAPHistoryPage() {
   const filteredNotes = soapNotes.filter(note => {
     if (filter === 'flagged') return isRedFlag(note.redFlag)
     if (filter === 'non-flagged') return !isRedFlag(note.redFlag)
+    if (filter === 'pdf-available') return (note as any).storagePath || (note as any).pdf?.status === 'generated'
     return true
   })
 
@@ -170,31 +172,28 @@ export default function SOAPHistoryPage() {
               >
                 Non-Flagged Only
               </Button>
+              <Button
+                variant={filter === 'pdf-available' ? 'default' : 'outline'}
+                onClick={() => setFilter('pdf-available')}
+              >
+                📄 PDF Available
+              </Button>
 
-              <div className="relative">
-                <input
-                  className="border rounded px-2 py-1 text-sm w-56"
-                  placeholder="Filter by patient…"
-                  value={patientSearch}
-                  onChange={(e) => setPatientSearch(e.target.value)}
+              <div className="w-64">
+                <PatientSearch 
+                  onSearch={(term) => {
+                    if (term.length === 0) {
+                      setFilterPatientId(null)
+                      setPatientSearch('')
+                    } else {
+                      setPatientSearch(term)
+                    }
+                  }}
+                  placeholder="Search patients..."
+                  className="mb-0"
                 />
-                {patientOptions.length > 0 && patientSearch.trim().length >= 2 && (
-                  <div className="absolute left-0 right-0 mt-1 bg-white border rounded shadow z-10 max-h-64 overflow-auto">
-                    {patientOptions.map((p) => (
-                      <button
-                        key={p.id}
-                        className="block w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
-                        onClick={() => {
-                          setFilterPatientId(p.id)
-                          setPatientSearch(p.name)
-                        }}
-                      >
-                        {p.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
+              
               {filterPatientId && (
                 <Button variant="outline" size="sm" onClick={() => { setFilterPatientId(null); setPatientSearch('') }}>Clear</Button>
               )}
@@ -209,6 +208,7 @@ export default function SOAPHistoryPage() {
                 <TableHead>Patient</TableHead>
                 <TableHead>Assessment</TableHead>
                 <TableHead className="text-right">Pain Level</TableHead>
+                <TableHead className="text-right">PDF</TableHead>
                 <TableHead className="text-right">Export</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -228,6 +228,17 @@ export default function SOAPHistoryPage() {
                     <Badge variant={note.painLevel ? 'default' : 'secondary'}>
                       {note.painLevel || 'N/A'}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {(note as any).storagePath || (note as any).pdf?.status === 'generated' ? (
+                      <Badge variant="default" className="bg-green-100 text-green-800">
+                        📄 Available
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">
+                        —
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <Badge

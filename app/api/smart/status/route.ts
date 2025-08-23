@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { adminDb } from '@/lib/firebaseAdmin'
+import { db } from '@/lib/firebaseAdmin'
 
 export const runtime = 'nodejs'
 
 export async function GET() {
   try {
-    const snap = await adminDb.collection('smart').doc('config').get()
+    const snap = await db.collection('smart').doc('config').get()
     if (!snap.exists) {
       return NextResponse.json({ connected: false, message: 'No SMART config' })
     }

@@ -1,12 +1,14 @@
 // app/ehr-sandbox/page.tsx
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { useSmartStatus } from '@/hooks/use-smart-status'
+import { useToast } from '@/hooks/use-toast'
 
 function tryParseJSON(value: string): any | null {
   try {
@@ -27,6 +29,29 @@ export default function EHRExportSandboxPage() {
   const [attachmentUrl, setAttachmentUrl] = useState('')
   const [output, setOutput] = useState<string>('')
   const [error, setError] = useState<string>('')
+  
+  // 🔥 Get EHR connection status and toast system
+  const smartStatus = useSmartStatus()
+  const { toast } = useToast()
+  const [previousConnectionStatus, setPreviousConnectionStatus] = useState<boolean | null>(null)
+
+  // 🎯 Toast notification when EHR connection status changes
+  useEffect(() => {
+    if (previousConnectionStatus !== null && previousConnectionStatus !== smartStatus.connected) {
+      if (smartStatus.connected) {
+        toast({
+          title: "🟢 EHR Connected!",
+          description: "Successfully connected to Epic SMART on FHIR. You can now export clinical data.",
+        })
+      } else {
+        toast({
+          title: "🔴 EHR Disconnected",
+          description: "Connection to EHR has been lost. Please reconnect if needed.",
+        })
+      }
+    }
+    setPreviousConnectionStatus(smartStatus.connected)
+  }, [smartStatus.connected, previousConnectionStatus, toast])
 
   const canSubmit = useMemo(() => {
     return [subjective, objective, assessment, plan].some((s) => s.trim().length > 0)
@@ -73,6 +98,19 @@ export default function EHRExportSandboxPage() {
     URL.revokeObjectURL(url)
   }
 
+  // 🚀 Safe EHR connection handler - opens in new tab
+  const handleConnectToEHR = () => {
+    const SMART_AUTH_URL = `/smart/launch/default`
+    // Open Epic SMART login in new tab, keeping your app open
+    window.open(SMART_AUTH_URL, "_blank", "noopener,noreferrer")
+    
+    // Show immediate feedback
+    toast({
+      title: "🔗 Opening EHR Connection...",
+      description: "Epic SMART login opened in new tab. Complete login to connect.",
+    })
+  }
+
   const parsedExample = tryParseJSON(output)
 
   return (
@@ -86,13 +124,24 @@ export default function EHRExportSandboxPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div>
-              <a
-                href="/smart/launch/default"
-                className="inline-flex items-center px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+            {/* 🔥 Enhanced EHR Connection Button with Status */}
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={handleConnectToEHR}
+                className={`inline-flex items-center px-4 py-2 rounded ${
+                  smartStatus.connected 
+                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
               >
-                Connect to EHR (SMART)
-              </a>
+                {smartStatus.connected ? '🟢 EHR Connected' : '🔗 Connect to EHR (SMART)'}
+              </Button>
+              
+              {smartStatus.connected && (
+                <div className="text-sm text-green-700 font-medium">
+                  ✅ Ready for FHIR export
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
