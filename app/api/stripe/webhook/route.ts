@@ -1,21 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
-import { getApp, getApps, initializeApp, cert } from "firebase-admin/app"
-import { getFirestore } from "firebase-admin/firestore"
+import { adminDb } from "@/lib/firebaseAdmin"
 
-// Initialize Firebase Admin
-if (!getApps().length) {
-  const serviceAccount = JSON.parse(
-    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64!, 'base64').toString()
-  )
-  
-  initializeApp({
-    credential: cert(serviceAccount),
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  })
-}
-
-const db = getFirestore()
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 // In development, we'll use a test webhook secret
@@ -143,7 +129,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   // 🚫 Deactivate beta access when subscription is cancelled
   console.log(`🚫 Deactivating beta access for user: ${userId}`)
-  await db.collection("profiles").doc(userId).update({
+  await adminDb.collection("profiles").doc(userId).update({
     betaActive: false,
     subscriptionStatus: "cancelled",
     deactivatedAt: new Date(),
@@ -166,17 +152,17 @@ async function activateBetaAccess(userId: string, paymentInfo: any) {
     updatedAt: new Date(),
   }
 
-  await db.collection("profiles").doc(userId).update(updateData)
+  await adminDb.collection("profiles").doc(userId).update(updateData)
   console.log(`✅ User ${userId} profile updated:`, updateData)
 }
 
 async function ensureBetaAccess(userId: string) {
-  const profile = await db.collection("profiles").doc(userId).get()
+  const profile = await adminDb.collection("profiles").doc(userId).get()
   if (profile.exists) {
     const data = profile.data()
     if (!data?.betaActive) {
       console.log(`🔧 Enabling beta access for user ${userId} (subscription active)`)
-      await db.collection("profiles").doc(userId).update({
+      await adminDb.collection("profiles").doc(userId).update({
         betaActive: true,
         updatedAt: new Date(),
       })
@@ -187,7 +173,7 @@ async function ensureBetaAccess(userId: string) {
 async function updateSubscriptionStatus(userId: string, subscriptionData: any) {
   console.log(`📊 Updating subscription status for user ${userId}:`, subscriptionData.status)
   
-  await db.collection("profiles").doc(userId).update({
+  await adminDb.collection("profiles").doc(userId).update({
     subscriptionStatus: subscriptionData.status,
     stripeSubscriptionId: subscriptionData.stripeSubscriptionId,
     currentPeriodStart: subscriptionData.currentPeriodStart,

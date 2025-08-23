@@ -58,11 +58,25 @@ export default function PaywallCard({
     setError(null);
 
     try {
-      // Ensure user is authenticated and get fresh ID token
+      // Comprehensive authentication check
+      if (!auth.currentUser) {
+        throw new Error("User not authenticated");
+      }
+
+      // Refresh user state and get fresh token
+      console.log('Refreshing authentication state...');
       await auth.currentUser.reload();
-      const idToken = await auth.currentUser.getIdToken(true); // Force refresh
+      
+      // Force refresh the ID token to ensure it's not expired
+      const idToken = await auth.currentUser.getIdToken(true);
+      
+      // Validate token is not empty
+      if (!idToken) {
+        throw new Error("Failed to retrieve authentication token");
+      }
       
       console.log('User authenticated:', auth.currentUser.uid);
+      console.log('Token length:', idToken.length);
       console.log('Creating checkout session...');
       
       // Call our Stripe Checkout API
@@ -70,6 +84,7 @@ export default function PaywallCard({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`, // Add as header too for debugging
         },
         body: JSON.stringify({
           priceId: priceId,
@@ -84,6 +99,17 @@ export default function PaywallCard({
       console.log('Checkout response data:', data);
 
       if (!response.ok) {
+        // Handle specific auth errors
+        if (response.status === 401 || data.error?.includes('authentication') || data.error?.includes('token')) {
+          // Try to sign out and back in for auth errors
+          console.warn('Authentication error detected, user may need to re-login');
+          toast({
+            title: "Authentication Issue",
+            description: "Please try logging out and back in, then try again.",
+            variant: "destructive",
+          });
+        }
+        
         // Handle different error scenarios
         const errorMessage = data.error || `HTTP ${response.status}: Failed to create checkout session`;
         console.error("Checkout failed:", data.error);
@@ -111,13 +137,31 @@ export default function PaywallCard({
       }
     } catch (err: any) {
       console.error("Checkout error:", err);
-      const errorMessage = err.message || "Failed to start checkout. Please try again.";
-      setError(errorMessage);
-      toast({
-        title: "Unexpected Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      
+      // Handle specific Firebase auth errors
+      if (err.code === 'auth/id-token-expired' || err.code === 'auth/user-token-expired') {
+        setError("Your session has expired. Please log out and log back in.");
+        toast({
+          title: "Session Expired",
+          description: "Please log out and log back in, then try again.",
+          variant: "destructive",
+        });
+      } else if (err.code === 'auth/network-request-failed') {
+        setError("Network error. Please check your connection and try again.");
+        toast({
+          title: "Network Error",
+          description: "Please check your internet connection and try again.",
+          variant: "destructive",
+        });
+      } else {
+        const errorMessage = err.message || "Failed to start checkout. Please try again.";
+        setError(errorMessage);
+        toast({
+          title: "Unexpected Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
