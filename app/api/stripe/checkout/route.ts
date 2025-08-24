@@ -162,12 +162,12 @@ export async function POST(req: Request) {
         cancel_url: `${appUrl}/cancel`,
         customer_email: decoded.email,
         metadata: { 
-          userId,
+          uid: userId, // 🐈 Use 'uid' to match Firebase and webhook handler
           priceId 
         },
         subscription_data: {
           metadata: {
-            userId,
+            uid: userId, // 🐈 Use 'uid' to match Firebase and webhook handler
           },
         },
       });

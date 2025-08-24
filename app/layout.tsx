@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Navigation } from "@/components/Navigation"
+import Navigation from "@/components/Navigation"
 import "./globals.css"
 import Toaster from "@/components/Toaster"
 

@@ -1,256 +1,188 @@
+#!/usr/bin/env tsx
 /**
- * 🔥 ClinicalScribe Demo Data Seeder
+ * Dummy Firestore seeding script for ClinicalScribe testing
  * 
- * Seeds realistic clinical data for CIO demos:
- * - 5 diverse patients with demographics
- * - 3 SOAP notes per patient (15 total)
- * - Digital signatures + PDF flags
- * - Realistic medical content + timestamps
+ * This script generates fake transcripts, SOAP notes, and reports
+ * to quickly test the dashboard and app features without recording.
  * 
- * Usage: npx tsx scripts/seed-demo.ts
+ * Usage:
+ *   npm run seed-demo
+ * 
+ * Or run directly:
+ *   npx tsx scripts/seed-demo.ts
  */
 
-import { initializeApp, getApps } from "firebase/app";
-import { getFirestore, doc, setDoc, collection, serverTimestamp, deleteDoc, getDocs } from "firebase/firestore";
-import { faker } from "@faker-js/faker";
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, doc, setDoc, Timestamp } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
-// Import Firebase config from existing setup
-const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-const AUTH_DOMAIN = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const STORAGE_BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-const MESSAGING_SENDER_ID = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
-const APP_ID = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
-
+// Firebase config (using environment variables)
 const firebaseConfig = {
-  apiKey: API_KEY!,
-  authDomain: AUTH_DOMAIN!,
-  projectId: PROJECT_ID!,
-  storageBucket: STORAGE_BUCKET!,
-  messagingSenderId: MESSAGING_SENDER_ID!,
-  appId: APP_ID!,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
 // Initialize Firebase
-let app;
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApps()[0];
-}
-
+const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-// Realistic medical scenarios for SOAP notes
-const medicalScenarios = [
-  {
-    subjective: "Patient reports chest pain radiating to left arm, onset 2 hours ago. Describes pain as crushing, 8/10 severity. Associated with shortness of breath and diaphoresis. No recent trauma or exercise.",
-    objective: "Vital signs: BP 160/95, HR 102, RR 22, O2 sat 95% on room air. Patient appears anxious and diaphoretic. Heart sounds regular, no murmurs. Lungs clear bilaterally. No extremity edema.",
-    assessment: "Acute chest pain, rule out myocardial infarction. Hypertensive. Anxiety secondary to chest pain symptoms.",
-    plan: "Obtain 12-lead EKG, chest X-ray, and cardiac enzymes. Start oxygen therapy. Administer aspirin 325mg PO. Monitor on telemetry. Cardiology consultation if abnormal findings."
-  },
-  {
-    subjective: "Patient presents with 3-day history of fever, chills, and productive cough with yellow-green sputum. Reports fatigue and decreased appetite. No recent travel or sick contacts.",
-    objective: "Temp 101.2°F, BP 125/78, HR 88, RR 20, O2 sat 97%. Alert and oriented. Lungs with coarse crackles in right lower lobe. No use of accessory muscles. Heart rate regular.",
-    assessment: "Community-acquired pneumonia, right lower lobe. Mild dehydration.",
-    plan: "Chest X-ray to confirm pneumonia. CBC with differential, BMP. Start azithromycin 500mg daily x 5 days. Increase fluid intake. Follow-up in 48-72 hours if not improving."
-  },
-  {
-    subjective: "Patient reports persistent headache for 5 days, worsening this morning. Describes as throbbing, bilateral, 7/10 intensity. Associated with photophobia and mild nausea. No recent head trauma.",
-    objective: "Vital signs stable. Neurological exam normal, PERRL, no focal deficits. Neck supple, no meningeal signs. Fundoscopic exam normal. No papilledema.",
-    assessment: "Tension-type headache vs. migraine without aura. No signs of secondary headache.",
-    plan: "Trial of ibuprofen 600mg TID with food. Recommend sleep hygiene and stress management. Return if symptoms worsen or persist beyond 1 week. Consider neurology referral if recurrent."
-  },
-  {
-    subjective: "Patient presents for routine follow-up of type 2 diabetes. Reports good adherence to metformin. Checking blood sugars 2x daily, averaging 140-160 mg/dL. No polyuria, polydipsia, or vision changes.",
-    objective: "Vital signs: BP 130/82, BMI 31.2. Well-appearing. Feet exam shows no ulcers or calluses. Sensation intact to monofilament testing. Retinal exam deferred to ophthalmology.",
-    assessment: "Type 2 diabetes mellitus, well controlled on metformin. Hypertension, well controlled.",
-    plan: "Continue metformin 1000mg BID. Order HbA1c, lipid panel, microalbumin. Diabetic education reinforcement. Return in 3 months. Ophthalmology follow-up due."
-  },
-  {
-    subjective: "Patient reports 2-week history of lower back pain after lifting heavy boxes. Pain is constant, aching, 6/10, worse with movement. No radiation to legs. No bowel/bladder dysfunction.",
-    objective: "Vital signs normal. Gait normal. Lumbar spine with paraspinal muscle tenderness. Range of motion limited by pain. Straight leg raise negative bilaterally. No neurological deficits.",
-    assessment: "Acute lumbar strain, mechanical low back pain. No red flags for serious pathology.",
-    plan: "NSAIDs for inflammation and pain control. Physical therapy referral. Activity modification, avoid heavy lifting. Heat/ice therapy. Follow-up in 2 weeks if not improving."
-  }
+// Sample data templates
+const sampleTranscripts = [
+  "Patient presents with chest pain that started 2 hours ago. Pain is sharp, radiating to left arm. No shortness of breath. Vitals stable. EKG shows normal sinus rhythm.",
+  "45-year-old female with headache for 3 days. Describes as throbbing, worse in morning. No fever or neck stiffness. Taking ibuprofen with minimal relief.",
+  "Routine follow-up for diabetes. Patient reports good glucose control at home. HbA1c improved from last visit. No complications noted.",
+  "Child presents with fever and sore throat. Temperature 101.2F. Throat red and swollen. Rapid strep test positive. Started on amoxicillin.",
+  "Elderly patient with fall yesterday. No loss of consciousness. Bruising on right hip. X-ray negative for fracture. Recommending physical therapy."
 ];
 
-const doctors = [
-  "Dr. Sarah Mitchell, MD",
-  "Dr. James Rodriguez, MD", 
-  "Dr. Emily Chen, MD",
-  "Dr. Michael Thompson, MD",
-  "Dr. Lisa Williams, MD"
-];
-
-const encounterTypes = [
-  "Emergency Department Visit",
-  "Urgent Care Visit", 
-  "Primary Care Follow-up",
-  "Annual Physical Exam",
-  "Specialist Consultation"
-];
-
-async function clearExistingData() {
-  console.log("🧹 Clearing existing demo data...");
+const sampleSoapNotes = [
+  `SUBJECTIVE: 67-year-old male presents with acute onset chest pain.
+OBJECTIVE: BP 140/90, HR 78, RR 16, O2 98%. Heart sounds regular, no murmurs.
+ASSESSMENT: Possible angina vs musculoskeletal pain.
+PLAN: EKG, troponin levels, cardiology consult.`,
   
-  try {
-    // Clear patients
-    const patientsSnapshot = await getDocs(collection(db, "patients"));
-    for (const doc of patientsSnapshot.docs) {
-      await deleteDoc(doc.ref);
-    }
-    
-    // Clear SOAP notes  
-    const soapSnapshot = await getDocs(collection(db, "soapNotes"));
-    for (const doc of soapSnapshot.docs) {
-      await deleteDoc(doc.ref);
-    }
-    
-    console.log("✅ Existing demo data cleared");
-  } catch (error) {
-    console.warn("⚠️ Could not clear existing data:", error.message);
-  }
-}
+  `SUBJECTIVE: 45-year-old female with migraine headache x3 days.
+OBJECTIVE: Alert, oriented, no focal neurological deficits. BP 120/80.
+ASSESSMENT: Migraine headache.
+PLAN: Sumatriptan 100mg, follow up if symptoms persist.`,
+  
+  `SUBJECTIVE: Diabetic patient here for routine follow-up.
+OBJECTIVE: HbA1c 7.1%, down from 8.2%. Weight stable.
+ASSESSMENT: Type 2 diabetes, well controlled.
+PLAN: Continue metformin, recheck in 3 months.`,
+  
+  `SUBJECTIVE: 8-year-old with fever and sore throat.
+OBJECTIVE: Temp 101.2F, throat erythematous, rapid strep positive.
+ASSESSMENT: Streptococcal pharyngitis.
+PLAN: Amoxicillin 500mg BID x10 days, return if worse.`,
+  
+  `SUBJECTIVE: 82-year-old with fall at home yesterday.
+OBJECTIVE: Bruising on right hip, able to bear weight. X-ray negative.
+ASSESSMENT: Mechanical fall, no fracture.
+PLAN: Physical therapy evaluation, home safety assessment.`
+];
+
+const patientNames = [
+  "John Smith", "Sarah Johnson", "Michael Brown", "Emily Davis", "Robert Wilson",
+  "Jessica Miller", "David Garcia", "Ashley Rodriguez", "Christopher Martinez", "Amanda Taylor"
+];
 
 async function seedDemoData() {
-  console.log("🔥 Starting ClinicalScribe demo data seeding...");
-  
-  await clearExistingData();
-  
-  const patients = [];
-  
-  // Create 5 diverse patients
-  for (let i = 0; i < 5; i++) {
-    const patientId = faker.string.uuid();
-    const gender = faker.helpers.arrayElement(['male', 'female', 'other']);
-    const age = faker.number.int({ min: 25, max: 85 });
+  try {
+    console.log("🌱 Starting demo data seeding...");
     
-    const patient = {
-      id: patientId,
-      name: faker.person.fullName({ sex: gender === 'other' ? 'male' : gender }),
-      dob: faker.date.birthdate({ min: age, max: age, mode: 'age' }),
-      gender: gender,
-      mrn: `MRN${faker.string.numeric(7)}`,
-      phone: faker.phone.number(),
-      email: faker.internet.email(),
-      address: {
-        street: faker.location.streetAddress(),
-        city: faker.location.city(),
-        state: faker.location.state(),
-        zip: faker.location.zipCode()
-      },
-      emergencyContact: {
-        name: faker.person.fullName(),
-        phone: faker.phone.number(),
-        relationship: faker.helpers.arrayElement(['spouse', 'child', 'parent', 'sibling', 'friend'])
-      },
-      insurance: {
-        provider: faker.helpers.arrayElement(['Blue Cross', 'Aetna', 'Cigna', 'UnitedHealth', 'Medicare']),
-        policyNumber: faker.string.alphanumeric(10, { casing: 'upper' })
-      },
-      allergies: faker.helpers.arrayElements(['NKDA', 'Penicillin', 'Shellfish', 'Latex', 'Sulfa'], { min: 1, max: 2 }),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    };
+    // You'll need to sign in as a test user
+    // Replace with your test user credentials
+    const TEST_EMAIL = "test@example.com";
+    const TEST_PASSWORD = "testpassword";
     
-    patients.push(patient);
+    console.log("🔐 Signing in as test user...");
+    const userCredential = await signInWithEmailAndPassword(auth, TEST_EMAIL, TEST_PASSWORD);
+    const userId = userCredential.user.uid;
     
-    // Save patient to Firestore
-    await setDoc(doc(db, "patients", patientId), patient);
-    console.log(`✅ Patient ${i + 1}/5 created: ${patient.name} (${patient.mrn})`);
-  }
-  
-  // Create 3 SOAP notes per patient (15 total)
-  let totalNotes = 0;
-  for (let i = 0; i < patients.length; i++) {
-    const patient = patients[i];
+    console.log(`✅ Signed in as: ${userId}`);
     
-    for (let j = 0; j < 3; j++) {
-      const scenario = faker.helpers.arrayElement(medicalScenarios);
-      const doctor = faker.helpers.arrayElement(doctors);
-      const encounterType = faker.helpers.arrayElement(encounterTypes);
-      const createdDate = faker.date.recent({ days: 30 });
-      
-      const soapNoteId = faker.string.uuid();
-      const uid = `demo-user-${faker.string.alphanumeric(8)}`;
-      
-      const soapNote = {
-        id: soapNoteId,
-        uid: uid,
-        patientId: patient.id,
-        patientName: patient.name,
-        patientMrn: patient.mrn,
-        
-        // SOAP content
-        subjective: scenario.subjective,
-        objective: scenario.objective,
-        assessment: scenario.assessment,
-        plan: scenario.plan,
-        
-        // Clinical metadata
-        encounterType: encounterType,
-        chiefComplaint: faker.helpers.arrayElement([
-          'Chest pain', 'Shortness of breath', 'Headache', 
-          'Abdominal pain', 'Back pain', 'Fever', 'Cough',
-          'Diabetes follow-up', 'Hypertension management'
-        ]),
-        painLevel: faker.helpers.arrayElement(['0/10', '2/10', '4/10', '6/10', '8/10', '10/10']),
-        
-        // AI and flags
-        aiSuggested: faker.datatype.boolean(0.7),
-        redFlag: faker.datatype.boolean(0.2),
-        
-        // Digital signature and PDF metadata
-        digitalSignature: `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="50"><text x="10" y="30" font-family="cursive" font-size="18">✍️ ' + doctor + '</text></svg>')}`,
-        doctorName: doctor,
-        signedAt: serverTimestamp(),
-        signedBy: doctor,
-        
-        // PDF metadata  
-        storagePath: `pdfs/demo/${uid}/${soapNoteId}.pdf`,
-        pdf: {
-          status: 'generated',
-          path: `pdfs/demo/${uid}/${soapNoteId}.pdf`,
-          generatedAt: createdDate.toISOString(),
-          watermark: 'ClinicalScribe Beta'
-        },
-        
-        // FHIR export metadata
-        fhirExport: {
-          status: faker.helpers.arrayElement(['none', 'pending', 'exported', 'failed']),
-          exportedAt: faker.datatype.boolean(0.3) ? createdDate.toISOString() : null,
-          documentReference: faker.datatype.boolean(0.3) ? `DocumentReference/${faker.string.uuid()}` : null
-        },
-        
-        // Timestamps
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+    // 1. Ensure user has beta access
+    console.log("🚀 Setting beta access for user...");
+    await setDoc(doc(db, "profiles", userId), {
+      betaActive: true,
+      role: "doctor",
+      displayName: "Dr. Test User",
+      email: TEST_EMAIL,
+      updatedAt: Timestamp.now()
+    }, { merge: true });
+    
+    // 2. Create sample reports
+    console.log("📋 Creating sample reports...");
+    for (let i = 0; i < 5; i++) {
+      const reportData = {
+        userId,
+        transcript: sampleTranscripts[i],
+        soapNote: sampleSoapNotes[i],
+        pdfUrl: `https://example.com/sample-report-${i + 1}.pdf`, // Fake PDF URL
+        patientName: patientNames[i],
+        status: "completed",
+        createdAt: Timestamp.fromDate(new Date(Date.now() - (i * 24 * 60 * 60 * 1000))), // Spread over last 5 days
+        updatedAt: Timestamp.now()
       };
       
-      // Save SOAP note to Firestore
-      await setDoc(doc(db, "soapNotes", soapNoteId), soapNote);
-      totalNotes++;
-      console.log(`   ➡️ SOAP note ${j + 1}/3 for ${patient.name}: ${encounterType}`);
+      const docRef = await addDoc(collection(db, "reports"), reportData);
+      console.log(`  ✅ Created report: ${docRef.id}`);
     }
+    
+    // 3. Create sample SOAP notes
+    console.log("🏥 Creating sample SOAP notes...");
+    for (let i = 0; i < 3; i++) {
+      const soapData = {
+        userId,
+        patientId: `patient_${i + 1}`,
+        patientName: patientNames[i + 5],
+        content: sampleSoapNotes[i],
+        status: "completed",
+        pdf: {
+          status: "generated",
+          url: `https://example.com/soap-${i + 1}.pdf`
+        },
+        createdAt: Timestamp.fromDate(new Date(Date.now() - (i * 12 * 60 * 60 * 1000))), // Last 3 half-days
+        updatedAt: Timestamp.now()
+      };
+      
+      const docRef = await addDoc(collection(db, "soapNotes"), soapData);
+      console.log(`  ✅ Created SOAP note: ${docRef.id}`);
+    }
+    
+    // 4. Create additional transcripts without SOAP notes
+    console.log("🎤 Creating additional transcripts...");
+    for (let i = 0; i < 3; i++) {
+      const transcriptData = {
+        userId,
+        transcript: `Additional transcript ${i + 1}: ${sampleTranscripts[i]}`,
+        audioUrl: `https://example.com/audio-${i + 1}.mp3`, // Fake audio URL
+        duration: Math.floor(Math.random() * 300) + 60, // 1-5 minutes
+        status: "transcribed",
+        createdAt: Timestamp.fromDate(new Date(Date.now() - (i * 6 * 60 * 60 * 1000))), // Last 3 quarter-days
+        updatedAt: Timestamp.now()
+      };
+      
+      const docRef = await addDoc(collection(db, "transcripts"), transcriptData);
+      console.log(`  ✅ Created transcript: ${docRef.id}`);
+    }
+    
+    console.log("\n🎉 Demo data seeding completed successfully!");
+    console.log("\n📊 Summary:");
+    console.log("  • 5 complete reports (transcript + SOAP + PDF)");
+    console.log("  • 3 standalone SOAP notes");
+    console.log("  • 3 standalone transcripts");
+    console.log("  • User profile with beta access enabled");
+    console.log("\n✨ You can now test the dashboard with realistic data!");
+    
+  } catch (error) {
+    console.error("❌ Error seeding demo data:", error);
+    process.exit(1);
   }
-  
-  console.log(`\n🎯 Demo data seeding complete!`);
-  console.log(`📊 Summary:`);
-  console.log(`   👥 Patients: 5`);
-  console.log(`   📋 SOAP Notes: ${totalNotes}`);
-  console.log(`   ✍️ Digital Signatures: ${totalNotes}`);
-  console.log(`   📄 PDF Files: ${totalNotes}`);
-  console.log(`\n🚀 Ready for CIO demo! Check Dashboard and SOAP History.`);
 }
 
-// Execute the seeding
-seedDemoData()
-  .then(() => {
-    console.log("✅ Seeding completed successfully!");
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error("❌ Seeding failed:", error);
-    process.exit(1);
-  });
+// Helper function to clear existing demo data (optional)
+async function clearDemoData() {
+  console.log("🧹 This would clear existing demo data...");
+  console.log("⚠️  Implement this if you need to reset demo data");
+  // Implementation would query and delete documents created by this script
+}
+
+// Run the seeding
+if (require.main === module) {
+  const command = process.argv[2];
+  
+  if (command === "clear") {
+    clearDemoData();
+  } else {
+    seedDemoData();
+  }
+}
+
+export { seedDemoData, clearDemoData };

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { checkEhrStatus } from "@/lib/ehr";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 export function EhrStatusBadge() {
   const [status, setStatus] = useState<"checking" | "connected" | "disconnected">("checking");
@@ -46,7 +46,6 @@ export function EhrStatusBadge() {
     toast({
       title: "Reconnect to EHR",
       description: "Go to Admin to refresh the SMART token (Epic OAuth).",
-      duration: 5000,
     });
     // Route to admin to manage token for now.
     if (typeof window !== "undefined") window.location.href = "/admin";
