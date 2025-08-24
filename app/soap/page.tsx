@@ -192,52 +192,97 @@ export default function SOAPPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 1.0, duration: 0.6 }}
           className="mb-12"
         >
-          <SOAPGenerator
-            initialTranscript={selectedTranscript}
-            patientName={selectedPatient}
-            encounterType={selectedType}
-          />
+          <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
+            <div className="bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                  <Brain className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white">AI SOAP Generator</h3>
+                  <p className="text-gray-300">Transform transcripts into clinical documentation</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-8">
+              <SOAPGenerator
+                initialTranscript={selectedTranscript}
+                patientName={selectedPatient}
+                encounterType={selectedType}
+              />
+            </div>
+          </div>
         </motion.div>
 
         {/* Clinical Guidelines */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 1.2, duration: 0.6 }}
         >
-          <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-amber-900">
-                <CheckCircle className="h-5 w-5" />
-                Clinical Documentation Guidelines
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                <div>
-                  <h4 className="font-semibold text-amber-900 mb-2">SOAP Format:</h4>
-                  <ul className="space-y-1 text-amber-800">
-                    <li><strong>Subjective:</strong> Patient's reported symptoms and concerns</li>
-                    <li><strong>Objective:</strong> Observable findings and measurements</li>
-                    <li><strong>Assessment:</strong> Clinical interpretation and diagnosis</li>
-                    <li><strong>Plan:</strong> Treatment plan and follow-up instructions</li>
-                  </ul>
+          <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-amber-200/50 overflow-hidden">
+            <div className="bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 p-8">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-amber-500/20 rounded-xl">
+                  <CheckCircle className="h-6 w-6 text-amber-600" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-amber-900 mb-2">Best Practices:</h4>
-                  <ul className="space-y-1 text-amber-800">
-                    <li>• Use clear, professional medical terminology</li>
-                    <li>• Include relevant vital signs and measurements</li>
-                    <li>• Document patient's exact words when relevant</li>
-                    <li>• Always review and verify AI-generated content</li>
-                  </ul>
+                  <h3 className="text-xl font-black text-amber-900">Clinical Documentation Guidelines</h3>
+                  <p className="text-amber-700">Best practices for professional medical documentation</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-amber-200/30">
+                  <h4 className="font-black text-amber-900 mb-4 flex items-center gap-2">
+                    <span className="text-lg">📋</span>
+                    SOAP Format
+                  </h4>
+                  <div className="space-y-3">
+                    {[
+                      { label: "Subjective", desc: "Patient's reported symptoms and concerns" },
+                      { label: "Objective", desc: "Observable findings and measurements" },
+                      { label: "Assessment", desc: "Clinical interpretation and diagnosis" },
+                      { label: "Plan", desc: "Treatment plan and follow-up instructions" }
+                    ].map((item, index) => (
+                      <div key={index} className="flex gap-3">
+                        <div className="w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                          {item.label[0]}
+                        </div>
+                        <div>
+                          <span className="font-bold text-amber-900">{item.label}:</span>
+                          <span className="text-amber-800 ml-2">{item.desc}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-amber-200/30">
+                  <h4 className="font-black text-amber-900 mb-4 flex items-center gap-2">
+                    <span className="text-lg">⭐</span>
+                    Best Practices
+                  </h4>
+                  <div className="space-y-2">
+                    {[
+                      "Use clear, professional medical terminology",
+                      "Include relevant vital signs and measurements",
+                      "Document patient's exact words when relevant",
+                      "Always review and verify AI-generated content"
+                    ].map((practice, index) => (
+                      <div key={index} className="flex items-start gap-2">
+                        <CheckCircle className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-amber-800 text-sm font-medium">{practice}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
     </div>

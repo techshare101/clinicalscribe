@@ -138,25 +138,63 @@ export default function TranscriptionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+      {/* Floating Background Elements */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-blue-300/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-purple-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-indigo-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
+      </div>
+
+      <div className="relative container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
           className="text-center mb-8"
         >
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl">
-              <Languages className="h-8 w-8 text-white" />
+          <motion.div 
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ duration: 0.8, type: "spring", bounce: 0.6 }}
+            className="flex items-center justify-center gap-4 mb-6"
+          >
+            <div className="relative">
+              <div className="p-4 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 rounded-3xl shadow-2xl ring-4 ring-blue-200/50">
+                <Languages className="h-10 w-10 text-white drop-shadow-lg" />
+              </div>
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full border-2 border-white animate-pulse" />
             </div>
-            <h1 className="text-4xl font-bold text-blue-900 dark:text-blue-100">
-              Medical Transcription & Translation
-            </h1>
-          </div>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Real-time multilingual transcription with AI-powered SOAP note generation
-          </p>
+            <div className="text-left">
+              <h1 className="text-5xl font-black bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-900 bg-clip-text text-transparent drop-shadow-sm">
+                Medical Transcription
+              </h1>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0 shadow-lg">
+                  <Mic className="h-3 w-3 mr-1" />
+                  Real-time
+                </Badge>
+                <Badge className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0 shadow-lg">
+                  <Languages className="h-3 w-3 mr-1" />
+                  Multilingual
+                </Badge>
+                <Badge className="bg-gradient-to-r from-purple-500 to-pink-600 text-white border-0 shadow-lg">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  AI-Powered
+                </Badge>
+              </div>
+            </div>
+          </motion.div>
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed"
+          >
+            Transform medical conversations into structured documentation with 
+            <span className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">advanced AI transcription</span>
+          </motion.p>
         </motion.div>
 
         {/* Language Selection */}
@@ -164,33 +202,52 @@ export default function TranscriptionPage() {
           variants={fadeInUp}
           initial="initial"
           animate="animate"
-          className="mb-8"
+          transition={{ delay: 0.6, duration: 0.6 }}
+          className="mb-8 relative group"
         >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
-                Language Configuration
-              </CardTitle>
-              <CardDescription>
-                Select source and target languages for transcription and translation
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Source Language</label>
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 via-indigo-400/10 to-purple-400/10 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl border border-white/50 transition-all duration-500 overflow-hidden">
+            {/* Header with Gradient */}
+            <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 p-6 relative overflow-hidden">
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16 animate-pulse" />
+                <div className="absolute bottom-0 right-0 w-40 h-40 bg-white rounded-full translate-x-20 translate-y-20 animate-pulse" style={{ animationDelay: '1s' }} />
+              </div>
+              
+              <div className="relative flex items-center gap-4">
+                <motion.div
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ duration: 0.6, delay: 0.6 }}
+                  className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl ring-2 ring-white/30"
+                >
+                  <Globe className="h-6 w-6 text-white" />
+                </motion.div>
+                <div>
+                  <h3 className="text-xl font-black text-white">Language Configuration</h3>
+                  <p className="text-blue-100 font-medium">Select source and target languages for intelligent processing</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <span className="w-3 h-3 bg-emerald-500 rounded-full"></span>
+                    Source Language
+                  </label>
                   <Select value={sourceLanguage} onValueChange={setSourceLanguage}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 transition-colors">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {languages.map((lang) => (
                         <SelectItem key={lang.code} value={lang.code}>
-                          <div className="flex items-center gap-2">
-                            <span>{lang.flag}</span>
-                            <span>{lang.name}</span>
-                            <Badge variant="secondary" className="ml-auto">
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg">{lang.flag}</span>
+                            <span className="font-medium">{lang.name}</span>
+                            <Badge className="ml-auto bg-emerald-100 text-emerald-800 border-emerald-200">
                               {lang.confidence}%
                             </Badge>
                           </div>
@@ -199,19 +256,22 @@ export default function TranscriptionPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Target Language</label>
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
+                    Target Language
+                  </label>
                   <Select value={targetLanguage} onValueChange={setTargetLanguage}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 transition-colors">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {languages.map((lang) => (
                         <SelectItem key={lang.code} value={lang.code}>
-                          <div className="flex items-center gap-2">
-                            <span>{lang.flag}</span>
-                            <span>{lang.name}</span>
-                            <Badge variant="secondary" className="ml-auto">
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg">{lang.flag}</span>
+                            <span className="font-medium">{lang.name}</span>
+                            <Badge className="ml-auto bg-blue-100 text-blue-800 border-blue-200">
                               {lang.confidence}%
                             </Badge>
                           </div>
@@ -221,8 +281,8 @@ export default function TranscriptionPage() {
                   </Select>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </motion.div>
 
         {/* Recording Interface */}

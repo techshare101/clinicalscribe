@@ -1,24 +1,25 @@
 import { Suspense } from "react";
-import LandingPageClient from "@/components/LandingPageClient";
-import StaticLandingPage from "@/components/StaticLandingPage";
+import LandingPageClientWrapper from "@/components/LandingPageClientWrapper";
+import LandingPageContent from "@/components/LandingPageContent";
+
+export const dynamic = "force-dynamic";
 
 export default function Page() {
   return (
-    <div className="min-h-screen">
-      {/* Static content that loads immediately (SEO-friendly) */}
-      <StaticLandingPage />
-      
-      {/* Client-side features wrapped in Suspense */}
-      <Suspense fallback={
-        <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            Loading...
+    <>
+      <LandingPageClientWrapper />
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600 font-medium">Loading ClinicalScribe...</p>
+            </div>
           </div>
-        </div>
-      }>
-        <LandingPageClient />
+        }
+      >
+        <LandingPageContent />
       </Suspense>
-    </div>
+    </>
   );
 }
