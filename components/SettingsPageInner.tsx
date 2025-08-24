@@ -372,105 +372,26 @@ export default function SettingsPageInner() {
               </div>
             </div>
 
-            {/* Large Success Celebration Section */}
-            {checkoutStatus === 'success' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.8, duration: 0.6 }}
-                className="m-8"
-              >
-                <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-200 rounded-3xl p-10 text-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 to-green-400/5 rounded-3xl" />
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 1, type: "spring", stiffness: 300 }}
-                    className="text-8xl mb-6 relative"
-                  >
-                    🎆🎉🎆
-                  </motion.div>
-                  <motion.h2
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.2 }}
-                    className="text-4xl font-black bg-gradient-to-r from-emerald-800 to-green-700 bg-clip-text text-transparent mb-4"
-                  >
-                    Payment Successful!
-                  </motion.h2>
-                  <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.4 }}
-                    className="text-xl text-emerald-700 mb-8 max-w-2xl mx-auto leading-relaxed"
-                  >
-                    Your ClinicalScribe Pro subscription is now active. 
-                    Start creating unlimited SOAP notes and enjoy all premium features!
-                  </motion.p>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1.6 }}
-                    className="flex items-center justify-center gap-6 text-emerald-700"
-                  >
-                    <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-2xl px-4 py-2">
-                      <CheckCircleIcon className="w-5 h-5" />
-                      <span className="font-semibold">Unlimited transcriptions</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-2xl px-4 py-2">
-                      <CheckCircleIcon className="w-5 h-5" />
-                      <span className="font-semibold">Priority support</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-2xl px-4 py-2">
-                      <CheckCircleIcon className="w-5 h-5" />
-                      <span className="font-semibold">Advanced features</span>
-                    </div>
-                  </motion.div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Message Display */}
-            {message && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`m-8 p-6 rounded-3xl border-2 backdrop-blur-sm ${
-                  message.type === 'success' 
-                    ? 'bg-emerald-50/80 text-emerald-700 border-emerald-200' 
-                    : 'bg-red-50/80 text-red-700 border-red-200'
-                }`}>
-                <div className="flex items-center gap-3">
-                  {message.type === 'success' ? (
-                    <CheckCircleIcon className="w-6 h-6" />
-                  ) : (
-                    <XCircleIcon className="w-6 h-6" />
-                  )}
-                  <span className="font-semibold text-lg">{message.text}</span>
-                </div>
-              </motion.div>
-            )}
-
             <div className="flex">
-              {/* Enhanced Sidebar */}
-              <div className="w-80 bg-gradient-to-b from-slate-50/50 to-blue-50/50 backdrop-blur-sm border-r border-white/30">
-                <div className="p-8">
-                  <h3 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-indigo-500" />
+              {/* Sidebar Navigation */}
+              <div className="w-80 border-r border-gray-200/50 bg-white/50 backdrop-blur-sm">
+                <div className="p-6">
+                  <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
                     Settings Menu
-                  </h3>
-                  <nav className="space-y-3">
+                  </h2>
+                  <nav className="space-y-2">
                     {tabs.map((tab) => {
                       const Icon = tab.icon
                       return (
                         <motion.button
                           key={tab.id}
-                          onClick={() => setActiveTab(tab.id)}
-                          whileHover={{ scale: 1.02, x: 4 }}
+                          whileHover={{ x: 4 }}
                           whileTap={{ scale: 0.98 }}
-                          className={`w-full flex items-center gap-4 px-6 py-4 text-left rounded-2xl transition-all duration-300 group ${
-                            activeTab === tab.id
-                              ? `bg-gradient-to-r ${tab.gradient} text-white shadow-lg ring-2 ring-white/20`
+                          onClick={() => setActiveTab(tab.id)}
+                          className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all duration-300 ${
+                            activeTab === tab.id 
+                              ? 'bg-gradient-to-r from-white to-white/80 text-gray-900 shadow-lg border border-white' 
                               : 'text-gray-700 hover:bg-white/70 hover:shadow-md border border-gray-200/50'
                           }`}
                         >
@@ -671,3 +592,152 @@ export default function SettingsPageInner() {
                       className="space-y-8"
                     >
                       <div className="flex items-center gap-4 mb-8">
+                        <div className="p-3 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl">
+                          <CreditCardIcon className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-gray-900">Subscription Plan</h2>
+                          <p className="text-gray-600">Manage your subscription and billing information</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-200 rounded-3xl p-8">
+                        <div className="flex items-center justify-between mb-6">
+                          <div>
+                            <h3 className="text-2xl font-black bg-gradient-to-r from-emerald-800 to-green-700 bg-clip-text text-transparent">
+                              ClinicalScribe Pro
+                            </h3>
+                            <p className="text-emerald-700 font-medium">Beta Access • Unlimited Usage</p>
+                          </div>
+                          <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white text-lg px-4 py-2 border-0 shadow-lg">
+                            ✨ Active
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                          <div className="space-y-4">
+                            <h4 className="font-bold text-emerald-900 text-lg">Features Included</h4>
+                            <ul className="space-y-3">
+                              <li className="flex items-center gap-3">
+                                <CheckCircleIcon className="w-5 h-5 text-emerald-600" />
+                                <span className="text-emerald-800">Unlimited SOAP Notes</span>
+                              </li>
+                              <li className="flex items-center gap-3">
+                                <CheckCircleIcon className="w-5 h-5 text-emerald-600" />
+                                <span className="text-emerald-800">Real-time Transcription</span>
+                              </li>
+                              <li className="flex items-center gap-3">
+                                <CheckCircleIcon className="w-5 h-5 text-emerald-600" />
+                                <span className="text-emerald-800">EHR Integration</span>
+                              </li>
+                              <li className="flex items-center gap-3">
+                                <CheckCircleIcon className="w-5 h-5 text-emerald-600" />
+                                <span className="text-emerald-800">Priority Support</span>
+                              </li>
+                            </ul>
+                          </div>
+                          
+                          <div className="space-y-4">
+                            <h4 className="font-bold text-emerald-900 text-lg">Billing Information</h4>
+                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-emerald-200">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-emerald-800">Status</span>
+                                <Badge className="bg-emerald-100 text-emerald-800 border-0">Active</Badge>
+                              </div>
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-emerald-800">Next Billing</span>
+                                <span className="font-semibold text-emerald-900">N/A (Beta)</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-emerald-800">Amount</span>
+                                <span className="font-bold text-emerald-900 text-lg">$0.00</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-4">
+                          <motion.button
+                            whileHover={{ scale: 1.02, y: -2 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl font-semibold shadow-lg hover:from-emerald-700 hover:to-green-700 transition-all duration-300"
+                          >
+                            Manage Subscription
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.02, y: -2 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="px-6 py-3 bg-white text-emerald-700 border-2 border-emerald-200 rounded-2xl font-semibold hover:bg-emerald-50 transition-all duration-300"
+                          >
+                            View Invoices
+                          </motion.button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {activeTab === 'notifications' && (
+                    <motion.div
+                      key="notifications"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-8"
+                    >
+                      <div className="flex items-center gap-4 mb-8">
+                        <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl">
+                          <BellIcon className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-gray-900">Notification Preferences</h2>
+                          <p className="text-gray-600">Customize how and when you receive notifications</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-2 border-purple-200 rounded-3xl p-8">
+                        <h3 className="text-xl font-bold text-purple-900 mb-6">Email Notifications</h3>
+                        
+                        <div className="space-y-6">
+                          <div className="flex items-center justify-between p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-purple-200">
+                            <div>
+                              <h4 className="font-bold text-purple-900">Account Activity</h4>
+                              <p className="text-purple-700 text-sm">Sign in attempts, password changes</p>
+                            </div>
+                            <div className="relative inline-block w-12 h-6 bg-gray-300 rounded-full">
+                              <div className="absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 transform translate-x-6"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-purple-200">
+                            <div>
+                              <h4 className="font-bold text-purple-900">Product Updates</h4>
+                              <p className="text-purple-700 text-sm">New features, beta releases</p>
+                            </div>
+                            <div className="relative inline-block w-12 h-6 bg-gray-300 rounded-full">
+                              <div className="absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 transform translate-x-6"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-purple-200">
+                            <div>
+                              <h4 className="font-bold text-purple-900">Weekly Digest</h4>
+                              <p className="text-purple-700 text-sm">Usage reports, tips & tricks</p>
+                            </div>
+                            <div className="relative inline-block w-12 h-6 bg-gray-300 rounded-full">
+                              <div className="absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 transform translate-x-6"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  )
+}
