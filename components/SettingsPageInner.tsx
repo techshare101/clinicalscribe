@@ -1,10 +1,203 @@
-import SettingsPageWrapper from "@/components/SettingsPageWrapper";
+"use client"
 
-export const dynamic = "force-dynamic";
+import { useEffect, useState } from 'react'
+import { useProfile } from '@/hooks/useProfile'
+import { auth, db } from '@/lib/firebase'
+import { doc, updateDoc } from 'firebase/firestore'
+import { updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential, signOut } from 'firebase/auth'
+import { UserIcon, CreditCardIcon, ShieldCheckIcon, BellIcon, SaveIcon, CheckCircleIcon, XCircleIcon, Settings, LogOut, Crown, Sparkles, Key, Mail } from 'lucide-react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useToast } from '@/hooks/use-toast'
+import { Badge } from '@/components/ui/badge'
 
-export default function Page() {
-  return <SettingsPageWrapper />;
-}
+export default function SettingsPageInner() {
+  const { profile, isLoading } = useProfile()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const { toast } = useToast()
+  const [formData, setFormData] = useState({
+    displayName: '',
+    email: '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [activeTab, setActiveTab] = useState('profile')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false)
+
+  // Handle Stripe checkout status
+  useEffect(() => {
+    const status = searchParams?.get('status')
+    const sessionId = searchParams?.get('session_id')
+    
+    if (status) {
+      setCheckoutStatus(status)
+      
+      if (status === 'success') {
+        setShowSuccessBanner(true)
+        setTimeout(() => {
+          toast({
+            title: "🎉 Subscription Activated!",
+            description: "Welcome to Pro — your access is now unlocked.",
+          })
+        }, 500)
+        
+        setMessage({ 
+          type: 'success', 
+          text: 'Payment successful! Your beta access has been activated. Welcome to ClinicalScribe Pro!' 
+        })
+        setActiveTab('subscription')
+        
+        setTimeout(() => {
+          setShowSuccessBanner(false)
+        }, 15000)
+        
+        if (sessionId && auth.currentUser) {
+          verifyAndActivateBeta(sessionId)
+        }
+      } else if (status === 'cancelled') {
+        setMessage({ 
+          type: 'error', 
+          text: 'Payment was cancelled. You can try again anytime.' 
+        })
+        setActiveTab('subscription')
+      }
+    }
+  }, [searchParams, toast])
+
+  const verifyAndActivateBeta = async (sessionId: string) => {
+    try {
+      console.log('Verifying session:', sessionId)
+    } catch (error) {
+      console.error('Error verifying session:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (profile && auth.currentUser) {
+      setFormData(prev => ({
+        ...prev,
+        displayName: profile.displayName || auth.currentUser?.displayName || '',
+        email: profile.email || auth.currentUser?.email || ''
+      }))
+    }
+  }, [profile])
+
+  const handleSaveProfile = async () => {
+    if (!auth.currentUser || !profile) return
+    
+    setSaving(true)
+    setMessage(null)
+    
+    try {
+      await updateProfile(auth.currentUser, {
+        displayName: formData.displayName
+      })
+      
+      const profileRef = doc(db, 'profiles', auth.currentUser.uid)
+      await updateDoc(profileRef, {
+        displayName: formData.displayName,
+        updatedAt: new Date()
+      })
+      
+      setMessage({ type: 'success', text: 'Profile updated successfully!' })
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (!auth.currentUser || !formData.currentPassword || !formData.newPassword) return
+    
+    if (formData.newPassword !== formData.confirmPassword) {
+      setMessage({ type: 'error', text: 'New passwords do not match.' })
+      return
+    }
+    
+    if (formData.newPassword.length < 6) {
+      setMessage({ type: 'error', text: 'Password must be at least 6 characters long.' })
+      return
+    }
+    
+    setSaving(true)
+    setMessage(null)
+    
+    try {
+      const credential = EmailAuthProvider.credential(
+        auth.currentUser.email!,
+        formData.currentPassword
+      )
+      await reauthenticateWithCredential(auth.currentUser, credential)
+      await updatePassword(auth.currentUser, formData.newPassword)
+      
+      setFormData(prev => ({
+        ...prev,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      }))
+      
+      setMessage({ type: 'success', text: 'Password updated successfully!' })
+    } catch (error) {
+      console.error('Error updating password:', error)
+      setMessage({ type: 'error', text: 'Failed to update password. Please check your current password.' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth)
+      toast({
+        title: "👋 Signed out successfully",
+        description: "You have been logged out safely.",
+      })
+      router.push('/')
+    } catch (error) {
+      console.error('Error signing out:', error)
+      toast({
+        title: "❌ Error signing out",
+        description: "Please try again.",
+      })
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+          <div className="absolute inset-0 animate-ping rounded-full h-16 w-16 border-2 border-blue-400 opacity-20"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 p-12">
+          <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 rounded-3xl mx-auto mb-6 flex items-center justify-center">
+            <XCircleIcon className="h-10 w-10 text-white" />
+          </div>
+          <h1 className="text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-4">Access Denied</h1>
+          <p className="text-gray-600 text-lg">Please log in to access your settings.</p>
+        </div>
+      </div>
+    )
+  }
+
+  const tabs = [
+    { id: 'profile', label: 'Profile', icon: UserIcon, gradient: 'from-blue-500 to-indigo-600' },
+    { id: 'subscription', label: 'Subscription', icon: CreditCardIcon, gradient: 'from-emerald-500 to-green-600' },
     { id: 'security', label: 'Security', icon: ShieldCheckIcon, gradient: 'from-orange-500 to-red-600' },
     { id: 'notifications', label: 'Notifications', icon: BellIcon, gradient: 'from-purple-500 to-pink-600' }
   ]
@@ -478,233 +671,3 @@ export default function Page() {
                       className="space-y-8"
                     >
                       <div className="flex items-center gap-4 mb-8">
-                        <div className="p-3 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl">
-                          <CreditCardIcon className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-black text-gray-900">Subscription Management</h2>
-                          <p className="text-gray-600">Manage your billing and subscription preferences</p>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-200 rounded-3xl p-8 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 to-green-400/5 rounded-3xl" />
-                        <div className="relative flex items-center gap-4 mb-6">
-                          <div className="p-3 bg-emerald-500/20 rounded-2xl">
-                            <Crown className="h-6 w-6 text-emerald-600" />
-                          </div>
-                          <h3 className="text-xl font-black text-emerald-900">Current Plan Status</h3>
-                        </div>
-                        <div className="relative flex items-center gap-4">
-                          <div className="flex items-center gap-3">
-                            <Badge className={`px-6 py-3 text-lg font-black border-0 shadow-lg ${
-                              profile.betaActive 
-                                ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white' 
-                                : 'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
-                            }`}>
-                              {profile.betaActive ? '✨ Pro Member - Active' : '📝 Basic Plan'}
-                            </Badge>
-                            {profile.betaActive && (
-                              <motion.div
-                                initial={{ scale: 0 }}
-                                animate={{ scale: 1 }}
-                                className="flex items-center gap-1 text-emerald-600"
-                              >
-                                <CheckCircleIcon className="w-6 h-6" />
-                              </motion.div>
-                            )}
-                          </div>
-                        </div>
-                        <p className={`mt-4 text-lg leading-relaxed ${
-                          profile.betaActive ? 'text-emerald-700' : 'text-gray-700'
-                        }`}>
-                          {profile.betaActive ? (
-                            '🎉 You have full Pro access with unlimited SOAP notes, AI transcription, EHR integration, and priority support!'
-                          ) : (
-                            'Upgrade to Pro to unlock unlimited AI transcription, SOAP generation, EHR integration, and advanced features.'
-                          )}
-                        </p>
-                      </div>
-
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-3 mb-6">
-                          <Sparkles className="h-6 w-6 text-purple-500" />
-                          <h3 className="text-xl font-black text-gray-900">Available Plans</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="bg-white/80 backdrop-blur-xl border-2 border-blue-200 rounded-3xl p-8 hover:shadow-2xl transition-all duration-500 group hover:-translate-y-1">
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className="p-2 bg-blue-100 rounded-xl">
-                                <UserIcon className="h-5 w-5 text-blue-600" />
-                              </div>
-                              <h4 className="text-xl font-black text-gray-900">Professional</h4>
-                            </div>
-                            <p className="text-4xl font-black text-gray-900 mb-2">$29<span className="text-lg font-normal text-gray-500">/month</span></p>
-                            <ul className="space-y-3 text-gray-700">
-                              <li className="flex items-center gap-2">
-                                <CheckCircleIcon className="w-4 h-4 text-green-500" />
-                                <span>Unlimited transcriptions</span>
-                              </li>
-                              <li className="flex items-center gap-2">
-                                <CheckCircleIcon className="w-4 h-4 text-green-500" />
-                                <span>EHR integration</span>
-                              </li>
-                              <li className="flex items-center gap-2">
-                                <CheckCircleIcon className="w-4 h-4 text-green-500" />
-                                <span>PDF export</span>
-                              </li>
-                              <li className="flex items-center gap-2">
-                                <CheckCircleIcon className="w-4 h-4 text-green-500" />
-                                <span>Priority support</span>
-                              </li>
-                            </ul>
-                          </div>
-                          <div className="bg-white/80 backdrop-blur-xl border-2 border-purple-200 rounded-3xl p-8 hover:shadow-2xl transition-all duration-500 group hover:-translate-y-1 relative">
-                            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                              <Badge className="bg-gradient-to-r from-purple-500 to-pink-600 text-white border-0 px-4 py-1 font-bold">
-                                🚀 Popular
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className="p-2 bg-purple-100 rounded-xl">
-                                <Crown className="h-5 w-5 text-purple-600" />
-                              </div>
-                              <h4 className="text-xl font-black text-gray-900">Enterprise</h4>
-                            </div>
-                            <p className="text-4xl font-black text-gray-900 mb-2">$99<span className="text-lg font-normal text-gray-500">/month</span></p>
-                            <ul className="space-y-3 text-gray-700">
-                              <li className="flex items-center gap-2">
-                                <CheckCircleIcon className="w-4 h-4 text-green-500" />
-                                <span>Everything in Professional</span>
-                              </li>
-                              <li className="flex items-center gap-2">
-                                <CheckCircleIcon className="w-4 h-4 text-green-500" />
-                                <span>Advanced analytics</span>
-                              </li>
-                              <li className="flex items-center gap-2">
-                                <CheckCircleIcon className="w-4 h-4 text-green-500" />
-                                <span>Custom integrations</span>
-                              </li>
-                              <li className="flex items-center gap-2">
-                                <CheckCircleIcon className="w-4 h-4 text-green-500" />
-                                <span>Dedicated support</span>
-                              </li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-
-                      <motion.button
-                        onClick={() => window.open('/pricing', '_blank')}
-                        disabled={profile.betaActive}
-                        whileHover={{ scale: profile.betaActive ? 1 : 1.02, y: profile.betaActive ? 0 : -2 }}
-                        whileTap={{ scale: profile.betaActive ? 1 : 0.98 }}
-                        className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-bold transition-all duration-300 ${
-                          profile.betaActive
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
-                        }`}
-                      >
-                        <CreditCardIcon className="w-5 h-5" />
-                        {profile.betaActive ? 'Already Subscribed ✨' : 'Manage Subscription'}
-                      </motion.button>
-                    </motion.div>
-                  )}
-
-                  {activeTab === 'notifications' && (
-                    <motion.div
-                      key="notifications"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.3 }}
-                      className="space-y-8"
-                    >
-                      <div className="flex items-center gap-4 mb-8">
-                        <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl">
-                          <BellIcon className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-black text-gray-900">Notification Preferences</h2>
-                          <p className="text-gray-600">Customize how and when you receive notifications</p>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-6">
-                        {[
-                          {
-                            title: 'Email Notifications',
-                            description: 'Receive important updates about your account via email',
-                            icon: '📧',
-                            gradient: 'from-blue-500 to-indigo-600'
-                          },
-                          {
-                            title: 'Transcription Complete',
-                            description: 'Get notified when your AI transcriptions are ready',
-                            icon: '🎯',
-                            gradient: 'from-emerald-500 to-green-600'
-                          },
-                          {
-                            title: 'EHR Export Updates',
-                            description: 'Notifications about EHR integration and export status',
-                            icon: '🏥',
-                            gradient: 'from-purple-500 to-pink-600'
-                          },
-                          {
-                            title: 'Security Alerts',
-                            description: 'Important security notifications and login alerts',
-                            icon: '🔒',
-                            gradient: 'from-orange-500 to-red-600'
-                          }
-                        ].map((notification, index) => (
-                          <motion.div
-                            key={notification.title}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            className="flex items-center justify-between p-6 bg-white/80 backdrop-blur-xl rounded-3xl border border-gray-200/50 hover:shadow-lg transition-all duration-300 group"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className={`p-3 bg-gradient-to-br ${notification.gradient} rounded-2xl text-white text-lg font-bold flex items-center justify-center`}>
-                                {notification.icon}
-                              </div>
-                              <div>
-                                <h3 className="text-lg font-black text-gray-900">{notification.title}</h3>
-                                <p className="text-gray-600 mt-1">{notification.description}</p>
-                              </div>
-                            </div>
-                            <motion.label 
-                              className="relative inline-flex items-center cursor-pointer"
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <input
-                                type="checkbox"
-                                defaultChecked
-                                className="sr-only peer"
-                              />
-                              <div className="w-14 h-8 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-7 after:w-7 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-indigo-600"></div>
-                            </motion.label>
-                          </motion.div>
-                        ))}
-                      </div>
-
-                      <motion.button
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl hover:from-purple-700 hover:to-pink-700 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        <SaveIcon className="w-5 h-5" />
-                        Save Notification Preferences
-                      </motion.button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </div>
-  )
-}
