@@ -20,7 +20,7 @@ const links = [
   { href: '/pricing', label: 'Pricing' },
 ]
 
-export function Navigation() {
+export default function Navigation() {
   const pathname = usePathname()
   const { profile, isLoading } = useProfile()
   const [isHydrated, setIsHydrated] = useState(false)
