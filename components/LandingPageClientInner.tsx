@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
-export default function LandingPageClient() {
+export default function LandingPageClientInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
