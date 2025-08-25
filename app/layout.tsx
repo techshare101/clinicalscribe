@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import Navigation from "@/components/Navigation"
+import Footer from "@/components/Footer"
 import "./globals.css"
 import Toaster from "@/components/Toaster"
 
@@ -20,6 +21,7 @@ export default function RootLayout({
       <body>
         <Navigation />
         {children}
+        <Footer />
         <Toaster />
       </body>
     </html>
