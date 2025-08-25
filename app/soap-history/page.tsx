@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { db, auth } from '@/lib/firebase'
-import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore'
+import { db, auth, verifyFirestore } from '@/lib/firebase'
+import { collection, query, orderBy, onSnapshot, where, getDocs, startAt, endAt, limit, Firestore } from 'firebase/firestore'
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -71,7 +71,15 @@ export default function SOAPHistoryPage() {
   useEffect(() => {
     if (!user) return
 
-    const base = collection(db, 'soapNotes')
+    try {
+      // Verify Firestore is properly initialized
+      verifyFirestore();
+    } catch (err: any) {
+      console.error("Firestore verification failed:", err);
+      return;
+    }
+
+    const base = collection(db as Firestore, 'soapNotes')
     const constraints: any[] = [where('uid', '==', user.uid)]
     if (filterPatientId) constraints.push(where('patientId', '==', filterPatientId))
     constraints.push(orderBy('createdAt', 'desc'))
@@ -98,17 +106,20 @@ export default function SOAPHistoryPage() {
         return
       }
       try {
-        const patientsSnap = await import('firebase/firestore').then(async ({ collection, getDocs, orderBy, startAt, endAt, limit }) => {
-          const ref = collection(db, 'patients')
-          const q = (await import('firebase/firestore')).query(
-            ref,
-            orderBy('name_lower'),
-            startAt(s),
-            endAt(s + '\uf8ff'),
-            limit(10)
-          )
-          return getDocs(q)
-        })
+        // Verify Firestore is properly initialized
+        verifyFirestore();
+        
+        // Using the already imported Firebase functions instead of dynamic imports
+        const patientsRef = collection(db as Firestore, 'patients')
+        const q = query(
+          patientsRef,
+          orderBy('name_lower'),
+          startAt(s),
+          endAt(s + '\uf8ff'),
+          limit(10)
+        )
+        const patientsSnap = await getDocs(q)
+        
         if (cancelled) return
         const opts: { id: string; name: string }[] = []
         patientsSnap.forEach((d: any) => {
@@ -415,7 +426,6 @@ export default function SOAPHistoryPage() {
                                       </div>
                                     ))}
                                   </div>
-
                                   <div className="pt-6 border-t border-gray-200 space-y-4">
                                     <ExportToEHR
                                       note={{

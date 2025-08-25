@@ -1,8 +1,8 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getStorage } from "firebase/storage";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp, getApps, FirebaseApp } from "firebase/app";
+import { getAuth, Auth } from "firebase/auth";
+import { getStorage, FirebaseStorage } from "firebase/storage";
+import { getFirestore, Firestore } from "firebase/firestore";
 
 // Read env vars using direct references so Next.js can inline them in client bundles
 const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -44,9 +44,50 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase (avoid re-initializing in Fast Refresh/dev)
-const app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+let app: FirebaseApp;
+if (typeof window !== 'undefined') {
+  // Client-side initialization
+  if (getApps().length === 0) {
+    console.log("Initializing new Firebase app");
+    app = initializeApp(firebaseConfig);
+  } else {
+    console.log("Using existing Firebase app");
+    app = getApps()[0]!;
+  }
+} else {
+  // Server-side initialization
+  console.log("Initializing Firebase app for server-side");
+  app = initializeApp(firebaseConfig);
+}
+
+console.log("Firebase app initialized:", app?.name);
 
 // Initialize Firebase services
-export const auth = getAuth(app);
-export const storage = getStorage(app);
-export const db = getFirestore(app);
+export const auth: Auth = getAuth(app);
+console.log("Firebase auth initialized");
+
+export const storage: FirebaseStorage = getStorage(app);
+console.log("Firebase storage initialized");
+
+export const db: Firestore = getFirestore(app);
+console.log("Firebase firestore initialized");
+
+// Add debugging to verify db is properly initialized
+if (typeof window !== 'undefined') {
+  // Only log in browser environment
+  console.log("Firebase app initialized:", !!app);
+  console.log("Firestore instance type:", typeof db);
+  console.log("Is Firestore instance:", db instanceof Object && db.constructor?.name === 'Firestore');
+  console.log("Firestore instance:", db);
+}
+
+// Add a function to verify Firestore is working
+export const verifyFirestore = () => {
+  if (!db) {
+    throw new Error("Firestore is not initialized");
+  }
+  if (!(db instanceof Object) || db.constructor?.name !== 'Firestore') {
+    throw new Error("Firestore is not a valid instance. Type: " + typeof db + ", Constructor: " + (db.constructor?.name || 'undefined'));
+  }
+  return true;
+};
