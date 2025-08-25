@@ -61,6 +61,26 @@ export default function LandingPageContentInner() {
               <Sparkles className="h-5 w-5 opacity-0 group-hover:opacity-100 group-hover:animate-spin transition-all duration-500" />
             </span>
           </Link>
+          
+          {/* YouTube Demo Button with Glassmorphism Effect */}
+          <a
+            href="https://youtube.com/@metalmindtech"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative px-10 py-5 bg-gradient-to-r from-red-500/20 via-red-600/20 to-red-700/20 backdrop-blur-xl border border-red-300/30 rounded-3xl shadow-xl hover:shadow-2xl transform hover:scale-105 hover:-translate-y-2 transition-all duration-500 font-black text-xl overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-red-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl" />
+            <span className="relative flex items-center justify-center gap-3 text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.5)]">
+              <div className="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" className="group-hover:animate-pulse">
+                  <path fill="#ffffff" d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                </svg>
+                <div className="absolute inset-0 bg-white/30 rounded-full blur-sm"></div>
+              </div>
+              Watch Demo
+              <ArrowRight className="h-6 w-6 group-hover:translate-x-2 transition-transform duration-500" />
+            </span>
+          </a>
         </div>
 
         {/* Trust Indicators */}
