@@ -491,6 +491,46 @@ export default function SettingsPageInner() {
                             )}
                           </div>
                         </div>
+
+                        {/* Language Preference */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-bold text-gray-900 flex items-center gap-2">
+                            <span className="w-3 h-3 bg-purple-500 rounded-full"></span>
+                            Preferred Language
+                          </label>
+                          <select
+                            value={profile.languagePref || "en"}
+                            onChange={async (e) => {
+                              if (auth.currentUser) {
+                                setSaving(true);
+                                try {
+                                  await updateDoc(doc(db, "profiles", auth.currentUser.uid), {
+                                    languagePref: e.target.value,
+                                    updatedAt: new Date()
+                                  });
+                                  // Update local state to reflect the change
+                                  setFormData(prev => ({ ...prev }));
+                                  setMessage({ type: 'success', text: 'Language preference updated successfully!' });
+                                } catch (error) {
+                                  console.error('Error updating language preference:', error);
+                                  setMessage({ type: 'error', text: 'Failed to update language preference. Please try again.' });
+                                } finally {
+                                  setSaving(false);
+                                }
+                              }
+                            }}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 bg-white/70 backdrop-blur-sm"
+                          >
+                            <option value="auto">🌐 Auto Detect</option>
+                            <option value="en">🇺🇸 English</option>
+                            <option value="so">🇸🇴 Somali</option>
+                            <option value="hmn">🇱🇦 Hmong</option>
+                            <option value="sw">🇰🇪 Swahili</option>
+                          </select>
+                          <p className="text-sm text-gray-500">
+                            Select your preferred language for clinical notes and interface text.
+                          </p>
+                        </div>
                       </div>
 
                       <motion.button

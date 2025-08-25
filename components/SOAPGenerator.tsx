@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import SignatureAndPDF from '@/components/SignatureAndPDF';
 import {
   FileText,
@@ -23,7 +24,10 @@ import {
   Brain,
   Clipboard,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Languages,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface SOAPNote {
@@ -34,20 +38,29 @@ interface SOAPNote {
   patientName?: string;
   encounterType?: string;
   timestamp: string;
+  patientLang?: string;
+  docLang?: string;
 }
 
 interface SOAPGeneratorProps {
   initialTranscript?: string;
+  initialRawTranscript?: string;
   patientName?: string;
   encounterType?: string;
+  patientLang?: string;
+  docLang?: string;
 }
 
 export function SOAPGenerator({ 
   initialTranscript = '', 
+  initialRawTranscript = '',
   patientName = '',
-  encounterType = 'General Consultation'
+  encounterType = 'General Consultation',
+  patientLang = 'en',
+  docLang = 'en'
 }: SOAPGeneratorProps) {
   const [transcript, setTranscript] = useState(initialTranscript);
+  const [rawTranscript, setRawTranscript] = useState(initialRawTranscript);
   const [patientNameInput, setPatientNameInput] = useState(patientName);
   const [encounterTypeInput, setEncounterTypeInput] = useState(encounterType);
   const [soapNote, setSOAPNote] = useState<SOAPNote | null>(null);
@@ -55,15 +68,23 @@ export function SOAPGenerator({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [generationTime, setGenerationTime] = useState<number | null>(null);
+  const [showRaw, setShowRaw] = useState(false);
+  const [patientLanguage, setPatientLanguage] = useState(patientLang);
+  const [documentationLanguage, setDocumentationLanguage] = useState(docLang);
+  const [restored, setRestored] = useState(false); // Track if SOAP note was restored
 
   // Listen for transcript loading events from Recorder
   useEffect(() => {
     const handleLoadTranscript = (event: CustomEvent) => {
-      const { transcript: newTranscript } = event.detail;
+      const { transcript: newTranscript, rawTranscript: newRawTranscript, patientLang, docLang } = event.detail;
       setTranscript(newTranscript);
+      setRawTranscript(newRawTranscript);
+      if (patientLang) setPatientLanguage(patientLang);
+      if (docLang) setDocumentationLanguage(docLang);
       // Clear previous SOAP note when new transcript is loaded
       setSOAPNote(null);
       setError(null);
+      setRestored(false); // New transcript, not restored
       // Auto-scroll to this component
       setTimeout(() => {
         const element = document.querySelector('[data-soap-generator]');
@@ -84,10 +105,51 @@ export function SOAPGenerator({
     if (initialTranscript) {
       setTranscript(initialTranscript);
     }
-  }, [initialTranscript]);
+    if (initialRawTranscript) {
+      setRawTranscript(initialRawTranscript);
+    }
+    if (patientLang) {
+      setPatientLanguage(patientLang);
+    }
+    if (docLang) {
+      setDocumentationLanguage(docLang);
+    }
+  }, [initialTranscript, initialRawTranscript, patientLang, docLang]);
+
+  // Load SOAP note from localStorage on component mount
+  useEffect(() => {
+    const saved = localStorage.getItem("currentSOAPNote");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        setSOAPNote(data.soapNote);
+        setPatientNameInput(data.patientName || "");
+        setEncounterTypeInput(data.encounterType || "General Consultation");
+        setRestored(true);
+      } catch (error) {
+        console.error("Failed to parse saved SOAP note data:", error);
+        localStorage.removeItem("currentSOAPNote"); // Clear corrupted data
+      }
+    }
+  }, []);
+
+  // Save SOAP note to localStorage whenever it changes
+  useEffect(() => {
+    if (soapNote) {
+      const soapData = {
+        soapNote: soapNote,
+        patientName: patientNameInput,
+        encounterType: encounterTypeInput,
+      };
+      localStorage.setItem("currentSOAPNote", JSON.stringify(soapData));
+    }
+  }, [soapNote, patientNameInput, encounterTypeInput]);
 
   const generateSOAP = async () => {
-    if (!transcript.trim()) {
+    // Always use the translated transcript for SOAP generation
+    const transcriptToUse = transcript;
+    
+    if (!transcriptToUse.trim()) {
       setError('Please enter a transcript to generate SOAP note');
       return;
     }
@@ -104,9 +166,11 @@ export function SOAPGenerator({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          transcript: transcript.trim(),
+          transcript: transcriptToUse.trim(),
           patientName: patientNameInput.trim() || undefined,
           encounterType: encounterTypeInput.trim() || undefined,
+          patientLang: patientLanguage,
+          docLang: documentationLanguage
         }),
       });
 
@@ -116,8 +180,12 @@ export function SOAPGenerator({
       }
 
       const soapData: SOAPNote = await response.json();
+      // Ensure language info is included
+      soapData.patientLang = patientLanguage;
+      soapData.docLang = documentationLanguage;
       setSOAPNote(soapData);
       setGenerationTime(Date.now() - startTime);
+      setRestored(false); // New SOAP note, not restored
     } catch (err) {
       console.error('SOAP generation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate SOAP note');
@@ -143,6 +211,8 @@ export function SOAPGenerator({
 ${soapNote.patientName ? `Patient: ${soapNote.patientName}` : ''}
 ${soapNote.encounterType ? `Encounter: ${soapNote.encounterType}` : ''}
 Date: ${new Date(soapNote.timestamp).toLocaleDateString()}
+Patient Language: ${soapNote.patientLang || patientLanguage}
+Documentation Language: ${soapNote.docLang || documentationLanguage}
 
 SUBJECTIVE:
 ${soapNote.subjective}
@@ -166,6 +236,8 @@ ${soapNote.plan}`;
 ${soapNote.patientName ? `Patient: ${soapNote.patientName}` : ''}
 ${soapNote.encounterType ? `Encounter: ${soapNote.encounterType}` : ''}
 Date: ${new Date(soapNote.timestamp).toLocaleDateString()}
+Patient Language: ${soapNote.patientLang || patientLanguage}
+Documentation Language: ${soapNote.docLang || documentationLanguage}
 
 SUBJECTIVE:
 ${soapNote.subjective}
@@ -192,28 +264,167 @@ ${soapNote.plan}`;
 
   const clearAll = () => {
     setTranscript('');
-    setSOAPNote(null);
-    setError(null);
+    setRawTranscript('');
     setPatientNameInput('');
     setEncounterTypeInput('General Consultation');
-    setGenerationTime(null);
+    setSOAPNote(null);
+    setError(null);
+    setRestored(false);
+    localStorage.removeItem("currentSOAPNote");
+    // Also clear the transcript data from localStorage
+    localStorage.removeItem("currentTranscript");
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6" data-soap-generator>
-      {/* Input Section */}
-      <Card className="border-2 border-dashed border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-blue-900">
-            <Stethoscope className="h-5 w-5" />
+    <div className="space-y-6" data-soap-generator>
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
+        <div>
+          <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+            <Stethoscope className="h-6 w-6 text-blue-600" />
             SOAP Note Generator
+          </h2>
+          <p className="text-gray-600">Transform your transcription into structured clinical documentation</p>
+        </div>
+      </motion.div>
+
+      {/* Restoration Warning */}
+      <AnimatePresence>
+        {restored && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2"
+          >
+            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+            <div className="text-sm text-amber-800">
+              <span className="font-medium">Restored saved SOAP note</span> - Data was automatically restored from your previous session. 
+              Clear manually before starting a new session.
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Transcript Display - Always show translated transcript */}
+      {(rawTranscript || transcript) && (
+        <Card className="border-l-4 border-l-blue-500 bg-blue-50/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-blue-900">
+                <Languages className="h-5 w-5" />
+                Translated Transcript (Documentation Language)
+              </CardTitle>
+              
+              {rawTranscript && transcript && rawTranscript !== transcript && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRaw(!showRaw)}
+                  className="flex items-center gap-2"
+                >
+                  {showRaw ? (
+                    <>
+                      <FileText className="h-4 w-4" />
+                      Show Translated Text
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="h-4 w-4" />
+                      Show Raw Transcript
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+            <Badge className="mt-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+              {showRaw ? 
+                `Patient Language: ${
+                  patientLanguage === "auto" ? "🌐 Auto Detected" :
+                  patientLanguage === "so" ? "🇸🇴 Somali" :
+                  patientLanguage === "hmn" ? "🇱🇦 Hmong" :
+                  patientLanguage === "sw" ? "🇰🇪 Swahili" :
+                  patientLanguage === "ar" ? "🇸🇦 Arabic" :
+                  patientLanguage === "en" ? "🇺🇸 English" :
+                  patientLanguage.toUpperCase()
+                }` : 
+                `Documentation Language: ${
+                  documentationLanguage === "en" ? "🇺🇸 English" :
+                  documentationLanguage === "so" ? "🇸🇴 Somali" :
+                  documentationLanguage === "hmn" ? "🇱🇦 Hmong" :
+                  documentationLanguage === "sw" ? "🇰🇪 Swahili" :
+                  documentationLanguage === "ar" ? "🇸🇦 Arabic" :
+                  documentationLanguage.toUpperCase()
+                }`
+              }
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={showRaw ? rawTranscript : transcript}
+              onChange={(e) => {
+                if (showRaw) {
+                  setRawTranscript(e.target.value);
+                } else {
+                  setTranscript(e.target.value);
+                }
+              }}
+              className="min-h-[120px] bg-white resize-none"
+              placeholder={showRaw ? "Raw transcript will appear here..." : "Translated transcript will appear here..."}
+            />
+            <div className="flex items-center justify-between mt-3">
+              <div className="text-sm text-gray-500 flex items-center gap-2">
+                {showRaw ? (
+                  <>Original Patient Language: {
+                    patientLanguage === "auto" ? "🌐 Auto Detected" :
+                    patientLanguage === "so" ? "🇸🇴 Somali" :
+                    patientLanguage === "hmn" ? "🇱🇦 Hmong" :
+                    patientLanguage === "sw" ? "🇰🇪 Swahili" :
+                    patientLanguage === "ar" ? "🇸🇦 Arabic" :
+                    patientLanguage === "en" ? "🇺🇸 English" :
+                    patientLanguage.toUpperCase()
+                  }</>
+                ) : (
+                  <>Translated to Documentation Language: {
+                    documentationLanguage === "en" ? "🇺🇸 English" :
+                    documentationLanguage === "so" ? "🇸🇴 Somali" :
+                    documentationLanguage === "hmn" ? "🇱🇦 Hmong" :
+                    documentationLanguage === "sw" ? "🇰🇪 Swahili" :
+                    documentationLanguage === "ar" ? "🇸🇦 Arabic" :
+                    documentationLanguage.toUpperCase()
+                  }</>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => copyToClipboard(showRaw ? rawTranscript : transcript, showRaw ? 'raw' : 'translated')}
+              >
+                {copied === (showRaw ? 'raw' : 'translated') ? (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                {copied === (showRaw ? 'raw' : 'translated') ? 'Copied!' : 'Copy'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Patient and Encounter Information */}
+      <Card className="border-l-4 border-l-green-500 bg-green-50/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-green-900">
+            <User className="h-5 w-5" />
+            Patient Information
           </CardTitle>
-          <CardDescription>
-            Transform medical transcripts into structured clinical documentation
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Patient Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="patient-name" className="flex items-center gap-2">
@@ -222,9 +433,9 @@ ${soapNote.plan}`;
               </Label>
               <Input
                 id="patient-name"
-                placeholder="Enter patient name (optional)"
                 value={patientNameInput}
                 onChange={(e) => setPatientNameInput(e.target.value)}
+                placeholder="Enter patient name"
                 className="bg-white"
               />
             </div>
@@ -235,79 +446,47 @@ ${soapNote.plan}`;
               </Label>
               <Input
                 id="encounter-type"
-                placeholder="e.g., General Consultation, Follow-up"
                 value={encounterTypeInput}
                 onChange={(e) => setEncounterTypeInput(e.target.value)}
+                placeholder="e.g., Initial Consultation, Follow-up"
                 className="bg-white"
               />
             </div>
           </div>
-
-          {/* Transcript Input */}
-          <div className="space-y-2">
-            <Label htmlFor="transcript" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Medical Transcript
-            </Label>
-            <Textarea
-              id="transcript"
-              placeholder="Paste or type the medical transcript here..."
-              value={transcript}
-              onChange={(e) => setTranscript(e.target.value)}
-              className="min-h-[200px] bg-white resize-none"
-            />
-            <div className="flex items-center justify-between text-sm text-gray-500">
-              <span>{transcript.length} characters</span>
-              {transcript.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAll}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <RefreshCw className="h-3 w-3 mr-1" />
-                  Clear All
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Generate Button */}
-          <Button
-            onClick={generateSOAP}
-            disabled={isGenerating || !transcript.trim()}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-3"
-            size="lg"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating SOAP Note...
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Generate SOAP Note
-              </>
-            )}
-          </Button>
-
-          {/* Error Display */}
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700"
-              >
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                <span className="text-sm">{error}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </CardContent>
       </Card>
+
+      {/* Generate Button */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button
+          onClick={generateSOAP}
+          disabled={isGenerating || (!transcript && !rawTranscript)}
+          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+        >
+          {isGenerating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
+          {isGenerating ? 'Generating SOAP Note...' : 'Generate SOAP Note'}
+        </Button>
+        <Button
+          onClick={clearAll}
+          variant="outline"
+          className="flex items-center justify-center gap-2"
+        >
+          <Trash2 className="h-4 w-4" />
+          Clear All
+        </Button>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {/* SOAP Note Display */}
       <AnimatePresence>
@@ -346,6 +525,14 @@ ${soapNote.plan}`;
                         </Badge>
                       )}
                     </CardDescription>
+                    <div className="flex gap-2 mt-2">
+                      <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+                        Patient Language: {(soapNote.patientLang || patientLanguage).toUpperCase()}
+                      </Badge>
+                      <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                        Documentation Language: {(soapNote.docLang || documentationLanguage).toUpperCase()}
+                      </Badge>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -399,7 +586,7 @@ ${soapNote.plan}`;
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-gray-700 whitespace-pre-wrap">
                     {soapNote.subjective}
                   </p>
                 </CardContent>
@@ -427,7 +614,7 @@ ${soapNote.plan}`;
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-gray-700 whitespace-pre-wrap">
                     {soapNote.objective}
                   </p>
                 </CardContent>
@@ -455,7 +642,7 @@ ${soapNote.plan}`;
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-gray-700 whitespace-pre-wrap">
                     {soapNote.assessment}
                   </p>
                 </CardContent>
@@ -483,30 +670,26 @@ ${soapNote.plan}`;
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-gray-700 whitespace-pre-wrap">
                     {soapNote.plan}
                   </p>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Signature and PDF Section */}
+            <SignatureAndPDF 
+              soapNote={soapNote} 
+              patientName={patientNameInput}
+              encounterType={encounterTypeInput}
+              rawTranscript={rawTranscript}
+              translatedTranscript={transcript}
+              patientLang={patientLanguage}
+              docLang={documentationLanguage}
+            />
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Signature and PDF Generation */}
-      {soapNote && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <SignatureAndPDF
-            soapNote={soapNote}
-            patientName={patientNameInput}
-            encounterType={encounterTypeInput}
-          />
-        </motion.div>
-      )}
     </div>
   );
 }

@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { SOAPGenerator } from '@/components/SOAPGenerator';
 import Recorder from '@/components/Recorder';
 import { 
@@ -15,7 +17,9 @@ import {
   ArrowRight,
   CheckCircle,
   Brain,
-  Clipboard
+  Clipboard,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 
 const sampleTranscripts = [
@@ -41,20 +45,73 @@ const sampleTranscripts = [
 
 export default function SOAPPage() {
   const [selectedTranscript, setSelectedTranscript] = useState('');
+  const [manualTranscript, setManualTranscript] = useState(''); // For manual entry
   const [selectedPatient, setSelectedPatient] = useState('');
   const [selectedType, setSelectedType] = useState('');
+  const [restored, setRestored] = useState(false); // Track if data was restored
+
+  // Load saved data from localStorage on component mount
+  useEffect(() => {
+    const saved = localStorage.getItem("manualSOAPData");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.selectedTranscript) {
+          setSelectedTranscript(data.selectedTranscript);
+        }
+        if (data.manualTranscript) {
+          setManualTranscript(data.manualTranscript);
+        }
+        if (data.selectedPatient) {
+          setSelectedPatient(data.selectedPatient);
+        }
+        if (data.selectedType) {
+          setSelectedType(data.selectedType);
+        }
+        setRestored(true);
+      } catch (error) {
+        console.error("Failed to parse saved SOAP data:", error);
+        localStorage.removeItem("manualSOAPData"); // Clear corrupted data
+      }
+    }
+  }, []);
+
+  // Save data to localStorage whenever it changes
+  useEffect(() => {
+    const soapData = {
+      selectedTranscript,
+      manualTranscript,
+      selectedPatient,
+      selectedType
+    };
+    localStorage.setItem("manualSOAPData", JSON.stringify(soapData));
+  }, [selectedTranscript, manualTranscript, selectedPatient, selectedType]);
 
   const loadSampleTranscript = (sample: typeof sampleTranscripts[0]) => {
     setSelectedTranscript(sample.transcript);
     setSelectedPatient(sample.patient);
     setSelectedType(sample.type);
+    setManualTranscript(''); // Clear manual transcript when loading sample
   };
 
   const handleTranscriptGenerated = (transcript: string) => {
     setSelectedTranscript(transcript);
     setSelectedPatient('');
     setSelectedType('Live Recording');
+    setManualTranscript(''); // Clear manual transcript when recording
   };
+
+  const clearAllData = () => {
+    setSelectedTranscript('');
+    setManualTranscript('');
+    setSelectedPatient('');
+    setSelectedType('');
+    setRestored(false);
+    localStorage.removeItem("manualSOAPData");
+  };
+
+  // Use manual transcript if available, otherwise use selected transcript
+  const activeTranscript = manualTranscript || selectedTranscript;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -78,39 +135,86 @@ export default function SOAPPage() {
           </p>
         </motion.div>
 
-        {/* Features Overview */}
+        {/* Restoration Warning */}
+        {restored && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2"
+          >
+            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+            <div className="text-sm text-amber-800">
+              <span className="font-medium">Restored saved SOAP data</span> - Data was automatically restored from your previous session. 
+              Clear manually before starting a new session.
+            </div>
+          </motion.div>
+        )}
+
+        {/* Manual Transcript Entry */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12"
+          className="mb-12"
         >
-          <Card className="text-center border-blue-200 bg-blue-50/50">
-            <CardContent className="pt-6">
-              <Mic className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-              <h3 className="font-semibold text-blue-900">Record Audio</h3>
-              <p className="text-sm text-blue-700">Live transcription</p>
-            </CardContent>
-          </Card>
-          <Card className="text-center border-green-200 bg-green-50/50">
-            <CardContent className="pt-6">
-              <FileText className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <h3 className="font-semibold text-green-900">Process Text</h3>
-              <p className="text-sm text-green-700">AI transcription</p>
-            </CardContent>
-          </Card>
-          <Card className="text-center border-purple-200 bg-purple-50/50">
-            <CardContent className="pt-6">
-              <Brain className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-              <h3 className="font-semibold text-purple-900">Generate SOAP</h3>
-              <p className="text-sm text-purple-700">Structured notes</p>
-            </CardContent>
-          </Card>
-          <Card className="text-center border-orange-200 bg-orange-50/50">
-            <CardContent className="pt-6">
-              <Clipboard className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-              <h3 className="font-semibold text-orange-900">Export & Copy</h3>
-              <p className="text-sm text-orange-700">Ready to use</p>
+          <Card className="border-2 border-dashed border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-blue-900">
+                    <FileText className="h-5 w-5" />
+                    Manual Transcript Entry
+                  </CardTitle>
+                  <CardDescription>
+                    Type or paste your medical transcript directly
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={clearAllData}
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Clear All
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="manual-transcript">Patient Transcript</Label>
+                  <Textarea
+                    id="manual-transcript"
+                    value={manualTranscript}
+                    onChange={(e) => setManualTranscript(e.target.value)}
+                    placeholder="Type or paste your patient transcript here..."
+                    className="min-h-[120px]"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="manual-patient">Patient Name</Label>
+                    <input
+                      id="manual-patient"
+                      value={selectedPatient}
+                      onChange={(e) => setSelectedPatient(e.target.value)}
+                      placeholder="Enter patient name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="manual-type">Encounter Type</Label>
+                    <input
+                      id="manual-type"
+                      value={selectedType}
+                      onChange={(e) => setSelectedType(e.target.value)}
+                      placeholder="e.g., Initial Consultation"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
@@ -209,7 +313,7 @@ export default function SOAPPage() {
             </div>
             <div className="p-8">
               <SOAPGenerator
-                initialTranscript={selectedTranscript}
+                initialTranscript={activeTranscript}
                 patientName={selectedPatient}
                 encounterType={selectedType}
               />

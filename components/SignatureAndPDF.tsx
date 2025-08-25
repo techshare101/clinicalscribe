@@ -1,16 +1,19 @@
 'use client'
 
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { uploadToFirebase } from '@/lib/storage'
 import { auth } from '@/lib/firebase'
-import { FileText, Upload, Download, Signature, CheckCircle, AlertCircle, Trash2 } from 'lucide-react'
+import { db } from '@/lib/firebase'
+import { doc, setDoc } from 'firebase/firestore'
+import { FileText, Upload, Download, Signature, CheckCircle, AlertCircle, Trash2, User, Loader2, AlertTriangle } from 'lucide-react'
 
 interface SOAPNote {
   subjective: string
@@ -22,26 +25,78 @@ interface SOAPNote {
   timestamp: string
 }
 
+interface SignatureData {
+  doctorName: string;
+  signatureDataUrl?: string;
+}
+
 interface SignatureAndPDFProps {
   soapNote?: SOAPNote
   patientName?: string
   encounterType?: string
+  rawTranscript?: string
+  translatedTranscript?: string
+  patientLang?: string
+  docLang?: string
 }
 
 export default function SignatureAndPDF({
   soapNote,
   patientName = '',
   encounterType = '',
+  rawTranscript = '',
+  translatedTranscript = '',
+  patientLang = 'en',
+  docLang = 'en'
 }: SignatureAndPDFProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [doctorName, setDoctorName] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [uploadUrl, setUploadUrl] = useState<string | null>(null) // legacy field; no longer used for Firebase
+  const [uploadUrl, setUploadUrl] = useState<string | null>(null)
   const [uploadedPath, setUploadedPath] = useState<string | null>(null)
   const [lastPoint, setLastPoint] = useState<{ x: number; y: number } | null>(null)
+  const [restored, setRestored] = useState(false)
   const { toast } = useToast()
+
+  // Load saved data from localStorage on component mount
+  useEffect(() => {
+    const saved = localStorage.getItem("signatureData");
+    if (saved) {
+      try {
+        const data: SignatureData = JSON.parse(saved);
+        setDoctorName(data.doctorName || "");
+        setRestored(true);
+        
+        // Restore signature if it exists
+        if (data.signatureDataUrl && canvasRef.current) {
+          const canvas = canvasRef.current;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            const img = new Image();
+            img.onload = () => {
+              ctx.drawImage(img, 0, 0);
+            };
+            img.src = data.signatureDataUrl;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to parse saved signature data:", error);
+        localStorage.removeItem("signatureData"); // Clear corrupted data
+      }
+    }
+  }, []);
+
+  // Save doctor name to localStorage whenever it changes
+  useEffect(() => {
+    if (doctorName) {
+      const signatureData: SignatureData = {
+        doctorName: doctorName,
+      };
+      localStorage.setItem("signatureData", JSON.stringify(signatureData));
+    }
+  }, [doctorName]);
 
   // Initialize canvas
   React.useEffect(() => {
@@ -116,6 +171,7 @@ export default function SignatureAndPDF({
   const stopDrawing = () => {
     setIsDrawing(false)
     setLastPoint(null)
+    saveSignatureToLocalStorage(); // Save signature whenever drawing stops
   }
 
   // Touch events for mobile support
@@ -150,7 +206,29 @@ export default function SignatureAndPDF({
     e.preventDefault()
     setIsDrawing(false)
     setLastPoint(null)
+    saveSignatureToLocalStorage(); // Save signature whenever drawing stops
   }
+
+  // Save signature to localStorage
+  const saveSignatureToLocalStorage = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const signatureDataUrl = canvas.toDataURL('image/png');
+      const currentData = localStorage.getItem("signatureData");
+      let data: SignatureData = { doctorName: doctorName };
+      
+      if (currentData) {
+        try {
+          data = JSON.parse(currentData);
+        } catch (error) {
+          console.error("Failed to parse existing signature data:", error);
+        }
+      }
+      
+      data = { ...data, signatureDataUrl };
+      localStorage.setItem("signatureData", JSON.stringify(data));
+    }
+  };
 
   const clearSignature = () => {
     const canvas = canvasRef.current
@@ -161,7 +239,27 @@ export default function SignatureAndPDF({
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
     }
+    
+    // Also clear signature from localStorage
+    const currentData = localStorage.getItem("signatureData");
+    if (currentData) {
+      try {
+        const data: SignatureData = JSON.parse(currentData);
+        delete data.signatureDataUrl;
+        localStorage.setItem("signatureData", JSON.stringify(data));
+      } catch (error) {
+        console.error("Failed to update signature data:", error);
+        localStorage.removeItem("signatureData");
+      }
+    }
   }
+
+  const clearAllData = () => {
+    setDoctorName('');
+    clearSignature();
+    setRestored(false);
+    localStorage.removeItem("signatureData");
+  };
 
   const isSignatureEmpty = (): boolean => {
     const canvas = canvasRef.current
@@ -340,7 +438,64 @@ export default function SignatureAndPDF({
               <strong>Generated:</strong>
               <span>${soapNote?.timestamp || currentDate}</span>
             </div>
+            <div class="metadata-row">
+              <strong>Patient Language:</strong>
+              <span>${
+                patientLang === "auto" ? "🌐 Auto Detected" :
+                patientLang === "so" ? "🇸🇴 Somali" :
+                patientLang === "hmn" ? "🇱🇦 Hmong" :
+                patientLang === "sw" ? "🇰🇪 Swahili" :
+                patientLang === "ar" ? "🇸🇦 Arabic" :
+                patientLang === "en" ? "🇺🇸 English" :
+                patientLang.toUpperCase()
+              }</span>
+            </div>
+            <div class="metadata-row">
+              <strong>Documentation Language:</strong>
+              <span>${
+                docLang === "en" ? "🇺🇸 English" :
+                docLang === "so" ? "🇸🇴 Somali" :
+                docLang === "hmn" ? "🇱🇦 Hmong" :
+                docLang === "sw" ? "🇰🇪 Swahili" :
+                docLang === "ar" ? "🇸🇦 Arabic" :
+                docLang.toUpperCase()
+              }</span>
+            </div>
           </div>
+
+          ${rawTranscript && translatedTranscript && rawTranscript !== translatedTranscript ? `
+            <div class="section">
+              <div class="section-title">Transcript Information</div>
+              <div class="section-content">
+                <p><strong>Raw Transcript (${
+                  patientLang === "auto" ? "🌐 Auto Detected" :
+                  patientLang === "so" ? "🇸🇴 Somali" :
+                  patientLang === "hmn" ? "🇱🇦 Hmong" :
+                  patientLang === "sw" ? "🇰🇪 Swahili" :
+                  patientLang === "ar" ? "🇸🇦 Arabic" :
+                  patientLang === "en" ? "🇺🇸 English" :
+                  patientLang.toUpperCase()
+                }):</strong></p>
+                <p>${rawTranscript}</p>
+                <p style="margin-top: 15px;"><strong>Translated Transcript (${
+                  docLang === "en" ? "🇺🇸 English" :
+                  docLang === "so" ? "🇸🇴 Somali" :
+                  docLang === "hmn" ? "🇱🇦 Hmong" :
+                  docLang === "sw" ? "🇰🇪 Swahili" :
+                  docLang === "ar" ? "🇸🇦 Arabic" :
+                  docLang.toUpperCase()
+                }):</strong></p>
+                <p>${translatedTranscript}</p>
+              </div>
+            </div>
+          ` : `
+            <div class="section">
+              <div class="section-title">Transcript</div>
+              <div class="section-content">
+                <p>${translatedTranscript || rawTranscript || 'No transcript available'}</p>
+              </div>
+            </div>
+          `}
 
           ${soapNote ? `
             <div class="section subjective">
@@ -384,11 +539,11 @@ export default function SignatureAndPDF({
     `
   }
 
-  const generateAndUploadPDF = async () => {
+  const saveSOAPNoteToFirestore = async () => {
     if (!doctorName.trim()) {
       toast({
         title: "Name Required",
-        description: "Please enter your name before generating the PDF.",
+        description: "Please enter your name before saving the SOAP note.",
         variant: "destructive"
       })
       return
@@ -397,75 +552,150 @@ export default function SignatureAndPDF({
     if (isSignatureEmpty()) {
       toast({
         title: "Signature Required", 
-        description: "Please provide your signature before generating the PDF.",
+        description: "Please provide your signature before saving the SOAP note.",
         variant: "destructive"
       })
       return
     }
 
-    setIsGenerating(true)
-    setStatusMessage('📄 Generating PDF document...')
-
     try {
       const user = auth.currentUser
       if (!user) {
-        throw new Error('Please sign in to generate PDF')
+        throw new Error('Please sign in to save SOAP notes')
+      }
+
+      // Generate a unique ID for the SOAP note
+      const noteId = `${user.uid}_${Date.now()}`
+      
+      // Save SOAP note to Firestore with both raw and translated transcripts
+      await setDoc(doc(db, "soapNotes", noteId), {
+        userId: user.uid,
+        rawTranscript,                      // Patient's original language
+        transcript: translatedTranscript,   // Documentation language
+        patientLang: patientLang,           // Patient language code (e.g., 'so', 'hmn')
+        docLang: docLang,                   // Documentation language code (e.g., 'en')
+        soap: soapNote,
+        patientName: patientName,
+        encounterType: encounterType,
+        doctorName: doctorName,
+        createdAt: new Date()
+      }, { merge: true })
+
+      toast({
+        title: "SOAP Note Saved",
+        description: "Your SOAP note has been successfully saved to Firestore.",
+        variant: "default"
+      })
+      
+      console.log('🎉 SOAP note saved to Firestore:', noteId)
+    } catch (error: any) {
+      console.error('[SignatureAndPDF] Save to Firestore error:', error)
+      
+      toast({
+        title: "Failed to Save SOAP Note",
+        description: error.message || "Could not save SOAP note to Firestore. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const generateAndUploadPDF = async () => {
+    if (!doctorName.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter your name before generating the PDF.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (isSignatureEmpty()) {
+      toast({
+        title: "Signature Required", 
+        description: "Please provide your signature before generating the PDF.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    setStatusMessage('📄 Generating PDF document...');
+
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('Please sign in to generate PDF');
       }
 
       // Get fresh ID token for authentication
-      const idToken = await user.getIdToken(true)
+      const idToken = await user.getIdToken(true);
       
       // Generate HTML content for PDF
-      const htmlContent = generateHTMLContent()
+      const htmlContent = generateHTMLContent();
       
-      setStatusMessage('☁️ Uploading to Storage...')
+      setStatusMessage('☁️ Generating PDF...');
       
-      // Call PDF render API
-      const response = await fetch('/api/pdf/render', {
+      // Call PDF API with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      // Call the simpler PDF API that returns the PDF directly
+      const response = await fetch('/api/pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          html: htmlContent,
-          ownerId: user.uid
-        })
-      })
+          html: htmlContent
+        }),
+        signal: controller.signal
+      });
       
-      const result = await response.json()
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to generate PDF')
+        const errorResult = await response.json();
+        throw new Error(errorResult.error || 'Failed to generate PDF');
       }
       
-      if (result.success && result.url) {
-        setUploadedPath(result.filePath)
-        setUploadUrl(result.url)
-        setStatusMessage('✅ PDF uploaded successfully!')
-        
-        toast({
-          title: "PDF Generated Successfully!",
-          description: "Your document has been generated and uploaded to secure storage.",
-          variant: "default"
-        })
-        
-        console.log('🎉 PDF generated and uploaded:', result.filePath)
-      } else {
-        throw new Error('PDF generation failed - no URL returned')
-      }
+      // Get the PDF blob
+      const blob = await response.blob();
       
-    } catch (error: any) {
-      console.error('[SignatureAndPDF] PDF generation error:', error)
-      setStatusMessage(`❌ PDF generation failed`)
+      // Upload to Firebase Storage
+      setStatusMessage('☁️ Uploading to Storage...');
+      const uploadResult = await uploadToFirebase("pdfs", blob, user.uid, "pdf");
+      
+      setUploadedPath(uploadResult.path);
+      setUploadUrl(uploadResult.path); // Store the path, not the URL
+      setStatusMessage('✅ PDF uploaded successfully!');
       
       toast({
-        title: "PDF Generation Failed",
-        description: error.message || "An error occurred while generating the PDF. Please try again.",
-        variant: "destructive"
-      })
+        title: "PDF Generated Successfully!",
+        description: "Your document has been generated and uploaded to secure storage.",
+        variant: "default"
+      });
+      
+    } catch (error: any) {
+      console.error('[SignatureAndPDF] PDF generation error:', error);
+      setStatusMessage(`❌ PDF generation failed`);
+      
+      // Handle timeout specifically
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        toast({
+          title: "PDF Generation Timeout",
+          description: "The PDF generation is taking longer than expected. Please try again.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "PDF Generation Failed",
+          description: error.message || "An error occurred while generating the PDF. Please try again.",
+          variant: "destructive"
+        });
+      }
     } finally {
-      setIsGenerating(false)
+      setIsGenerating(false);
     }
   }
 
@@ -542,7 +772,14 @@ export default function SignatureAndPDF({
       // Generate HTML content for PDF
       const htmlContent = generateHTMLContent()
       
-      // Call PDF render API
+      // Show generating status
+      setStatusMessage('📄 Generating PDF document...')
+      setIsGenerating(true)
+      
+      // Call PDF render API with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 45000) // 45 second timeout
+      
       const response = await fetch('/api/pdf/render', {
         method: 'POST',
         headers: {
@@ -550,10 +787,12 @@ export default function SignatureAndPDF({
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          html: htmlContent,
-          ownerId: user.uid
-        })
+          html: htmlContent
+        }),
+        signal: controller.signal
       })
+      
+      clearTimeout(timeoutId)
       
       const result = await response.json()
       
@@ -577,165 +816,321 @@ export default function SignatureAndPDF({
     } catch (error: any) {
       console.error('[SignatureAndPDF] PDF download error:', error)
       
+      // Handle timeout specifically
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        toast({
+          title: "PDF Generation Timeout",
+          description: "The PDF generation is taking longer than expected. Please try again.",
+          variant: "destructive"
+        })
+      } else if (error.message.includes('Failed to launch the browser process')) {
+        toast({
+          title: "PDF Generation Failed",
+          description: "There was an issue with the PDF generation service. Please try again later.",
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Download Failed",
+          description: error.message || "Failed to download PDF. Please try again.",
+          variant: "destructive"
+        })
+      }
+    } finally {
+      setIsGenerating(false)
+      setStatusMessage('')
+    }
+  }
+
+  // New function to generate PDF and upload to Firestore
+  const generateAndUploadToFirestore = async () => {
+    if (!doctorName.trim()) {
       toast({
-        title: "Download Failed",
-        description: error.message || "Failed to download PDF. Please try again.",
+        title: "Name Required",
+        description: "Please enter your name before generating the PDF.",
         variant: "destructive"
       })
+      return
+    }
+
+    if (isSignatureEmpty()) {
+      toast({
+        title: "Signature Required", 
+        description: "Please provide your signature before generating the PDF.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsGenerating(true)
+    setStatusMessage('📄 Generating PDF document...')
+
+    try {
+      const user = auth.currentUser
+      if (!user) {
+        throw new Error('Please sign in to generate PDF')
+      }
+
+      // Get fresh ID token for authentication
+      const idToken = await user.getIdToken(true)
+      
+      // Generate HTML content for PDF
+      const htmlContent = generateHTMLContent()
+      
+      setStatusMessage('☁️ Generating PDF...')
+      
+      // Call PDF render API with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 45000) // 45 second timeout
+      
+      const response = await fetch('/api/pdf/render', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          html: htmlContent
+        }),
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to generate PDF')
+      }
+      
+      if (result.success && result.filePath) {
+        // Store the file path in state
+        setUploadedPath(result.filePath)
+        setUploadUrl(result.url)
+        setStatusMessage('✅ PDF generated and uploaded to Firestore successfully!')
+        
+        toast({
+          title: "PDF Generated Successfully!",
+          description: "Your document has been generated and uploaded to Firestore.",
+          variant: "default"
+        })
+      } else {
+        throw new Error('PDF generation failed - no file path returned')
+      }
+      
+    } catch (error: any) {
+      console.error('[SignatureAndPDF] PDF generation error:', error)
+      setStatusMessage(`❌ PDF generation failed`)
+      
+      // Handle timeout specifically
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        toast({
+          title: "PDF Generation Timeout",
+          description: "The PDF generation is taking longer than expected. Please try again.",
+          variant: "destructive"
+        })
+      } else if (error.message.includes('Failed to launch the browser process')) {
+        toast({
+          title: "PDF Generation Failed",
+          description: "There was an issue with the PDF generation service. Please try again later.",
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "PDF Generation Failed",
+          description: error.message || "An error occurred while generating the PDF. Please try again.",
+          variant: "destructive"
+        })
+      }
+    } finally {
+      setIsGenerating(false)
     }
   }
 
   return (
     <div className="space-y-6">
-      <Card>
+      {/* Restoration Warning */}
+      {restored && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+          <div className="text-sm text-amber-800">
+            <span className="font-medium">Restored saved signature data</span> - Your doctor name and signature were automatically restored from your previous session.
+          </div>
+        </div>
+      )}
+
+      <Card className="border-l-4 border-l-purple-500 bg-purple-50/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Signature className="h-5 w-5" />
-            Digital Signature & Document Generation
-          </CardTitle>
-          <CardDescription>
-            Sign the SOAP note and generate a document for secure storage
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-purple-900">
+                <Signature className="h-5 w-5" />
+                Digital Signature & PDF Export
+              </CardTitle>
+              <CardDescription>
+                Sign and export your SOAP note as a secure PDF
+              </CardDescription>
+            </div>
+            <Button
+              onClick={clearAllData}
+              variant="outline"
+              size="sm"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Clear
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Doctor Name Input */}
-          <div className="space-y-2">
-            <Label htmlFor="doctorName">Healthcare Provider Name *</Label>
-            <Input
-              id="doctorName"
-              value={doctorName}
-              onChange={(e) => setDoctorName(e.target.value)}
-              placeholder="Enter your full name"
-              className="max-w-md"
-            />
-          </div>
-
-          {/* Signature Pad */}
-          <div className="space-y-2">
-            <Label>Digital Signature *</Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
-              <canvas
-                ref={canvasRef}
-                width={500}
-                height={200}
-                className="border border-gray-300 rounded cursor-crosshair bg-white touch-none"
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                onTouchStart={startTouchDrawing}
-                onTouchMove={touchDraw}
-                onTouchEnd={stopTouchDrawing}
-                style={{ maxWidth: '100%', height: 'auto' }}
-              />
-              <div className="mt-3 flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearSignature}
-                  className="flex items-center gap-1"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Clear Signature
-                </Button>
-                <span className="text-xs text-gray-500 flex items-center">
-                  Sign above using your mouse or touch screen
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* SOAP Note Preview */}
-          {soapNote && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Doctor Information */}
             <div className="space-y-4">
-              <Separator />
               <div>
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  SOAP Note Preview
-                </h3>
-                <div className="grid gap-4">
-                  <div className="p-4 bg-green-50 border-l-4 border-green-500 rounded-r">
-                    <h4 className="font-medium text-green-800 mb-2">Subjective</h4>
-                    <p className="text-sm text-green-700 leading-relaxed">{soapNote.subjective}</p>
-                  </div>
-                  <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r">
-                    <h4 className="font-medium text-blue-800 mb-2">Objective</h4>
-                    <p className="text-sm text-blue-700 leading-relaxed">{soapNote.objective}</p>
-                  </div>
-                  <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-r">
-                    <h4 className="font-medium text-yellow-800 mb-2">Assessment</h4>
-                    <p className="text-sm text-yellow-700 leading-relaxed">{soapNote.assessment}</p>
-                  </div>
-                  <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-r">
-                    <h4 className="font-medium text-red-800 mb-2">Plan</h4>
-                    <p className="text-sm text-red-700 leading-relaxed">{soapNote.plan}</p>
-                  </div>
+                <Label htmlFor="doctor-name" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Doctor Name
+                </Label>
+                <Input
+                  id="doctor-name"
+                  value={doctorName}
+                  onChange={(e) => setDoctorName(e.target.value)}
+                  placeholder="Enter your full name"
+                  className="mt-1 bg-white"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  This will be used to generate your digital signature
+                </p>
+              </div>
+
+              {/* Signature Canvas */}
+              <div>
+                <Label className="flex items-center gap-2">
+                  <Signature className="h-4 w-4" />
+                  Signature
+                </Label>
+                <div className="mt-1 border-2 border-gray-300 rounded-lg bg-white p-2">
+                  <canvas
+                    ref={canvasRef}
+                    width={400}
+                    height={150}
+                    className="w-full h-32 cursor-crosshair bg-white rounded"
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startTouchDrawing}
+                    onTouchMove={touchDraw}
+                    onTouchEnd={stopTouchDrawing}
+                  />
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    onClick={clearSignature}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Clear Signature
+                  </Button>
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3 pt-4">
-            <Button
-              onClick={generateAndUploadPDF}
-              disabled={isGenerating}
-              className="flex items-center gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              {isGenerating ? 'Processing...' : 'Generate & Upload PDF'}
-            </Button>
+            {/* PDF Preview and Actions */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Document Preview</h3>
+                <div className="bg-white border rounded-lg p-4 h-64 overflow-y-auto">
+                  {soapNote ? (
+                    <div className="text-sm space-y-2">
+                      <div className="font-bold text-lg border-b pb-2">
+                        SOAP Note - {soapNote.patientName || patientName || 'Unknown Patient'}
+                      </div>
+                      <div className="text-gray-600 text-xs">
+                        {new Date(soapNote.timestamp).toLocaleString()} • {encounterType || 'General Consultation'}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs mt-3">
+                        <div>
+                          <span className="font-medium">Patient Language:</span> {patientLang?.toUpperCase() || 'EN'}
+                        </div>
+                        <div>
+                          <span className="font-medium">Documentation Language:</span> {docLang?.toUpperCase() || 'EN'}
+                        </div>
+                      </div>
+                      <div className="mt-3 space-y-3">
+                        <div>
+                          <span className="font-semibold text-blue-700">Subjective:</span>
+                          <div className="ml-2">{soapNote.subjective}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-green-700">Objective:</span>
+                          <div className="ml-2">{soapNote.objective}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-orange-700">Assessment:</span>
+                          <div className="ml-2">{soapNote.assessment}</div>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-purple-700">Plan:</span>
+                          <div className="ml-2">{soapNote.plan}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500 text-center py-8">
+                      <FileText className="h-8 w-8 mx-auto mb-2" />
+                      <p>SOAP note will appear here after generation</p>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-            <Button
-              variant="outline"
-              onClick={downloadDocument}
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Download PDF
-            </Button>
-
-            {uploadedPath && (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  if (uploadUrl) {
-                    // Use the direct signed URL from PDF render response
-                    window.open(uploadUrl, '_blank')
-                  } else {
-                    // Fallback: generate new signed URL via API
-                    handleGetSignedUrl()
-                  }
-                }}
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                {uploadUrl ? 'Download PDF' : 'Open Signed Link'}
-              </Button>
-            )}
-          </div>
-
-          {/* Status Message */}
-          {statusMessage && (
-            <Alert className={uploadedPath ? 'border-green-200 bg-green-50' : 'border-blue-200 bg-blue-50'}>
-              {uploadedPath ? (
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              ) : (
-                <AlertCircle className="h-4 w-4 text-blue-600" />
-              )}
-              <AlertDescription className={uploadedPath ? 'text-green-800' : 'text-blue-800'}>
-                {statusMessage}
-                {uploadedPath && (
-                  <div className="mt-2 text-xs text-gray-600 break-all">
-                    Saved: {uploadedPath}
-                  </div>
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={downloadDocument}
+                  disabled={isGenerating || !soapNote || !doctorName.trim() || isSignatureEmpty()}
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                >
+                  {isGenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  {isGenerating ? 'Generating PDF...' : 'Generate & Download PDF'}
+                </Button>
+                
+                {/* New button for generating PDF and uploading to Firestore */}
+                <Button
+                  onClick={generateAndUploadToFirestore}
+                  disabled={isGenerating || !soapNote || !doctorName.trim() || isSignatureEmpty()}
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                >
+                  {isGenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {isGenerating ? 'Generating PDF...' : 'Generate & Upload to Firestore'}
+                </Button>
+                
+                {statusMessage && (
+                  <Alert variant={statusMessage.includes('Error') || statusMessage.includes('❌') ? 'destructive' : 'default'}>
+                    {statusMessage.includes('Error') || statusMessage.includes('❌') ? (
+                      <AlertCircle className="h-4 w-4" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4" />
+                    )}
+                    <AlertDescription>{statusMessage}</AlertDescription>
+                  </Alert>
                 )}
-              </AlertDescription>
-            </Alert>
-          )}
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
