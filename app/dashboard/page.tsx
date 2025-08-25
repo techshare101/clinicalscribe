@@ -4,8 +4,8 @@ import { useProfile } from "@/hooks/useProfile";
 import PaywallCard from "@/components/PaywallCard";
 import { EhrStatusBadge } from "@/components/EhrStatusBadge";
 import { useCollection } from "react-firebase-hooks/firestore";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase";
+import { collection, query, where, getDocs, Firestore } from "firebase/firestore";
+import { db, auth, verifyFirestore } from "@/lib/firebase";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -84,15 +84,36 @@ function StatCard({ title, value, change, icon, gradient, isLoading, delay = 0 }
 }
 
 function ReportList() {
-  const user = auth.currentUser;
   const hydrated = useHydration();
+  const [user, setUser] = useState<any>(null);
+  
+  // Get the current user when hydrated
+  useEffect(() => {
+    if (hydrated && auth) {
+      const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+        setUser(currentUser);
+      });
+      return () => unsubscribe();
+    }
+  }, [hydrated]);
+  
+  // Add debugging to check the type of db instance
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        verifyFirestore();
+      } catch (err: any) {
+        console.error("Firestore verification failed in ReportList:", err);
+      }
+    }
+  }, []);
   
   // Try uid first, fallback to userId for backward compatibility
   const [snapshotsUid, loadingUid] = useCollection(
-    user && hydrated ? query(collection(db, "reports"), where("uid", "==", user.uid)) : null
+    user && hydrated ? query(collection(db as Firestore, "reports"), where("uid", "==", user.uid)) : null
   );
   const [snapshotsUserId, loadingUserId] = useCollection(
-    user && hydrated && (!snapshotsUid || snapshotsUid.empty) ? query(collection(db, "reports"), where("userId", "==", user.uid)) : null
+    user && hydrated && (!snapshotsUid || snapshotsUid.empty) ? query(collection(db as Firestore, "reports"), where("userId", "==", user.uid)) : null
   );
   
   const snapshots = snapshotsUid?.empty ? snapshotsUserId : snapshotsUid;
@@ -334,10 +355,13 @@ export default function DashboardPage() {
     if (!user?.uid || !hydrated) return;
     const fetchStats = async () => {
       try {
+        // Verify Firestore is properly initialized
+        verifyFirestore();
+        
         // Try with 'uid' field first (newer pattern), fallback to 'userId' (legacy)
         const tryQuery = async (collectionName: string, field: string) => {
           try {
-            return await getDocs(query(collection(db, collectionName), where(field, "==", user.uid)));
+            return await getDocs(query(collection(db as Firestore, collectionName), where(field, "==", user.uid)));
           } catch (error) {
             console.warn(`Query failed for ${collectionName} with field '${field}':`, error);
             return null;
@@ -583,11 +607,12 @@ export default function DashboardPage() {
                   </Link>
                   <Link 
                     href="/soap" 
-                    className="group flex items-center gap-2 px-4 py-3 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-bold transition-all duration-300 backdrop-blur-sm border border-white/20 hover:scale-105 hover:-translate-y-0.5"
+                    className="group px-8 py-4 bg-white/70 backdrop-blur-sm text-gray-800 rounded-2xl font-bold border-2 border-gray-200 hover:border-blue-300 hover:bg-white shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1 transition-all duration-300"
                   >
-                    <span>📝</span>
-                    SOAP
-                    <Sparkles className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <span className="flex items-center gap-3">
+                      📝 Create SOAP Note
+                      <Sparkles className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    </span>
                   </Link>
                 </div>
               </div>
