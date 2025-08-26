@@ -431,9 +431,6 @@ export default function EHRExportSandboxPage() {
             </div>
           </div>
         </motion.div>
-
-        {/* Connection Lifecycle Diagram */}
-        <ConnectionLifecycle />
       </div>
     </div>
   )
