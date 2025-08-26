@@ -50,39 +50,94 @@ export async function POST(req: Request) {
 
     // Validate file size (max 25MB for Whisper API)
     if (file.size > 25 * 1024 * 1024) {
-      console.error("File too large:", file.size);
-      return NextResponse.json({ error: "File too large. Maximum size is 25MB." }, { status: 400 });
+      console.log("File larger than 25MB, will chunk automatically");
+      // For files larger than 25MB, we'll handle chunking
     }
 
-    // Step 1: Transcribe using Whisper (auto-detects source language)
-    console.log("Starting transcription with Whisper API");
-    const transcription = await openai.audio.transcriptions.create({
-      file,
-      model: "whisper-1",
-      // If patientLang is "auto", let Whisper auto-detect the language
-      // Otherwise, force Whisper to transcribe in the specified language
-      language: patientLang === "auto" ? undefined : patientLang,
-    });
-    console.log("Transcription completed:", transcription.text);
+    // Handle large files by chunking them
+    let fullText = "";
+    let fullRawText = "";
+    
+    if (file.size > 25 * 1024 * 1024) {
+      // For large files, we need to chunk them
+      console.log("Processing large file by chunking");
+      
+      // Convert file to ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
+      // Split into chunks of 20MB to leave room for overhead
+      const chunkSize = 20 * 1024 * 1024;
+      const chunks: Buffer[] = [];
+      
+      for (let i = 0; i < buffer.length; i += chunkSize) {
+        chunks.push(buffer.slice(i, Math.min(i + chunkSize, buffer.length)));
+      }
+      
+      console.log(`Split file into ${chunks.length} chunks`);
+      
+      // Process each chunk
+      for (let i = 0; i < chunks.length; i++) {
+        console.log(`Processing chunk ${i + 1}/${chunks.length}`);
+        
+        // Create a new File object for this chunk
+        const chunkBlob = new Blob([chunks[i]], { type: file.type });
+        const chunkFile = new File([chunkBlob], `chunk-${i}-${file.name}`, { type: file.type });
+        
+        try {
+          // Transcribe this chunk
+          const chunkTranscription = await openai.audio.transcriptions.create({
+            file: chunkFile,
+            model: "whisper-1",
+            language: patientLang === "auto" ? undefined : patientLang,
+          });
+          
+          fullRawText += chunkTranscription.text + " ";
+          
+          // Translate if needed
+          let chunkTranslatedText = chunkTranscription.text;
+          if (patientLang !== "auto" && patientLang !== docLang) {
+            try {
+              chunkTranslatedText = await translateText(chunkTranscription.text, docLang);
+            } catch (translationError) {
+              console.error("Translation failed for chunk:", translationError);
+            }
+          }
+          
+          fullText += chunkTranslatedText + " ";
+        } catch (chunkError) {
+          console.error(`Error processing chunk ${i + 1}:`, chunkError);
+          // Continue with other chunks even if one fails
+        }
+      }
+    } else {
+      // For smaller files, process normally
+      console.log("Processing file normally (under 25MB)");
+      const transcription = await openai.audio.transcriptions.create({
+        file,
+        model: "whisper-1",
+        language: patientLang === "auto" ? undefined : patientLang,
+      });
+      console.log("Transcription completed:", transcription.text);
 
-    // Step 2: Translate to documentation language if needed
-    let translatedText = transcription.text;
-    // Always translate when patient language differs from documentation language
-    // Only skip translation if both languages are the same
-    if (patientLang !== "auto" && patientLang !== docLang) {
-      console.log(`Translating from ${patientLang} to ${docLang}`);
-      try {
-        translatedText = await translateText(transcription.text, docLang);
-        console.log("Translation completed:", translatedText);
-      } catch (translationError) {
-        console.error("Translation failed:", translationError);
-        // If translation fails, we'll use the original text
+      fullRawText = transcription.text;
+      fullText = transcription.text;
+
+      // Translate to documentation language if needed
+      if (patientLang !== "auto" && patientLang !== docLang) {
+        console.log(`Translating from ${patientLang} to ${docLang}`);
+        try {
+          fullText = await translateText(transcription.text, docLang);
+          console.log("Translation completed:", fullText);
+        } catch (translationError) {
+          console.error("Translation failed:", translationError);
+        }
       }
     }
 
     return NextResponse.json({
-      rawTranscript: transcription.text,    // Patient's original language
-      transcript: translatedText,           // Translated to documentation language
+      rawTranscript: fullRawText.trim(),
+      transcript: fullText.trim(),
       patientLang: patientLang,
       docLang: docLang
     });

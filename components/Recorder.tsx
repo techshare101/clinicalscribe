@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { transcribeAudio } from '@/lib/utils';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { uploadAudioFile } from '@/lib/audioUpload';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,19 +15,32 @@ import {
   Copy, 
   Stethoscope,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Timer
 } from 'lucide-react';
+import { doc, updateDoc } from 'firebase/firestore';
 
 interface RecorderProps {
   onTranscriptGenerated?: (transcript: string, rawTranscript: string, patientLang?: string, docLang?: string) => void;
   patientLanguage?: string;
   docLanguage?: string;
+  sessionId?: string; // Add session ID for backend storage
+}
+
+// Define the recording chunk interface
+interface RecordingChunk {
+  id: string;
+  transcript: string;
+  timestamp: Date;
+  audioUrl?: string; // Add audio URL for playback
+  duration?: number; // Recording duration in seconds
 }
 
 export default function Recorder({ 
   onTranscriptGenerated, 
   patientLanguage = "auto", 
-  docLanguage = "en" 
+  docLanguage = "en",
+  sessionId
 }: RecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -36,6 +50,9 @@ export default function Recorder({
   const [error, setError] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
+  const [recordings, setRecordings] = useState<RecordingChunk[]>([]); // Store multiple recordings
+  const [recordingTime, setRecordingTime] = useState(0); // Track recording time
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Waveform visualization refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,6 +60,18 @@ export default function Recorder({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Function to toggle session active state
+  const setSessionActive = async (active: boolean) => {
+    if (!sessionId) return;
+    
+    try {
+      const sessionRef = doc(db, 'patientSessions', sessionId);
+      await updateDoc(sessionRef, { isActive: active });
+    } catch (error) {
+      console.error(`Error ${active ? 'activating' : 'deactivating'} session:`, error);
+    }
+  };
 
   // Set up waveform visualization
   useEffect(() => {
@@ -59,6 +88,23 @@ export default function Recorder({
       }
     };
   }, [isRecording]);
+
+  // Clean up timer only when recording stops
+  useEffect(() => {
+    // Clean up timer when component unmounts or recording stops
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Auto-stop recording after 15 minutes (900 seconds)
+  useEffect(() => {
+    if (isRecording && recordingTime >= 900) { // 15 minutes
+      handleStop();
+    }
+  }, [recordingTime, isRecording]);
 
   const setupVisualizer = async (stream: MediaStream) => {
     try {
@@ -131,10 +177,28 @@ export default function Recorder({
       // Clear any previous errors
       setError(null);
       
+      // Reset recording time
+      setRecordingTime(0);
+      
+      // Start recording timer
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+      
+      // Use WebM/Opus format for better compression and longer recording support
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream; // Store stream for visualization
       
-      const recorder = new MediaRecorder(stream);
+      // Force WebM/Opus format for better compression
+      let mimeType = "audio/webm;codecs=opus";
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = "audio/mp4"; // Fallback for iOS Safari
+      }
+      
+      const recorder = new MediaRecorder(stream, { mimeType });
       audioChunks.current = [];
 
       recorder.ondataavailable = (event) => {
@@ -142,6 +206,12 @@ export default function Recorder({
       };
 
       recorder.onstop = async () => {
+        // Clean up timer
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        
         // Clean up visualization
         if (animationRef.current) {
           cancelAnimationFrame(animationRef.current);
@@ -150,12 +220,63 @@ export default function Recorder({
           audioContextRef.current.close();
         }
         
-        const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunks.current, { type: mimeType });
         setLoading(true);
         try {
           const result = await transcribeAudio(audioBlob, patientLanguage, docLanguage);
           setTranscript(result.transcript);
           setRawTranscript(result.rawTranscript);
+          
+          // Upload audio file to Firebase Storage if we have a session ID
+          let audioUrl: string | undefined;
+          if (sessionId) {
+            try {
+              audioUrl = await uploadAudioFile(audioBlob, sessionId);
+            } catch (uploadError) {
+              console.error('Error uploading audio file:', uploadError);
+            }
+          }
+          
+          // Add to recordings array
+          const newRecording: RecordingChunk = {
+            id: Date.now().toString(),
+            transcript: result.transcript,
+            timestamp: new Date(),
+            audioUrl, // Include the audio URL if available
+            duration: recordingTime // Include the recording duration in seconds
+          };
+          setRecordings(prev => [...prev, newRecording]);
+          
+          // If we have a session ID, save the recording to the backend
+          if (sessionId) {
+            try {
+              // Save recording to Firestore with isActive flag set to false (recording stopped)
+              const response = await fetch('/api/session/recording', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  sessionId,
+                  recording: newRecording,
+                  isActive: false // Set isActive to false when recording stops
+                }),
+              });
+              
+              if (!response.ok) {
+                console.error('Failed to save recording to session');
+              } else {
+                // Check if auto-combine was triggered
+                const responseData = await response.json();
+                if (responseData.autoCombineTriggered) {
+                  console.log('Auto-combine triggered for session due to duration threshold');
+                }
+              }
+            } catch (saveError) {
+              console.error('Error saving recording to session:', saveError);
+            }
+          }
+          
           // Notify parent component about new transcript with language information
           onTranscriptGenerated?.(
             result.transcript, 
@@ -177,6 +298,9 @@ export default function Recorder({
       recorder.start();
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
+      
+      // Set session as active when recording starts
+      await setSessionActive(true);
     } catch (err) {
       console.error('Failed to access microphone:', err);
       setError('Please allow microphone access to use this feature.');
@@ -189,6 +313,15 @@ export default function Recorder({
       streamRef.current.getTracks().forEach(track => track.stop());
     }
     setIsRecording(false);
+    
+    // Clean up timer
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    
+    // Set session as inactive when recording stops
+    setSessionActive(false);
   };
 
   const copyTranscript = async () => {
@@ -212,6 +345,78 @@ export default function Recorder({
       });
       window.dispatchEvent(event);
     }
+  };
+
+  // Function to combine all recordings into a single transcript
+  const combineRecordings = async () => {
+    if (!sessionId) {
+      // Fallback to client-side combination if no session ID
+      const combinedTranscript = recordings.map(r => r.transcript).join('\n\n');
+      setTranscript(combinedTranscript);
+      setRawTranscript(combinedTranscript);
+      
+      // Notify parent component about combined transcript
+      onTranscriptGenerated?.(combinedTranscript, combinedTranscript, patientLanguage, docLanguage);
+      
+      // Scroll to SOAP generator
+      const soapSection = document.querySelector('[data-soap-generator]');
+      if (soapSection) {
+        soapSection.scrollIntoView({ behavior: 'smooth' });
+        const event = new CustomEvent('loadTranscript', { 
+          detail: { transcript: combinedTranscript, rawTranscript: combinedTranscript } 
+        });
+        window.dispatchEvent(event);
+      }
+      return;
+    }
+    
+    // Use backend API to combine recordings
+    setLoading(true);
+    try {
+      const response = await fetch('/api/soap/combine', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sessionId }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to combine recordings');
+      }
+      
+      // Format the combined SOAP note
+      const combinedSoap = `Subjective:\n${data.subjective}\n\nObjective:\n${data.objective}\n\nAssessment:\n${data.assessment}\n\nPlan:\n${data.plan}`;
+      setTranscript(combinedSoap);
+      setRawTranscript(combinedSoap);
+      
+      // Notify parent component about combined transcript
+      onTranscriptGenerated?.(combinedSoap, combinedSoap, patientLanguage, docLanguage);
+      
+      // Scroll to SOAP generator
+      const soapSection = document.querySelector('[data-soap-generator]');
+      if (soapSection) {
+        soapSection.scrollIntoView({ behavior: 'smooth' });
+        const event = new CustomEvent('loadTranscript', { 
+          detail: { transcript: combinedSoap, rawTranscript: combinedSoap } 
+        });
+        window.dispatchEvent(event);
+      }
+    } catch (err) {
+      console.error('Error combining recordings:', err);
+      setError(err instanceof Error ? err.message : 'Failed to combine recordings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Format time for display
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -263,6 +468,17 @@ export default function Recorder({
             }
           </Badge>
         </div>
+        
+        {/* Recording timer */}
+        {isRecording && (
+          <div className="flex items-center justify-center mt-4 gap-2 text-red-600 font-medium">
+            <Timer className="h-5 w-5 animate-pulse" />
+            <span>Recording: {formatTime(recordingTime)}</span>
+            {recordingTime >= 840 && ( // Warning at 14 minutes
+              <span className="text-orange-600">(Approaching 15-min limit)</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Recording Controls */}
@@ -282,7 +498,7 @@ export default function Recorder({
             className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
           >
             <Square className="h-5 w-5" />
-            Stop Recording
+            Stop Recording ({formatTime(recordingTime)})
           </Button>
         )}
         
@@ -293,6 +509,27 @@ export default function Recorder({
           >
             <Stethoscope className="h-5 w-5" />
             Generate SOAP Note
+          </Button>
+        )}
+        
+        {/* Show Combine button when we have multiple recordings */}
+        {recordings.length > 1 && (
+          <Button
+            onClick={combineRecordings}
+            disabled={loading}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Combining...
+              </>
+            ) : (
+              <>
+                <Stethoscope className="h-5 w-5" />
+                Combine into Final SOAP
+              </>
+            )}
           </Button>
         )}
       </div>
@@ -332,6 +569,26 @@ export default function Recorder({
               </Button>
             </div>
             <p className="text-gray-700 whitespace-pre-wrap">{transcript}</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Show recordings list when we have multiple recordings */}
+      {recordings.length > 1 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <h3 className="font-bold text-gray-900 mb-3">Recordings ({recordings.length})</h3>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {recordings.map((recording, index) => (
+              <div key={recording.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-600">Recording {index + 1}</span>
+                <span className="text-xs text-gray-500">
+                  {recording.timestamp.toLocaleTimeString()}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 text-xs text-gray-500">
+            Combine all recordings into a single SOAP note using the "Combine into Final SOAP" button above.
           </div>
         </div>
       )}

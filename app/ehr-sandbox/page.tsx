@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { useSmartStatus } from '@/hooks/use-smart-status'
 import { useToast } from '@/hooks/use-toast'
 import { motion } from 'framer-motion'
+import ConnectToEHRButton from '@/components/ConnectToEHRButton'
+import ConnectionLifecycle from '@/components/ConnectionLifecycle'
 import {
   Share2,
   Database,
@@ -23,7 +25,8 @@ import {
   Sparkles,
   Zap,
   Shield,
-  Code
+  Code,
+  ArrowRight
 } from 'lucide-react'
 
 function tryParseJSON(value: string): any | null {
@@ -114,19 +117,6 @@ export default function EHRExportSandboxPage() {
     URL.revokeObjectURL(url)
   }
 
-  // 🚀 Safe EHR connection handler - opens in new tab
-  const handleConnectToEHR = () => {
-    const SMART_AUTH_URL = `/smart/launch/default`
-    // Open Epic SMART login in new tab, keeping your app open
-    window.open(SMART_AUTH_URL, "_blank", "noopener,noreferrer")
-    
-    // Show immediate feedback
-    toast({
-      title: "🔗 Opening EHR Connection...",
-      description: "Epic SMART login opened in new tab. Complete login to connect.",
-    })
-  }
-
   const parsedExample = tryParseJSON(output)
 
   return (
@@ -185,7 +175,7 @@ export default function EHRExportSandboxPage() {
             className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed"
           >
             Build and test FHIR DocumentReference resources with 
-            <span className="font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">enterprise-grade EHR integration</span>
+            <span className="font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent"> enterprise-grade EHR integration</span>
           </motion.p>
         </motion.div>
 
@@ -221,35 +211,33 @@ export default function EHRExportSandboxPage() {
                   </div>
                 </div>
                 
-                {/* Connection Status */}
+                {/* Connection Status with Connect to EHR Button */}
                 <div className="flex items-center gap-4">
-                  <Button
-                    onClick={handleConnectToEHR}
-                    className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-bold shadow-lg transition-all duration-300 hover:scale-105 ${
-                      smartStatus.connected 
-                        ? 'bg-white/20 text-white border-2 border-white/30 hover:bg-white/30' 
-                        : 'bg-white text-emerald-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {smartStatus.connected ? (
-                      <>
-                        <CheckCircle className="h-5 w-5" />
-                        EHR Connected
-                      </>
-                    ) : (
-                      <>
-                        <Link className="h-5 w-5" />
-                        Connect to EHR
-                      </>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`px-4 py-2 rounded-xl backdrop-blur-sm ${smartStatus.connected ? 'bg-white/20 text-white border border-white/30' : 'bg-purple-600/90 text-white'} transition-all duration-300`}>
+                      <ConnectToEHRButton />
+                    </div>
+                    
+                    {smartStatus.loading && (
+                      <Badge className="bg-blue-500/20 text-white border-white/30 px-4 py-2 text-sm font-bold">
+                        <span className="animate-pulse">Checking connection...</span>
+                      </Badge>
                     )}
-                  </Button>
-                  
-                  {smartStatus.connected && (
-                    <Badge className="bg-emerald-500/20 text-white border-white/30 px-4 py-2 text-sm font-bold">
-                      <Zap className="h-4 w-4 mr-1" />
-                      Ready for Export
-                    </Badge>
-                  )}
+                    
+                    {!smartStatus.loading && smartStatus.connected && (
+                      <Badge className="bg-emerald-500/20 text-white border-white/30 px-4 py-2 text-sm font-bold">
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Connected to Epic
+                      </Badge>
+                    )}
+                    
+                    {!smartStatus.loading && !smartStatus.connected && smartStatus.error && (
+                      <Badge className="bg-amber-500/20 text-white border-white/30 px-4 py-2 text-sm font-bold">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        Connection status unavailable
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -385,6 +373,60 @@ export default function EHRExportSandboxPage() {
                     {output || '// FHIR DocumentReference JSON will appear here after building...'}
                   </pre>
                 </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* UX Flow Card with Glassmorphism Effect */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8, duration: 0.8 }}
+          className="mt-8 relative group"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-400/10 via-indigo-400/10 to-blue-400/10 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          <div className="relative bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 p-8 overflow-hidden">
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute -top-20 -right-20 w-40 h-40 bg-purple-400/10 rounded-full blur-2xl" />
+              <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-blue-400/10 rounded-full blur-2xl" />
+            </div>
+            
+            <div className="relative">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg">
+                  <ArrowRight className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="text-xl font-black text-gray-900">How It Works</h3>
+              </div>
+              
+              <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-6 border border-indigo-100">
+                <ol className="list-decimal list-inside space-y-3 text-gray-700">
+                  <li className="flex items-center gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">1</span>
+                    <span>Nurse clicks <span className="font-semibold text-purple-700">Connect to EHR</span>.</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">2</span>
+                    <span>Epic login page opens — nurse enters their hospital credentials.</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">3</span>
+                    <span>Epic authenticates and may ask for permission.</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">4</span>
+                    <span>Epic redirects back to ClinicalScribe with authorization code.</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">5</span>
+                    <span>ClinicalScribe exchanges the code for an access token.</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">6</span>
+                    <span>SOAP Note PDF is exported to Epic as a <code className="px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded font-mono text-sm">DocumentReference</code>.</span>
+                  </li>
+                </ol>
               </div>
             </div>
           </div>

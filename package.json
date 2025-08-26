@@ -2,6 +2,7 @@
   "name": "clinical-scribe",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "next build",
     "dev": "next dev",
@@ -11,7 +12,13 @@
     "qa:cards:ps": "powershell -ExecutionPolicy Bypass -File ./qa-cards-1-2.ps1",
     "get-id-token": "node ./scripts/get-id-token.js",
     "set-admin": "node ./scripts/set-admin.js",
-    "seed-demo": "tsx scripts/seed-demo.ts"
+    "seed-demo": "tsx scripts/seed-demo.ts",
+    "test:permissions": "firebase emulators:exec --project clinicalscribe-test 'node scripts/test-firestore-permissions.js'",
+    "test:rules": "firebase emulators:exec --project clinicalscribe-test 'node scripts/test-firestore-permissions.js'",
+    "deploy:rules": "node scripts/deploy-firestore-rules.js",
+    "verify:components": "node scripts/verify-components.cjs",
+    "migrate:active-sessions": "node scripts/migrate-active-sessions.js",
+    "test:active-sessions": "node scripts/test-active-sessions.js"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
@@ -26,6 +33,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.1",
     "firebase": "^11.10.0",
     "firebase-admin": "^12.5.0",
     "framer-motion": "^12.23.12",
@@ -42,6 +50,7 @@
     "tsx": "^4.20.4"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",

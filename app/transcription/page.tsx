@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import Recorder from "@/components/Recorder"
 import { SOAPGenerator } from "@/components/SOAPGenerator"
+import { createPatientSession } from "@/lib/createPatientSession"
 import {
   Mic,
   Square,
@@ -79,7 +80,22 @@ export default function TranscriptionPage() {
   const [audioLevel, setAudioLevel] = useState(0)
   const [showRawTranscript, setShowRawTranscript] = useState(false)
   const [restored, setRestored] = useState(false) // Track if data was restored from localStorage
+  const [sessionId, setSessionId] = useState<string | null>(null) // Track the current session ID
   const audioLevelRef = useRef<number>(0)
+
+  // Create a new patient session when the component mounts
+  useEffect(() => {
+    const createSession = async () => {
+      try {
+        const newSessionId = await createPatientSession();
+        setSessionId(newSessionId);
+      } catch (error) {
+        console.error('Failed to create patient session:', error);
+      }
+    };
+
+    createSession();
+  }, []);
 
   // Load transcript data from localStorage on component mount
   useEffect(() => {
@@ -385,6 +401,7 @@ export default function TranscriptionPage() {
                 onTranscriptGenerated={handleTranscriptGenerated} 
                 patientLanguage={patientLanguage}
                 docLanguage={docLanguage}
+                sessionId={sessionId || undefined} // Pass the session ID to the Recorder
               />
             </CardContent>
           </Card>

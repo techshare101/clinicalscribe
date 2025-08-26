@@ -8,13 +8,18 @@ import { signOut } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { ChevronDownIcon, UserIcon, CogIcon, LogOutIcon, Sparkles, Lock } from 'lucide-react'
 
-const navItems = [
+// Define all navigation items
+const allNavItems = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/soap', label: 'SOAP' },
   { href: '/soap-history', label: 'SOAP History' },
   { href: '/soap-entry', label: 'Manual SOAP' },
   { href: '/transcription', label: 'Transcription' },
   { href: '/ehr-sandbox', label: 'EHR Sandbox' },
+]
+
+// Define items visible to non-subscribed users
+const publicNavItems = [
   { href: '/plans', label: 'Plans' },
   { href: '/pricing', label: 'Pricing' },
 ]
@@ -68,6 +73,20 @@ export default function Navigation() {
       router.push('/pricing?ref=nav')
     }
   }
+
+  // Determine which nav items to show based on subscription status
+  const getVisibleNavItems = () => {
+    // If user is subscribed (betaActive is true), show all items
+    if (profile?.betaActive) {
+      return [...allNavItems, ...publicNavItems]
+    }
+    
+    // If user is not subscribed, only show public items
+    return publicNavItems
+  }
+
+  const visibleNavItems = getVisibleNavItems()
+
   return (
     <header className="w-full border-b bg-white">
       <nav className="container mx-auto flex items-center justify-between px-4 py-3">
@@ -94,9 +113,9 @@ export default function Navigation() {
           )}
         </div>
 
-        {/* Navigation Links */}
-        <div className="flex items-center gap-2 overflow-x-auto">
-          {navItems.map((item) => {
+        {/* Navigation Links - Now positioned closer to the logo */}
+        <div className="flex items-center gap-2">
+          {visibleNavItems.map((item) => {
             const isActive = pathname === item.href
             const isLocked = !profile?.betaActive && item.href !== '/pricing' && item.href !== '/plans'
             

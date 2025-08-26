@@ -9,7 +9,10 @@ import { db, auth, verifyFirestore } from "@/lib/firebase";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, TrendingUp, Download, Calendar, Clock } from "lucide-react";
+import { Sparkles, TrendingUp, Download, Calendar, Clock, Play } from "lucide-react";
+import SessionsCard from "@/components/SessionsCard";
+import SOAPNotesCard from "@/components/SOAPNotesCard";
+import ActiveSessionsCounter from "@/components/ActiveSessionsCounter";
 
 // Add hydration state to prevent SSR mismatch
 function useHydration() {
@@ -229,6 +232,12 @@ function ReportList() {
                       <div className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
                         Active
                       </div>
+                      {data.autoCombined && (
+                        <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Auto-Combined
+                        </div>
+                      )}
                     </h3>
                     <p className="text-sm text-gray-500 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
@@ -239,9 +248,12 @@ function ReportList() {
                 
                 {/* Quick Actions */}
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <button className="p-2 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors duration-200">
-                    <Download className="h-4 w-4 text-blue-600" />
-                  </button>
+                  <Link 
+                    href={`/patient/sessions/${doc.id}`}
+                    className="p-2 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors duration-200"
+                  >
+                    <Play className="h-4 w-4 text-blue-600" />
+                  </Link>
                   <button className="p-2 bg-purple-500/10 hover:bg-purple-500/20 rounded-xl transition-colors duration-200">
                     <Calendar className="h-4 w-4 text-purple-600" />
                   </button>
@@ -519,7 +531,7 @@ export default function DashboardPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4"
+          className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5"
         >
           <StatCard 
             title="Total Patients" 
@@ -557,71 +569,83 @@ export default function DashboardPage() {
             isLoading={statsLoading} 
             delay={0.4}
           />
+          <ActiveSessionsCounter />
         </motion.div>
 
-        {/* Reports Section */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.5 }}
-          className="relative group"
-        >
-          {/* Background Glow */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 via-purple-400/10 to-pink-400/10 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          
-          <div className="relative bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 overflow-hidden">
-            {/* Header with Gradient */}
-            <div className="bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 p-8 relative overflow-hidden">
-              {/* Animated Background Pattern */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16 animate-pulse" />
-                <div className="absolute bottom-0 right-0 w-40 h-40 bg-white rounded-full translate-x-20 translate-y-20 animate-pulse" style={{ animationDelay: '1s' }} />
-              </div>
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Sessions and SOAP Notes Cards */}
+          <div className="lg:col-span-1 space-y-8">
+            <SessionsCard />
+            <SOAPNotesCard />
+          </div>
+
+          {/* Reports Section - Taking more space now */}
+          <div className="lg:col-span-2">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.5 }}
+              className="relative group"
+            >
+              {/* Background Glow */}
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 via-purple-400/10 to-pink-400/10 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
               
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <motion.div 
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ duration: 0.6, delay: 0.6 }}
-                    className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl ring-2 ring-white/30"
-                  >
-                    <span className="text-white text-3xl drop-shadow-lg">📋</span>
-                  </motion.div>
-                  <div>
-                    <h2 className="text-2xl font-black text-white drop-shadow-lg">Clinical Reports</h2>
-                    <p className="text-gray-300 text-sm flex items-center gap-2">
-                      <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                      Your documentation history
-                    </p>
+              <div className="relative bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 overflow-hidden">
+                {/* Header with Gradient */}
+                <div className="bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 p-8 relative overflow-hidden">
+                  {/* Animated Background Pattern */}
+                  <div className="absolute inset-0 opacity-10">
+                    <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16 animate-pulse" />
+                    <div className="absolute bottom-0 right-0 w-40 h-40 bg-white rounded-full translate-x-20 translate-y-20 animate-pulse" style={{ animationDelay: '1s' }} />
+                  </div>
+                  
+                  <div className="relative flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <motion.div 
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ duration: 0.6, delay: 0.6 }}
+                        className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl ring-2 ring-white/30"
+                      >
+                        <span className="text-white text-3xl drop-shadow-lg">📋</span>
+                      </motion.div>
+                      <div>
+                        <h2 className="text-2xl font-black text-white drop-shadow-lg">Clinical Reports</h2>
+                        <p className="text-gray-300 text-sm flex items-center gap-2">
+                          <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                          Your documentation history
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <Link 
+                        href="/transcription" 
+                        className="group flex items-center gap-2 px-4 py-3 bg-blue-600/90 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-all duration-300 backdrop-blur-sm border border-blue-400/30 hover:scale-105 hover:-translate-y-0.5 shadow-lg hover:shadow-xl"
+                      >
+                        <span>🎤</span>
+                        Record
+                        <div className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 animate-pulse transition-opacity duration-300" />
+                      </Link>
+                      <Link 
+                        href="/soap" 
+                        className="group px-8 py-4 bg-white/70 backdrop-blur-sm text-gray-800 rounded-2xl font-bold border-2 border-gray-200 hover:border-blue-300 hover:bg-white shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1 transition-all duration-300"
+                      >
+                        <span className="flex items-center gap-3">
+                          📝 Create SOAP Note
+                          <Sparkles className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        </span>
+                      </Link>
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-3">
-                  <Link 
-                    href="/transcription" 
-                    className="group flex items-center gap-2 px-4 py-3 bg-blue-600/90 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-all duration-300 backdrop-blur-sm border border-blue-400/30 hover:scale-105 hover:-translate-y-0.5 shadow-lg hover:shadow-xl"
-                  >
-                    <span>🎤</span>
-                    Record
-                    <div className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 animate-pulse transition-opacity duration-300" />
-                  </Link>
-                  <Link 
-                    href="/soap" 
-                    className="group px-8 py-4 bg-white/70 backdrop-blur-sm text-gray-800 rounded-2xl font-bold border-2 border-gray-200 hover:border-blue-300 hover:bg-white shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1 transition-all duration-300"
-                  >
-                    <span className="flex items-center gap-3">
-                      📝 Create SOAP Note
-                      <Sparkles className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    </span>
-                  </Link>
+                <div className="p-8">
+                  <ReportList />
                 </div>
               </div>
-            </div>
-            <div className="p-8">
-              <ReportList />
-            </div>
+            </motion.div>
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );
