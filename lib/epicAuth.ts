@@ -51,3 +51,38 @@ export async function exchangeEpicCodeForToken(
 
   return (await res.json()) as EpicTokenResponse
 }
+
+// New function to exchange refresh token for access token
+export async function exchangeRefreshTokenForAccessToken(
+  refreshToken: string
+): Promise<EpicTokenResponse> {
+  const clientId = process.env.NEXT_PUBLIC_SMART_CLIENT_ID
+  const clientSecret = process.env.SMART_CLIENT_SECRET
+  const issuer = process.env.SMART_ISSUER || 'https://fhir.epic.com/interconnect-fhir-oauth/oauth2'
+  const tokenUrl = `${issuer.replace(/\/$/, '')}/token`
+
+  if (!clientId) throw new Error('NEXT_PUBLIC_SMART_CLIENT_ID missing')
+  if (!clientSecret) throw new Error('SMART_CLIENT_SECRET missing')
+
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+  })
+
+  const res = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
+    },
+    body,
+    cache: 'no-store',
+  })
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText)
+    throw new Error(`Refresh token exchange failed: ${res.status} ${msg}`)
+  }
+
+  return (await res.json()) as EpicTokenResponse
+}

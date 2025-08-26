@@ -1,50 +1,83 @@
-import { NextResponse } from 'next/server'
-import { adminDb } from '@/lib/firebaseAdmin'
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import { exchangeRefreshTokenForAccessToken } from '@/lib/epicAuth';
 
-export const runtime = 'nodejs'
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    console.log('📊 SMART Status: Checking connection...');
-    
-    // Check if adminDb is available
-    if (!adminDb) {
-      console.error('❌ SMART Status: adminDb not available');
-      return NextResponse.json({ 
-        connected: false, 
-        message: 'Firebase Admin not configured' 
+    // ✅ Next 14+ requires await for cookies()
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get("smart_access_token")?.value;
+    const refreshToken = cookieStore.get("smart_refresh_token")?.value;
+    const fhirBase = cookieStore.get("smart_fhir_base")?.value;
+
+    // If we have an access token and fhir base, we're connected
+    if (accessToken && fhirBase) {
+      return NextResponse.json({
+        connected: true,
+        fhirBase,
+        source: 'cookies'
       });
     }
     
-    const snap = await adminDb.collection('smart').doc('config').get()
-    console.log('📊 SMART Status: Config document exists:', snap.exists);
-    
-    if (!snap.exists) {
-      return NextResponse.json({ connected: false, message: 'No SMART config' })
+    // If we have a refresh token but no access token, try to refresh
+    if (refreshToken && fhirBase) {
+      try {
+        console.log('📊 SMART Status: Attempting to refresh token');
+        const tokenData = await exchangeRefreshTokenForAccessToken(refreshToken);
+        
+        // If successful, update the access token cookie and return connected status
+        if (tokenData.access_token) {
+          const response = NextResponse.json({ 
+            connected: true,
+            fhirBase,
+            source: 'refreshed',
+            refreshed: true
+          });
+          
+          // Set the new access token cookie
+          response.cookies.set('smart_access_token', tokenData.access_token, {
+            path: '/',
+            sameSite: 'lax',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: tokenData.expires_in || 3600
+          });
+          
+          // If we got a new refresh token, update that too
+          if (tokenData.refresh_token) {
+            response.cookies.set('smart_refresh_token', tokenData.refresh_token, {
+              path: '/',
+              sameSite: 'lax',
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              maxAge: 60 * 60 * 24 * 30 // ~30 days
+            });
+          }
+          
+          return response;
+        }
+      } catch (refreshError) {
+        console.warn('📊 SMART Status: Token refresh failed:', refreshError);
+        // Continue with not connected response
+      }
     }
-    
-    const data = snap.data() as any
-    const token = data?.access_token || data?.token
-    console.log('📊 SMART Status: Token present:', !!token);
-    
-    if (!token) {
-      return NextResponse.json({ connected: false, message: 'No token' })
-    }
-    
-    // Optionally, we could attempt a lightweight FHIR ping here with the token.
-    return NextResponse.json({ connected: true })
-  } catch (err: any) {
-    console.error('❌ SMART status error:', {
-      message: err?.message,
-      code: err?.code,
-      stack: err?.stack
-    });
-    
-    // Return 200 with error info instead of 500 to prevent client-side errors
+
     return NextResponse.json({ 
-      connected: false, 
-      error: err?.message || 'Internal error',
-      type: 'firebase_error'
+      connected: false,
+      message: 'No active EHR connection'
     });
+  } catch (err: any) {
+    console.error("❌ SMART status route failed:", err);
+    // Always return JSON, never HTML
+    return NextResponse.json(
+      { 
+        connected: false, 
+        error: err.message ?? "Unknown error",
+        type: 'error'
+      },
+      { status: 500 }
+    );
   }
 }
