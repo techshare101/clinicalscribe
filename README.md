@@ -24,6 +24,9 @@ Your project is live at:
 
 **[https://vercel.com/valentin2v2000s-projects/v0-clinical-scribe-ui](https://vercel.com/valentin2v2000s-projects/v0-clinical-scribe-ui)**
 
+For Vercel deployment setup, see:
+- [VERCEL_SETUP.md](VERCEL_SETUP.md)
+
 ## Build your app
 
 Continue building your app on:
@@ -47,3 +50,80 @@ Continue building your app on:
 2. Configure your credentials in `.env.local` (see [SETUP_ENVIRONMENT.md](SETUP_ENVIRONMENT.md))
 
 3. Never commit `.env.local` to version control (it's already in `.gitignore`)
+
+## 🚀 Local Development
+
+1. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+
+2. Start the development server:
+   ```bash
+   pnpm dev
+   ```
+
+3. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## 🧪 Testing
+
+Run the test suite:
+```bash
+pnpm test
+```
+
+Run QA scripts:
+```bash
+# Linux/macOS
+pnpm run qa:cards:sh
+
+# Windows
+pnpm run qa:cards:ps
+```
+
+## 📦 Build for Production
+
+```bash
+pnpm build
+```
+
+## 🔄 Vercel Deployment
+
+For Vercel deployment instructions, see [VERCEL_SETUP.md](VERCEL_SETUP.md)
+
+Environment variables must be set in the Vercel dashboard for production deployment.
+
+## 🛡️ Security Best Practices
+
+1. Never commit `.env.local` to version control
+2. Rotate credentials regularly
+3. Use different service accounts for development and production
+4. Monitor for unauthorized usage
+5. Revoke compromised keys immediately
+
+## 🆘 Troubleshooting
+
+Common issues and solutions:
+
+### Firebase Admin Initialization Failed
+
+1. Ensure `FIREBASE_SERVICE_ACCOUNT_BASE64` is properly set in `.env.local`
+2. Use the provided script to encode your service account:
+   ```bash
+   node scripts/encode-firebase-key.js path/to/service-account.json
+   ```
+3. For Vercel deployment, ensure the environment variable is set in the Vercel dashboard
+
+### Missing or Insufficient Permissions
+
+1. Check that Firestore rules are deployed:
+   ```bash
+   node scripts/deploy-firestore-rules.js
+   ```
+2. Verify service account permissions in Firebase Console
+
+### Environment Variables Not Loading
+
+1. Check that variable names exactly match (case-sensitive)
+2. Restart the development server after making changes
+3. For Vercel, ensure variables are checked for the correct environments

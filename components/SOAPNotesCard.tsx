@@ -2,77 +2,64 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { db, auth } from '@/lib/firebase';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { useAuth } from '@/hooks/useAuth';
 import { FileText } from 'lucide-react';
 
 export default function SOAPNotesCard() {
+  const { user, loading: authLoading } = useAuth();
   const [soapNotes, setSoapNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSOAPNotes = async () => {
-      if (!auth.currentUser) return;
-      
       try {
-        const userUid = auth.currentUser.uid;
-        
-        // Query for SOAP notes using userId as per new rules
-        const soapNotesQuery = query(
-          collection(db, 'soapNotes'),
-          where('userId', '==', userUid),
-          orderBy('createdAt', 'desc'),
-          limit(3)
-        );
-        
-        // Fallback to legacy uid field if needed
-        const legacySoapNotesQuery = query(
-          collection(db, 'soapNotes'),
-          where('uid', '==', userUid),
-          orderBy('createdAt', 'desc'),
-          limit(3)
-        );
-        
-        // Execute queries
-        const [soapNotesSnapshot, legacySoapNotesSnapshot] = await Promise.all([
-          getDocs(soapNotesQuery),
-          getDocs(legacySoapNotesQuery)
-        ]);
-        
-        // Use whichever has results
-        const snapshot = soapNotesSnapshot.empty ? legacySoapNotesSnapshot : soapNotesSnapshot;
-        
-        if (snapshot.empty) {
-          setSoapNotes([]);
+        // Get the current user's ID token
+        if (!user) {
+          setError('User not authenticated');
           setLoading(false);
           return;
         }
         
-        // Map to array with IDs
-        const soapNotesList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
+        const token = await user.getIdToken();
+        
+        // Fetch SOAP notes from the API route
+        const res = await fetch("/api/soap-notes", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        if (!res.ok) {
+          throw new Error("Failed to fetch SOAP notes");
+        }
+        
+        const notesData = await res.json();
+        
+        // Map to array with IDs and formatted dates
+        const soapNotesList = notesData.map((note: any) => ({
+          id: note.id,
+          ...note,
           // Ensure createdAt is a Date object for proper formatting
-          createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt)
+          createdAt: note.createdAt?.toDate?.() || new Date(note.createdAt)
         }));
         
         setSoapNotes(soapNotesList);
       } catch (err: any) {
         console.error('Error fetching SOAP notes:', err);
-        // Check if it's a permissions error
-        if (err.code === 'permission-denied') {
-          setError('Access denied. Please check your permissions.');
-        } else {
-          setError('Failed to load recent SOAP notes');
-        }
+        setError('Failed to load recent SOAP notes');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchSOAPNotes();
-  }, []);
+    // ✅ Critical Guard: only fetch after auth resolves
+    if (!authLoading && user) {
+      fetchSOAPNotes();
+    } else if (!authLoading && !user) {
+      setLoading(false);
+    }
+  }, [authLoading, user]);
   
   // Determine status based on note properties
   const getNoteStatus = (note: any) => {
@@ -98,6 +85,9 @@ export default function SOAPNotesCard() {
         return 'bg-gray-100 text-gray-700';
     }
   };
+
+  if (authLoading) return <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 overflow-hidden p-5 text-center">Loading SOAP notes…</div>;
+  if (!user) return <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 overflow-hidden p-5 text-center">Please log in to see your SOAP notes.</div>;
 
   return (
     <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 overflow-hidden">

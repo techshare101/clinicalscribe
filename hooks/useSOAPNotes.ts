@@ -81,9 +81,10 @@ export function useSOAPNotes(limitCount: number = 50) {
         // Support both 'uid' (newer) and 'userId' (legacy) fields
         const soapNotesCollection = collection(db as Firestore, "soapNotes");
         
+        // Use the preferred field first
         const q = query(
           soapNotesCollection,
-          where("uid", "==", user.uid),
+          where("userId", "==", user.uid),
           orderBy("createdAt", "desc"),
           limit(limitCount)
         );
@@ -104,8 +105,48 @@ export function useSOAPNotes(limitCount: number = 50) {
           },
           (err) => {
             console.error("Error fetching SOAP notes:", err);
-            setError("Failed to fetch SOAP notes: " + err.message);
-            setIsLoading(false);
+            // Try fallback query with uid field
+            if (err.code === 'permission-denied') {
+              try {
+                const fallbackQuery = query(
+                  soapNotesCollection,
+                  where("uid", "==", user.uid),
+                  orderBy("createdAt", "desc"),
+                  limit(limitCount)
+                );
+                
+                const fallbackUnsub = onSnapshot(
+                  fallbackQuery,
+                  (fallbackSnapshot) => {
+                    const notes: SOAPNote[] = [];
+                    fallbackSnapshot.forEach((doc) => {
+                      notes.push({
+                        id: doc.id,
+                        ...doc.data()
+                      } as SOAPNote);
+                    });
+                    setSoapNotes(notes);
+                    setIsLoading(false);
+                    setError(null);
+                  },
+                  (fallbackErr) => {
+                    console.error("Error fetching SOAP notes with fallback query:", fallbackErr);
+                    setError("Failed to fetch SOAP notes: " + fallbackErr.message);
+                    setIsLoading(false);
+                  }
+                );
+                
+                // Replace the unsubscribe function with the fallback one
+                unsubSnapshot = fallbackUnsub;
+              } catch (fallbackErr: any) {
+                console.error("Error setting up fallback SOAP notes listener:", fallbackErr);
+                setError("Failed to set up notes listener: " + (fallbackErr.message || fallbackErr.toString()));
+                setIsLoading(false);
+              }
+            } else {
+              setError("Failed to fetch SOAP notes: " + err.message);
+              setIsLoading(false);
+            }
           }
         );
       } catch (err: any) {

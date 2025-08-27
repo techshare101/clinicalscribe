@@ -3,6 +3,8 @@ import Stripe from "stripe";
 import { adminAuth } from "@/lib/firebaseAdmin";
 import { getAppUrl } from "@/lib/env";
 
+export const runtime = "nodejs"; // ✅ force Node.js runtime
+
 // Validate critical environment variables at startup
 const stripeKey = process.env.STRIPE_SECRET_KEY;
 

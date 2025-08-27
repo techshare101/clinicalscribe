@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { adminAuth } from '@/lib/firebaseAdmin';
 
-export const runtime = 'edge';
+export const runtime = "nodejs"; // ✅ force Node.js runtime
 
 interface Recording {
   id: string;

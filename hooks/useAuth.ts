@@ -1,25 +1,18 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth } from "@/lib/firebase"; // Import auth directly instead of app
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setIsLoading(false);
+      setUser(firebaseUser || null);
+      setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
-  return { 
-    user, 
-    isLoading,
-    isAuthenticated: !!user 
-  };
+  return { user, loading };
 }

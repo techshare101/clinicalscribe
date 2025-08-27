@@ -1,80 +1,8 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // ✅ Profiles: each user can only read/write their own profile doc
-    match /profiles/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-
-      // ⚡ Admin override: admins can read all profiles
-      allow read: if request.auth != null 
-                  && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // ✅ SOAP notes: must belong to the user
-    match /soapNotes/{noteId} {
-      allow create: if request.auth != null 
-                    && request.resource.data.userId == request.auth.uid
-                    && request.resource.data.createdAt != null;
-      allow read, update, delete: if request.auth != null 
-                                  && resource.data.userId == request.auth.uid;
-    }
-
-    // ✅ Reports (PDFs, transcripts): must belong to the user
-    match /reports/{reportId} {
-      allow create: if request.auth != null 
-                    && request.resource.data.userId == request.auth.uid
-                    && request.resource.data.createdAt != null;
-      allow read, update, delete: if request.auth != null 
-                                  && resource.data.userId == request.auth.uid;
-    }
-
-    // ✅ Patient Sessions: only owner can access
-    match /patientSessions/{sessionId} {
-      // Nurse can create a new session for themselves
-      allow create: if request.auth != null
-                    && request.resource.data.patientId == request.auth.uid
-                    && request.resource.data.createdAt != null;
-
-      // Nurse can read their own sessions
-      allow read: if request.auth != null
-                  && resource.data.patientId == request.auth.uid;
-
-      // Nurse can update their own sessions (toggle isActive, add recordings, etc.)
-      allow update: if request.auth != null
-                    && resource.data.patientId == request.auth.uid;
-
-      // Nurse can delete their own session (if you want to allow cleanup)
-      allow delete: if request.auth != null
-                    && resource.data.patientId == request.auth.uid;
-    }
-
-    // ✅ Generic Sessions (if you're using a sessions collection)
-    match /sessions/{sessionId} {
-      allow create: if request.auth != null
-                    && request.resource.data.userId == request.auth.uid
-                    && request.resource.data.createdAt != null;
-      allow read, update, delete: if request.auth != null
-                                  && resource.data.userId == request.auth.uid;
-    }
-    
-    // ✅ SMART on FHIR Collection: Any authenticated user can read for status checks
-    match /smart/{document} {
-      allow read: if request.auth != null;
-      
-      // Only admins can write to SMART config
-      allow write: if request.auth != null 
-                  && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
-    }
-    
-    // Allow access to nested documents in the smart collection
-    match /smart/{document}/{nestedDoc=**} {
-      allow read: if request.auth != null;
-      
-      // Only admins can write to nested SMART documents
-      allow write: if request.auth != null 
-                  && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }

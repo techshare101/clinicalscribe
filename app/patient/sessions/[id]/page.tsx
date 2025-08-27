@@ -70,7 +70,7 @@ export default function PatientSessionDetail({ params }: { params: { id: string 
           // Try to find in reports collection as fallback
           const reportsQuery = query(
             collection(db, 'reports'),
-            where('uid', '==', profile.uid)
+            where('userId', '==', profile.uid)
           );
           const reportsSnap = await getDocs(reportsQuery);
           

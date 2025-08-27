@@ -2,92 +2,72 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { db, auth } from '@/lib/firebase';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { useAuth } from '@/hooks/useAuth';
 import { Clock, AlertTriangle } from 'lucide-react';
 
 export default function SessionsCard() {
+  const { user, loading: authLoading } = useAuth();
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSessions = async () => {
-      if (!auth.currentUser) return;
-      
       try {
-        const userUid = auth.currentUser.uid;
-        
-        // Query for sessions using patientId as per new rules
-        const sessionsQuery = query(
-          collection(db, 'patientSessions'),
-          where('patientId', '==', userUid),
-          orderBy('createdAt', 'desc'),
-          limit(3)
-        );
-        
-        // Fallback to legacy fields if needed
-        const legacyUidSessionsQuery = query(
-          collection(db, 'patientSessions'),
-          where('uid', '==', userUid),
-          orderBy('createdAt', 'desc'),
-          limit(3)
-        );
-        
-        const legacyUserIdSessionsQuery = query(
-          collection(db, 'patientSessions'),
-          where('userId', '==', userUid),
-          orderBy('createdAt', 'desc'),
-          limit(3)
-        );
-        
-        // Execute queries
-        const [sessionsSnapshot, uidSnapshot, userIdSnapshot] = await Promise.all([
-          getDocs(sessionsQuery),
-          getDocs(legacyUidSessionsQuery),
-          getDocs(legacyUserIdSessionsQuery)
-        ]);
-        
-        // Use whichever has results
-        let snapshot = sessionsSnapshot;
-        if (snapshot.empty) snapshot = uidSnapshot;
-        if (snapshot.empty) snapshot = userIdSnapshot;
-        
-        if (snapshot.empty) {
-          setSessions([]);
+        // Get the current user's ID token
+        if (!user) {
+          setError('User not authenticated');
           setLoading(false);
           return;
         }
         
-        // Map to array with IDs
-        const sessionsList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
+        const token = await user.getIdToken();
+        
+        // Fetch sessions from the API route
+        const res = await fetch("/api/sessions", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        if (!res.ok) {
+          throw new Error("Failed to fetch sessions");
+        }
+        
+        const sessionsData = await res.json();
+        
+        // Map to array with IDs and formatted dates
+        const sessionsList = sessionsData.map((session: any) => ({
+          id: session.id,
+          ...session,
           // Ensure createdAt is a Date object for proper formatting
-          createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt)
+          createdAt: session.createdAt?.toDate?.() || new Date(session.createdAt)
         }));
         
         setSessions(sessionsList);
       } catch (err: any) {
         console.error('Error fetching sessions:', err);
-        // Check if it's a permissions error
-        if (err.code === 'permission-denied') {
-          setError('Access denied. Please check your permissions.');
-        } else {
-          setError('Failed to load recent sessions');
-        }
+        setError('Failed to load recent sessions');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchSessions();
-  }, []);
+    // ✅ Critical Guard: only fetch after auth resolves
+    if (!authLoading && user) {
+      fetchSessions();
+    } else if (!authLoading && !user) {
+      setLoading(false);
+    }
+  }, [authLoading, user]);
   
   // Format date to a more readable format
   const formatDate = (date: Date) => {
     return date.toLocaleString(); // Simple full date/time formatting as per the requirement
   };
+
+  if (authLoading) return <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 overflow-hidden p-5 text-center">Loading sessions…</div>;
+  if (!user) return <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 overflow-hidden p-5 text-center">Please log in to see your sessions.</div>;
 
   return (
     <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 overflow-hidden">

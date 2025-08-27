@@ -16,12 +16,29 @@ if (!admin.apps.length) {
         throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable is required for local development');
       }
       
+      // Check if the value is the placeholder text
+      if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 === 'your-base64-encoded-service-account-json-here') {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 is still set to the placeholder value. Please replace it with your actual base64 encoded service account.');
+      }
+      
       console.log('🔧 Firebase Admin: Decoding service account');
-      const serviceAccount = JSON.parse(
-        Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString()
-      );
+      // Ensure we're not double-decoding by checking if it's already a valid JSON
+      let serviceAccount;
+      try {
+        // Try to parse as JSON first (in case it's already decoded)
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64);
+      } catch {
+        // If that fails, decode from base64
+        const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf8");
+        serviceAccount = JSON.parse(decoded);
+      }
       
       console.log('🔧 Firebase Admin: Service account keys:', Object.keys(serviceAccount));
+      
+      // Fix for private key newlines
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+      }
       
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
@@ -51,9 +68,26 @@ if (!admin.apps.length) {
       if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
         console.log('🔄 Falling back to service account credentials...');
         try {
-          const serviceAccount = JSON.parse(
-            Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString()
-          );
+          // Check if the value is the placeholder text
+          if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 === 'your-base64-encoded-service-account-json-here') {
+            throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 is still set to the placeholder value.');
+          }
+          
+          // Ensure we're not double-decoding
+          let serviceAccount;
+          try {
+            // Try to parse as JSON first (in case it's already decoded)
+            serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64);
+          } catch {
+            // If that fails, decode from base64
+            const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf8");
+            serviceAccount = JSON.parse(decoded);
+          }
+          
+          // Fix for private key newlines
+          if (serviceAccount.private_key) {
+            serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+          }
           
           admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),

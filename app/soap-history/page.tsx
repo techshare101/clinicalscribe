@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { db, auth, verifyFirestore } from '@/lib/firebase'
-import { collection, query, orderBy, onSnapshot, where, getDocs, startAt, endAt, limit, Firestore } from 'firebase/firestore'
+import { auth } from '@/lib/firebase'
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -71,30 +70,42 @@ export default function SOAPHistoryPage() {
   useEffect(() => {
     if (!user) return
 
-    try {
-      // Verify Firestore is properly initialized
-      verifyFirestore();
-    } catch (err: any) {
-      console.error("Firestore verification failed:", err);
-      return;
-    }
-
-    const base = collection(db as Firestore, 'soapNotes')
-    const constraints: any[] = [where('uid', '==', user.uid)]
-    if (filterPatientId) constraints.push(where('patientId', '==', filterPatientId))
-    constraints.push(orderBy('createdAt', 'desc'))
-    const q = query(base, ...constraints)
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const notes: SOAPNote[] = []
-      querySnapshot.forEach((doc) => {
-        notes.push({ id: doc.id, ...doc.data() } as SOAPNote)
-      })
-      setSoapNotes(notes)
-    })
-
-    return () => unsubscribe()
-  }, [user, filterPatientId])
+    const fetchSOAPNotes = async () => {
+      try {
+        // Get the current user's ID token
+        const token = await user.getIdToken();
+        
+        // Fetch SOAP notes from the API route
+        const res = await fetch("/api/soap-history", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Failed to fetch SOAP notes: ${res.status} ${res.statusText} - ${errorText}`);
+        }
+        
+        const notesData = await res.json();
+        
+        // Map to array with IDs and formatted dates
+        const notesList = notesData.map((note: any) => ({
+          id: note.id,
+          ...note,
+          // Ensure createdAt is a Date object for proper formatting
+          createdAt: note.createdAt?.toDate?.() || new Date(note.createdAt)
+        }));
+        
+        setSoapNotes(notesList);
+      } catch (err: any) {
+        console.error('Error fetching SOAP notes:', err);
+        // Optionally, you could set an error state to display to the user
+      }
+    };
+    
+    fetchSOAPNotes();
+  }, [user, filterPatientId]);
 
   useEffect(() => {
     // fetch a few patient options for the filter when search changes
@@ -106,27 +117,9 @@ export default function SOAPHistoryPage() {
         return
       }
       try {
-        // Verify Firestore is properly initialized
-        verifyFirestore();
-        
-        // Using the already imported Firebase functions instead of dynamic imports
-        const patientsRef = collection(db as Firestore, 'patients')
-        const q = query(
-          patientsRef,
-          orderBy('name_lower'),
-          startAt(s),
-          endAt(s + '\uf8ff'),
-          limit(10)
-        )
-        const patientsSnap = await getDocs(q)
-        
-        if (cancelled) return
-        const opts: { id: string; name: string }[] = []
-        patientsSnap.forEach((d: any) => {
-          const data = d.data()
-          opts.push({ id: d.id, name: data.name || '' })
-        })
-        setPatientOptions(opts)
+        // For now, we'll just clear the options since we're not implementing patient search
+        // This could be enhanced later with a proper API endpoint
+        setPatientOptions([])
       } catch {
         if (!cancelled) setPatientOptions([])
       }
@@ -153,7 +146,11 @@ export default function SOAPHistoryPage() {
 
   const formatDate = (date: any) => {
     if (!date) return 'Unknown'
-    return new Date(date.seconds * 1000).toLocaleDateString()
+    // Handle both Firestore timestamps and JavaScript Date objects
+    if (date.seconds) {
+      return new Date(date.seconds * 1000).toLocaleDateString()
+    }
+    return new Date(date).toLocaleDateString()
   }
 
   return (

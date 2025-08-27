@@ -3,9 +3,6 @@
 import { useProfile } from "@/hooks/useProfile";
 import PaywallCard from "@/components/PaywallCard";
 import { EhrStatusBadge } from "@/components/EhrStatusBadge";
-import { useCollection } from "react-firebase-hooks/firestore";
-import { collection, query, where, getDocs, Firestore } from "firebase/firestore";
-import { db, auth, verifyFirestore } from "@/lib/firebase";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,6 +10,7 @@ import { Sparkles, TrendingUp, Download, Calendar, Clock, Play } from "lucide-re
 import SessionsCard from "@/components/SessionsCard";
 import SOAPNotesCard from "@/components/SOAPNotesCard";
 import ActiveSessionsCounter from "@/components/ActiveSessionsCounter";
+import { useAuth } from "@/hooks/useAuth";
 
 // Add hydration state to prevent SSR mismatch
 function useHydration() {
@@ -90,40 +88,8 @@ function ReportList() {
   const hydrated = useHydration();
   const [user, setUser] = useState<any>(null);
   
-  // Get the current user when hydrated
-  useEffect(() => {
-    if (hydrated && auth) {
-      const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-        setUser(currentUser);
-      });
-      return () => unsubscribe();
-    }
-  }, [hydrated]);
-  
-  // Add debugging to check the type of db instance
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        verifyFirestore();
-      } catch (err: any) {
-        console.error("Firestore verification failed in ReportList:", err);
-      }
-    }
-  }, []);
-  
-  // Try uid first, fallback to userId for backward compatibility
-  const [snapshotsUid, loadingUid] = useCollection(
-    user && hydrated ? query(collection(db as Firestore, "reports"), where("uid", "==", user.uid)) : null
-  );
-  const [snapshotsUserId, loadingUserId] = useCollection(
-    user && hydrated && (!snapshotsUid || snapshotsUid.empty) ? query(collection(db as Firestore, "reports"), where("userId", "==", user.uid)) : null
-  );
-  
-  const snapshots = snapshotsUid?.empty ? snapshotsUserId : snapshotsUid;
-  const loading = loadingUid || loadingUserId;
-
   // Show loading state until hydrated
-  if (!hydrated || loading) {
+  if (!hydrated) {
     return (
       <div className="flex justify-center py-12">
         <div className="relative">
@@ -135,284 +101,103 @@ function ReportList() {
     );
   }
 
-  if (!snapshots?.docs.length) {
-    return (
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8 }}
+      className="text-center py-16 space-y-8"
+    >
+      {/* Animated Icon */}
+      <motion.div 
+        initial={{ scale: 0, rotate: -180 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ duration: 0.8, type: "spring", bounce: 0.6 }}
+        className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-400 via-purple-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl ring-4 ring-blue-200/50"
+      >
+        <span className="text-4xl animate-bounce">📋</span>
+      </motion.div>
+      
+      {/* Content */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3, duration: 0.6 }}
+        className="space-y-3"
+      >
+        <h3 className="text-2xl font-black bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+          Your Clinical Journey Awaits
+        </h3>
+        <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
+          Transform your clinical documentation with AI-powered transcription and intelligent SOAP note generation
+        </p>
+      </motion.div>
+      
+      {/* Action Buttons */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        className="text-center py-16 space-y-8"
+        transition={{ delay: 0.6, duration: 0.6 }}
+        className="flex gap-4 justify-center"
       >
-        {/* Animated Icon */}
-        <motion.div 
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ duration: 0.8, type: "spring", bounce: 0.6 }}
-          className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-400 via-purple-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl ring-4 ring-blue-200/50"
+        <Link 
+          href="/transcription" 
+          className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white rounded-2xl font-bold shadow-xl hover:shadow-2xl transform hover:scale-105 hover:-translate-y-1 transition-all duration-300 overflow-hidden"
         >
-          <span className="text-4xl animate-bounce">📋</span>
-        </motion.div>
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <span className="relative flex items-center gap-3">
+            🎤 Start Recording
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+          </span>
+        </Link>
         
-        {/* Content */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-          className="space-y-3"
+        <Link 
+          href="/soap" 
+          className="group px-8 py-4 bg-white/70 backdrop-blur-sm text-gray-800 rounded-2xl font-bold border-2 border-gray-200 hover:border-blue-300 hover:bg-white shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1 transition-all duration-300"
         >
-          <h3 className="text-2xl font-black bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-            Your Clinical Journey Awaits
-          </h3>
-          <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
-            Transform your clinical documentation with AI-powered transcription and intelligent SOAP note generation
-          </p>
-        </motion.div>
-        
-        {/* Action Buttons */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.6 }}
-          className="flex gap-4 justify-center"
-        >
-          <Link 
-            href="/transcription" 
-            className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white rounded-2xl font-bold shadow-xl hover:shadow-2xl transform hover:scale-105 hover:-translate-y-1 transition-all duration-300 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <span className="relative flex items-center gap-3">
-              🎤 Start Recording
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-            </span>
-          </Link>
-          
-          <Link 
-            href="/soap" 
-            className="group px-8 py-4 bg-white/70 backdrop-blur-sm text-gray-800 rounded-2xl font-bold border-2 border-gray-200 hover:border-blue-300 hover:bg-white shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1 transition-all duration-300"
-          >
-            <span className="flex items-center gap-3">
-              📝 Create SOAP Note
-              <Sparkles className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </span>
-          </Link>
-        </motion.div>
+          <span className="flex items-center gap-3">
+            📝 Create SOAP Note
+            <Sparkles className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </span>
+        </Link>
       </motion.div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <AnimatePresence>
-        {snapshots.docs.map((doc, index) => {
-          const data = doc.data();
-          return (
-            <motion.div 
-              key={doc.id}
-              initial={{ opacity: 0, x: -20, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 20, scale: 0.95 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="group relative overflow-hidden bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl border border-white/50 transition-all duration-500 p-8 hover:-translate-y-1"
-            >
-              {/* Gradient Border Animation */}
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 rounded-3xl opacity-0 group-hover:opacity-20 transition-opacity duration-500 blur-xl" />
-              
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg">
-                      #{index + 1}
-                    </div>
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-white animate-pulse" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
-                      Clinical Report
-                      <div className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                        Active
-                      </div>
-                      {data.autoCombined && (
-                        <div className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Auto-Combined
-                        </div>
-                      )}
-                    </h3>
-                    <p className="text-sm text-gray-500 flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      Recently created
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Quick Actions */}
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <Link 
-                    href={`/patient/sessions/${doc.id}`}
-                    className="p-2 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors duration-200"
-                  >
-                    <Play className="h-4 w-4 text-blue-600" />
-                  </Link>
-                  <button className="p-2 bg-purple-500/10 hover:bg-purple-500/20 rounded-xl transition-colors duration-200">
-                    <Calendar className="h-4 w-4 text-purple-600" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Content Sections */}
-              <div className="space-y-4">
-                {data.transcript && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 rounded-2xl p-6 border-l-4 border-emerald-400 shadow-sm hover:shadow-md transition-shadow duration-300"
-                  >
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-200/30 rounded-full -mr-10 -mt-10" />
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-emerald-500/20 rounded-xl">
-                        <span className="text-emerald-600 text-lg">🎤</span>
-                      </div>
-                      <div>
-                        <span className="font-bold text-emerald-800 text-sm uppercase tracking-wide">Audio Transcript</span>
-                        <div className="text-xs text-emerald-600 flex items-center gap-1">
-                          <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
-                          Voice Recognition
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-emerald-800 text-sm leading-relaxed font-medium">
-                      {data.transcript.length > 150 ? data.transcript.substring(0, 150) + '...' : data.transcript}
-                    </p>
-                  </motion.div>
-                )}
-
-                {data.soapNote && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 rounded-2xl p-6 border-l-4 border-blue-400 shadow-sm hover:shadow-md transition-shadow duration-300"
-                  >
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-blue-200/30 rounded-full -mr-10 -mt-10" />
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-blue-500/20 rounded-xl">
-                        <span className="text-blue-600 text-lg">📝</span>
-                      </div>
-                      <div>
-                        <span className="font-bold text-blue-800 text-sm uppercase tracking-wide">SOAP Note</span>
-                        <div className="text-xs text-blue-600 flex items-center gap-1">
-                          <div className="w-1 h-1 bg-blue-400 rounded-full animate-pulse" />
-                          AI Generated
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-blue-800 text-sm leading-relaxed font-medium">
-                      {data.soapNote.length > 150 ? data.soapNote.substring(0, 150) + '...' : data.soapNote}
-                    </p>
-                  </motion.div>
-                )}
-
-                {data.pdfUrl && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="relative overflow-hidden bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 rounded-2xl p-6 border-l-4 border-purple-400 shadow-sm hover:shadow-md transition-shadow duration-300"
-                  >
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-purple-200/30 rounded-full -mr-10 -mt-10" />
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-purple-500/20 rounded-xl">
-                          <span className="text-purple-600 text-lg">📄</span>
-                        </div>
-                        <div>
-                          <span className="font-bold text-purple-800 text-sm uppercase tracking-wide">PDF Document</span>
-                          <div className="text-xs text-purple-600 flex items-center gap-1">
-                            <div className="w-1 h-1 bg-purple-400 rounded-full animate-pulse" />
-                            Ready for Download
-                          </div>
-                        </div>
-                      </div>
-                      <a 
-                        href={data.pdfUrl} 
-                        target="_blank" 
-                        className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 text-white rounded-xl text-sm font-bold hover:from-purple-700 hover:via-pink-700 hover:to-rose-700 transform hover:scale-105 hover:-translate-y-0.5 transition-all duration-300 shadow-lg hover:shadow-xl"
-                      >
-                        <Download className="h-4 w-4 group-hover:animate-bounce" />
-                        Download
-                      </a>
-                    </div>
-                  </motion.div>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
 export default function DashboardPage() {
   const hydrated = useHydration();
   const { profile, isLoading } = useProfile();
-  const user = auth.currentUser;
-  const [stats, setStats] = useState({ totalPatients: 0, totalReports: 0, totalSoapNotes: 0, totalSessions: 0 });
+  const { user, loading: authLoading } = useAuth();
+  const [stats, setStats] = useState({ sessions: 0, notes: 0, recordings: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // Fetch real Firestore data
+  // Fetch stats from API route instead of client-side Firestore
   useEffect(() => {
-    if (!user?.uid || !hydrated) return;
-    const fetchStats = async () => {
+    async function loadStats() {
       try {
-        // Verify Firestore is properly initialized
-        verifyFirestore();
-        
-        // Try with 'uid' field first (newer pattern), fallback to 'userId' (legacy)
-        const tryQuery = async (collectionName: string, field: string) => {
-          try {
-            return await getDocs(query(collection(db as Firestore, collectionName), where(field, "==", user.uid)));
-          } catch (error) {
-            console.warn(`Query failed for ${collectionName} with field '${field}':`, error);
-            return null;
-          }
-        };
-
-        const [reportsSnap, soapSnap, transcriptsSnap] = await Promise.all([
-          tryQuery("reports", "uid") || tryQuery("reports", "userId"),
-          tryQuery("soapNotes", "uid") || tryQuery("soapNotes", "userId"),
-          tryQuery("transcripts", "uid") || tryQuery("transcripts", "userId")
-        ]);
-        
-        const patientIds = new Set();
-        soapSnap?.forEach(doc => {
-          const data = doc.data();
-          if (data.patientId || data.patientName) patientIds.add(data.patientId || data.patientName);
-        });
-        
-        setStats({
-          totalPatients: patientIds?.size || 0,
-          totalReports: reportsSnap?.size || 0,
-          totalSoapNotes: soapSnap?.size || 0,
-          totalSessions: (transcriptsSnap?.size || 0) + (reportsSnap?.size || 0)
-        });
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-        // Set stats to 0 on error rather than leaving in loading state
-        setStats({
-          totalPatients: 0,
-          totalReports: 0,
-          totalSoapNotes: 0,
-          totalSessions: 0
-        });
+        // ✅ Critical Guard: only fetch after auth resolves
+        if (!authLoading && user) {
+          const res = await fetch("/api/stats");
+          if (!res.ok) throw new Error("Failed to load stats");
+          const data = await res.json();
+          setStats(data);
+        } else if (!authLoading && !user) {
+          setStatsLoading(false);
+        }
+      } catch (err) {
+        console.error("Error fetching stats:", err);
+        // Set default values on error
+        setStats({ sessions: 0, notes: 0, recordings: 0 });
       } finally {
-        setStatsLoading(false);
+        if (authLoading === false) {
+          setStatsLoading(false);
+        }
       }
-    };
-    fetchStats();
-  }, [user?.uid, hydrated]);
+    }
+    
+    loadStats();
+  }, [authLoading, user]);
 
   // Don't render anything until hydrated to prevent SSR mismatch
   if (!hydrated) {
@@ -534,37 +319,37 @@ export default function DashboardPage() {
           className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5"
         >
           <StatCard 
-            title="Total Patients" 
-            value={stats.totalPatients} 
+            title="Total Sessions" 
+            value={stats.sessions} 
             change="+12% this month" 
-            icon="👥" 
+            icon="🎤" 
             gradient="from-blue-500 via-blue-600 to-indigo-700" 
             isLoading={statsLoading} 
             delay={0.1}
           />
           <StatCard 
-            title="PDF Reports" 
-            value={stats.totalReports} 
+            title="SOAP Notes" 
+            value={stats.notes} 
             change="+24% this week" 
-            icon="📊" 
+            icon="📝" 
             gradient="from-emerald-500 via-green-600 to-teal-700" 
             isLoading={statsLoading} 
             delay={0.2}
           />
           <StatCard 
-            title="SOAP Notes" 
-            value={stats.totalSoapNotes} 
+            title="Recordings" 
+            value={stats.recordings} 
             change="+8% this week" 
-            icon="📝" 
+            icon="🔊" 
             gradient="from-purple-500 via-indigo-600 to-blue-700" 
             isLoading={statsLoading} 
             delay={0.3}
           />
           <StatCard 
-            title="Sessions" 
-            value={stats.totalSessions} 
-            change="+18% this week" 
-            icon="🎤" 
+            title="Active" 
+            value={0} 
+            change="Live monitoring" 
+            icon="⏱️" 
             gradient="from-orange-500 via-red-600 to-pink-700" 
             isLoading={statsLoading} 
             delay={0.4}

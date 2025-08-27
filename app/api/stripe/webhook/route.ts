@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { adminDb } from "@/lib/firebaseAdmin"
 
+export const runtime = "nodejs"; // ✅ force Node.js runtime
+
 // Initialize Stripe with secret key
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY environment variable is required')
