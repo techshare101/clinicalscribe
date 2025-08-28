@@ -1,6 +1,8 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { auth } from '@/lib/firebase'
+import { doc, getDoc } from "firebase/firestore"
+import { db } from '@/lib/firebase'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -55,6 +57,37 @@ export async function transcribeAudio(
   } catch (error) {
     console.error('Transcription error:', error)
     // Re-throw the error so it can be handled by the calling function
+    throw error
+  }
+}
+
+// Firestore utility function to get scroll by ID
+export async function getScroll(id: string): Promise<{ 
+  id: string; 
+  title: string; 
+  content: string; 
+  created_at: any; 
+  updated_at: any 
+} | null> {
+  try {
+    const scrollRef = doc(db, "scrolls", id)
+    const scrollSnap = await getDoc(scrollRef)
+    
+    if (scrollSnap.exists()) {
+      const data = scrollSnap.data()
+      return {
+        id: scrollSnap.id,
+        title: data.title,
+        content: data.content,
+        created_at: data.created_at,
+        updated_at: data.updated_at
+      }
+    } else {
+      console.log("No such scroll document!")
+      return null
+    }
+  } catch (error) {
+    console.error("Error getting scroll document:", error)
     throw error
   }
 }

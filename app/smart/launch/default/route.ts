@@ -8,6 +8,16 @@ export async function GET(req: NextRequest) {
 
   if (!fhirBase) {
     const payload = { error: 'SMART_FHIR_BASE not configured' }
+    console.error('SMART_FHIR_BASE environment variable is not set')
+    return NextResponse.json(debug ? { ok: false, ...payload } : payload, { status: 500 })
+  }
+
+  // Validate that fhirBase is a proper URL
+  try {
+    new URL(fhirBase)
+  } catch (e) {
+    const payload = { error: 'SMART_FHIR_BASE is not a valid URL' }
+    console.error('SMART_FHIR_BASE is not a valid URL:', fhirBase)
     return NextResponse.json(debug ? { ok: false, ...payload } : payload, { status: 500 })
   }
 

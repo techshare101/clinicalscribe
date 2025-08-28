@@ -56,9 +56,20 @@ export async function GET(req: NextRequest) {
   // Redirect URI: prefer NEXT_PUBLIC_BASE_URL for stability across environments
   const redirectPath = process.env.SMART_REDIRECT_PATH || '/api/smart/callback'
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin
-  const configuredRedirect = /^https?:\/\//i.test(redirectPath)
-    ? redirectPath
-    : new URL(redirectPath, baseUrl).toString()
+  // Ensure redirectPath is properly handled as either relative or absolute
+  let configuredRedirect: string
+  if (redirectPath.startsWith('http://') || redirectPath.startsWith('https://')) {
+    // Already an absolute URL
+    configuredRedirect = redirectPath
+  } else {
+    // Relative path - construct full URL
+    try {
+      configuredRedirect = new URL(redirectPath, baseUrl).toString()
+    } catch (e) {
+      // Fallback if URL construction fails
+      configuredRedirect = `${baseUrl.replace(/\/$/, '')}${redirectPath.startsWith('/') ? redirectPath : `/${redirectPath}`}`
+    }
+  }
 
   // Safety net: if configuredRedirect origin doesn't match current origin, rewrite to current
   const currentOrigin = new URL(baseUrl).origin

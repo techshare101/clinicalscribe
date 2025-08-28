@@ -101,7 +101,8 @@ async function seedDemoData() {
     console.log("📋 Creating sample reports...");
     for (let i = 0; i < 5; i++) {
       const reportData = {
-        userId,
+        userId, // ✅ Using userId field to match Firestore rules
+        uid: userId, // Also include uid for backward compatibility
         transcript: sampleTranscripts[i],
         soapNote: sampleSoapNotes[i],
         pdfUrl: `https://example.com/sample-report-${i + 1}.pdf`, // Fake PDF URL
@@ -115,20 +116,29 @@ async function seedDemoData() {
       console.log(`  ✅ Created report: ${docRef.id}`);
     }
     
-    // 3. Create sample SOAP notes
+    // 3. Create sample SOAP notes with correct userId field
     console.log("🏥 Creating sample SOAP notes...");
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 5; i++) {
+      // Parse the sample SOAP note content to extract S, O, A, P sections
+      const content = sampleSoapNotes[i];
+      const sections = content.split("\n\n");
+      
       const soapData = {
-        userId,
+        userId, // ✅ Using userId field to match Firestore rules
+        uid: userId, // Also include uid for backward compatibility
         patientId: `patient_${i + 1}`,
-        patientName: patientNames[i + 5],
-        content: sampleSoapNotes[i],
+        patientName: patientNames[i],
+        subjective: sections[0]?.replace("SUBJECTIVE: ", "") || "",
+        objective: sections[1]?.replace("OBJECTIVE: ", "") || "",
+        assessment: sections[2]?.replace("ASSESSMENT: ", "") || "",
+        plan: sections[3]?.replace("PLAN: ", "") || "",
+        redFlag: i === 0, // Flag first note
         status: "completed",
         pdf: {
           status: "generated",
           url: `https://example.com/soap-${i + 1}.pdf`
         },
-        createdAt: Timestamp.fromDate(new Date(Date.now() - (i * 12 * 60 * 60 * 1000))), // Last 3 half-days
+        createdAt: Timestamp.fromDate(new Date(Date.now() - (i * 12 * 60 * 60 * 1000))), // Last 5 days
         updatedAt: Timestamp.now()
       };
       
@@ -136,16 +146,72 @@ async function seedDemoData() {
       console.log(`  ✅ Created SOAP note: ${docRef.id}`);
     }
     
-    // 4. Create additional transcripts without SOAP notes
+    // 4. Create sample patients
+    console.log("👤 Creating sample patients...");
+    for (let i = 0; i < 5; i++) {
+      const patientData = {
+        userId, // ✅ Using userId field to match Firestore rules
+        ownerId: userId, // Also include ownerId for backward compatibility
+        name: patientNames[i],
+        status: i % 3 === 0 ? "Awaiting Summary" : i % 3 === 1 ? "SOAP Ready" : "Signed",
+        priority: i % 3 === 0 ? "High" : i % 3 === 1 ? "Medium" : "Low",
+        room: `Room ${100 + i}`,
+        timestamp: Timestamp.fromDate(new Date(Date.now() - (i * 30 * 60 * 1000))), // Last 2.5 hours
+        createdAt: Timestamp.now()
+      };
+      
+      const docRef = await addDoc(collection(db, "patients"), patientData);
+      console.log(`  ✅ Created patient: ${docRef.id}`);
+    }
+    
+    // 5. Create sample audit logs
+    console.log("📝 Creating sample audit logs...");
+    const actions = ["Approved Note", "Exported PDF", "Reviewed Summary", "Flagged for Review", "Created SOAP"];
+    for (let i = 0; i < 5; i++) {
+      const auditData = {
+        userId, // ✅ Using userId field to match Firestore rules
+        user: `Dr. Test User`,
+        action: actions[i],
+        patient: patientNames[i],
+        timestamp: Timestamp.fromDate(new Date(Date.now() - (i * 15 * 60 * 1000))), // Last 75 minutes
+        createdAt: Timestamp.now()
+      };
+      
+      const docRef = await addDoc(collection(db, "audit_logs"), auditData);
+      console.log(`  ✅ Created audit log: ${docRef.id}`);
+    }
+    
+    // 6. Create sample analytics data
+    console.log("📊 Creating sample analytics...");
+    const metrics = [
+      { metric: "Daily Transcriptions", value: 24, target: 30, unit: "records" },
+      { metric: "Completion Rate", value: 85, target: 95, unit: "%" },
+      { metric: "Accuracy Rate", value: 92, target: 98, unit: "%" },
+      { metric: "Active Sessions", value: 3, target: 5, unit: "sessions" }
+    ];
+    
+    for (let i = 0; i < metrics.length; i++) {
+      const analyticData = {
+        ...metrics[i],
+        userId, // ✅ Using userId field for consistency
+        createdAt: Timestamp.now()
+      };
+      
+      const docRef = await addDoc(collection(db, "analytics"), analyticData);
+      console.log(`  ✅ Created analytic: ${docRef.id}`);
+    }
+    
+    // 7. Create additional transcripts without SOAP notes
     console.log("🎤 Creating additional transcripts...");
     for (let i = 0; i < 3; i++) {
       const transcriptData = {
-        userId,
+        userId, // ✅ Using userId field to match Firestore rules
+        uid: userId, // Also include uid for backward compatibility
         transcript: `Additional transcript ${i + 1}: ${sampleTranscripts[i]}`,
         audioUrl: `https://example.com/audio-${i + 1}.mp3`, // Fake audio URL
         duration: Math.floor(Math.random() * 300) + 60, // 1-5 minutes
         status: "transcribed",
-        createdAt: Timestamp.fromDate(new Date(Date.now() - (i * 6 * 60 * 60 * 1000))), // Last 3 quarter-days
+        createdAt: Timestamp.fromDate(new Date(Date.now() - (i * 6 * 60 * 60 * 1000))), // Last 18 hours
         updatedAt: Timestamp.now()
       };
       
@@ -156,7 +222,10 @@ async function seedDemoData() {
     console.log("\n🎉 Demo data seeding completed successfully!");
     console.log("\n📊 Summary:");
     console.log("  • 5 complete reports (transcript + SOAP + PDF)");
-    console.log("  • 3 standalone SOAP notes");
+    console.log("  • 5 standalone SOAP notes with correct userId field");
+    console.log("  • 5 patient records");
+    console.log("  • 5 audit logs");
+    console.log("  • 4 analytics metrics");
     console.log("  • 3 standalone transcripts");
     console.log("  • User profile with beta access enabled");
     console.log("\n✨ You can now test the dashboard with realistic data!");
@@ -169,9 +238,91 @@ async function seedDemoData() {
 
 // Helper function to clear existing demo data (optional)
 async function clearDemoData() {
-  console.log("🧹 This would clear existing demo data...");
-  console.log("⚠️  Implement this if you need to reset demo data");
-  // Implementation would query and delete documents created by this script
+  try {
+    console.log("🧹 Clearing existing demo data...");
+    
+    // You'll need to sign in as a test user
+    // Replace with your test user credentials
+    const TEST_EMAIL = "test@example.com";
+    const TEST_PASSWORD = "testpassword";
+    
+    console.log("🔐 Signing in as test user...");
+    const userCredential = await signInWithEmailAndPassword(auth, TEST_EMAIL, TEST_PASSWORD);
+    const userId = userCredential.user.uid;
+    
+    console.log(`✅ Signed in as: ${userId}`);
+    
+    // Clear SOAP notes
+    console.log("🗑️  Clearing SOAP notes...");
+    const soapNotesRef = collection(db, "soapNotes");
+    const q = query(soapNotesRef, where("uid", "==", userId));
+    const querySnapshot = await getDocs(q);
+    
+    console.log(`Found ${querySnapshot.size} SOAP notes to delete`);
+    
+    const batch = db.batch();
+    querySnapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    
+    if (!querySnapshot.empty) {
+      await batch.commit();
+      console.log("✅ SOAP notes cleared");
+    } else {
+      console.log("✅ No SOAP notes to clear");
+    }
+    
+    console.log("🎉 Demo data clearing completed!");
+  } catch (error) {
+    console.error("❌ Error clearing demo data:", error);
+    process.exit(1);
+  }
+}
+
+// Seed specific demo SOAP notes for SOAP History page
+async function seedSOAPHistoryDemo(userId: string) {
+  const demoNotes = [
+    {
+      patientName: "John Doe",
+      subjective: "Patient reports chest pain, mild shortness of breath.",
+      objective: "BP 140/90, HR 96, O2 95%",
+      assessment: "Hypertension, possible angina",
+      plan: "Start medication, schedule stress test",
+      redFlag: true, // 👈 will appear under "Flagged"
+      createdAt: Timestamp.now(),
+      uid: userId,
+      userId,
+    },
+    {
+      patientName: "Jane Smith",
+      subjective: "Complains of headache.",
+      objective: "BP 120/80, HR 72",
+      assessment: "Migraine likely",
+      plan: "Prescribe triptan, hydration, follow-up in 1 week",
+      redFlag: false, // 👈 will appear under "Standard"
+      createdAt: Timestamp.now(),
+      uid: userId,
+      userId,
+    },
+    {
+      patientName: "Robert Johnson",
+      subjective: "Routine checkup, no complaints.",
+      objective: "Vitals normal",
+      assessment: "Healthy adult",
+      plan: "Continue current lifestyle",
+      redFlag: false, // 👈 will appear under "Standard"
+      pdf: { status: "generated" }, // 👈 will appear under "PDF Ready"
+      createdAt: Timestamp.now(),
+      uid: userId,
+      userId,
+    },
+  ];
+
+  console.log("📝 Creating specific SOAP notes for SOAP History page...");
+  for (const note of demoNotes) {
+    const docRef = await addDoc(collection(db, "soapNotes"), note);
+    console.log(`  ✅ Seeded note for ${note.patientName}: ${docRef.id}`);
+  }
 }
 
 // Run the seeding
@@ -180,9 +331,12 @@ if (require.main === module) {
   
   if (command === "clear") {
     clearDemoData();
+  } else if (command === "soap-history") {
+    // Special command to seed only SOAP history demo data
+    seedSOAPHistoryDemo(process.env.DEMO_USER_ID || "demo-user-123");
   } else {
     seedDemoData();
   }
 }
 
-export { seedDemoData, clearDemoData };
+export { seedDemoData, seedSOAPHistoryDemo, clearDemoData };

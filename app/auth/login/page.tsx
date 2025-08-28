@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signInWithEmailAndPassword, getAuth } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { setSession } from "@/lib/session";
@@ -11,10 +11,20 @@ import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [redirectPath, setRedirectPath] = useState("/dashboard");
+  
+  // Get redirect path from URL query parameters
+  useEffect(() => {
+    const pathParam = searchParams.get("redirectPath");
+    if (pathParam) {
+      setRedirectPath(pathParam);
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,9 +42,9 @@ export default function LoginPage() {
       
       console.log('🍪 Login: Setting session...');
       await setSession(idToken);
-      console.log('✅ Login: Session set successfully, redirecting to dashboard');
+      console.log(`✅ Login: Session set successfully, redirecting to ${redirectPath}`);
       
-      router.push("/dashboard");
+      router.push(redirectPath);
     } catch (err: any) {
       console.error('❌ Login: Error occurred:', err);
       

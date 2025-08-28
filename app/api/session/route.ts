@@ -47,6 +47,7 @@ export async function POST(req: Request) {
     
     let sessionCookie;
     try {
+      console.log('🔧 Session API: About to call createSessionCookie');
       sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
       console.log('✅ Session API: Session cookie created successfully');
       console.log('Cookie length:', sessionCookie?.length || 0);
@@ -56,6 +57,10 @@ export async function POST(req: Request) {
         code: cookieError.code,
         userId: decodedToken?.uid
       });
+      // Log additional details about the error
+      if (cookieError.stack) {
+        console.error('Error stack:', cookieError.stack);
+      }
       return NextResponse.json({ 
         error: `Session cookie creation failed: ${cookieError.message}` 
       }, { status: 500 });

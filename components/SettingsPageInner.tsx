@@ -11,6 +11,44 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useToast } from '@/hooks/use-toast'
 import { Badge } from '@/components/ui/badge'
 
+// Language configurations for patient language (Whisper-supported languages)
+const patientLanguages = [
+  { code: "auto", name: "Auto Detect", flag: "🌐" },
+  // Whisper-supported languages (100+)
+  { code: "en", name: "English", flag: "🇺🇸" },
+  { code: "zh", name: "Chinese", flag: "🇨🇳" },
+  { code: "es", name: "Spanish", flag: "🇪🇸" },
+  { code: "hi", name: "Hindi", flag: "🇮🇳" },
+  { code: "ar", name: "Arabic", flag: "🇸🇦" },
+  { code: "bn", name: "Bengali", flag: "🇧🇩" },
+  { code: "pt", name: "Portuguese", flag: "🇵🇹" },
+  { code: "ru", name: "Russian", flag: "🇷🇺" },
+  { code: "ja", name: "Japanese", flag: "🇯🇵" },
+  { code: "de", name: "German", flag: "🇩🇪" },
+  { code: "ko", name: "Korean", flag: "🇰🇷" },
+  { code: "fr", name: "French", flag: "🇫🇷" },
+  { code: "it", name: "Italian", flag: "🇮🇹" },
+  { code: "tr", name: "Turkish", flag: "🇹🇷" },
+  { code: "nl", name: "Dutch", flag: "🇳🇱" },
+  { code: "pl", name: "Polish", flag: "🇵🇱" },
+  { code: "sv", name: "Swedish", flag: "🇸🇪" },
+  { code: "vi", name: "Vietnamese", flag: "🇻🇳" },
+  { code: "th", name: "Thai", flag: "🇹🇭" },
+  { code: "fa", name: "Persian", flag: "🇮🇷" },
+  { code: "uk", name: "Ukrainian", flag: "🇺🇦" },
+  { code: "ro", name: "Romanian", flag: "🇷🇴" },
+  { code: "cs", name: "Czech", flag: "🇨🇿" },
+  { code: "hu", name: "Hungarian", flag: "🇭🇺" },
+  { code: "el", name: "Greek", flag: "🇬🇷" },
+  { code: "he", name: "Hebrew", flag: "🇮🇱" },
+  { code: "so", name: "Somali", flag: "🇸🇴" },
+  { code: "hmn", name: "Hmong", flag: "🇱🇦" },
+  { code: "sw", name: "Swahili", flag: "🇰🇪" },
+  { code: "tl", name: "Tagalog", flag: "🇵🇭" },
+  { code: "am", name: "Amharic", flag: "🇪🇹" },
+  // Add more languages as needed
+];
+
 export default function SettingsPageInner() {
   const { profile, isLoading } = useProfile()
   const searchParams = useSearchParams()
@@ -105,6 +143,11 @@ export default function SettingsPageInner() {
       })
       
       setMessage({ type: 'success', text: 'Profile updated successfully!' })
+      
+      // Navigate back to the previous page after a short delay
+      setTimeout(() => {
+        router.back()
+      }, 1500)
     } catch (error) {
       console.error('Error updating profile:', error)
       setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' })
@@ -145,6 +188,11 @@ export default function SettingsPageInner() {
       }))
       
       setMessage({ type: 'success', text: 'Password updated successfully!' })
+      
+      // Navigate back to the previous page after a short delay
+      setTimeout(() => {
+        router.back()
+      }, 1500)
     } catch (error) {
       console.error('Error updating password:', error)
       setMessage({ type: 'error', text: 'Failed to update password. Please check your current password.' })
@@ -511,6 +559,11 @@ export default function SettingsPageInner() {
                                   // Update local state to reflect the change
                                   setFormData(prev => ({ ...prev }));
                                   setMessage({ type: 'success', text: 'Language preference updated successfully!' });
+                                  
+                                  // Navigate back to the previous page after a short delay
+                                  setTimeout(() => {
+                                    router.back();
+                                  }, 1500);
                                 } catch (error) {
                                   console.error('Error updating language preference:', error);
                                   setMessage({ type: 'error', text: 'Failed to update language preference. Please try again.' });
@@ -521,11 +574,11 @@ export default function SettingsPageInner() {
                             }}
                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 bg-white/70 backdrop-blur-sm"
                           >
-                            <option value="auto">🌐 Auto Detect</option>
-                            <option value="en">🇺🇸 English</option>
-                            <option value="so">🇸🇴 Somali</option>
-                            <option value="hmn">🇱🇦 Hmong</option>
-                            <option value="sw">🇰🇪 Swahili</option>
+                            {patientLanguages.map((lang) => (
+                              <option key={lang.code} value={lang.code}>
+                                {lang.flag} {lang.name}
+                              </option>
+                            ))}
                           </select>
                           <p className="text-sm text-gray-500">
                             Select your preferred language for clinical notes and interface text.

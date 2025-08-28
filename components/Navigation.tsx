@@ -3,9 +3,8 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useProfile } from '@/hooks/useProfile'
+import { useAuth } from '@/hooks/useAuth'
 import { useEffect, useState } from 'react'
-import { signOut } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
 import { ChevronDownIcon, UserIcon, CogIcon, LogOutIcon, Sparkles, Lock } from 'lucide-react'
 
 // Define all navigation items
@@ -28,6 +27,7 @@ export default function Navigation() {
   const pathname = usePathname()
   const router = useRouter()
   const { profile, isLoading } = useProfile()
+  const { logout } = useAuth()
   const [isHydrated, setIsHydrated] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
@@ -59,29 +59,45 @@ export default function Navigation() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth)
       setShowProfileMenu(false)
+      await logout() // This will handle redirect to home page
     } catch (error) {
       console.error('Error signing out:', error)
     }
   }
 
   const handleTabClick = (e: React.MouseEvent, href: string) => {
-    const isLocked = !profile?.betaActive && href !== '/pricing' && href !== '/plans'
+    // Admin users have access to all tabs
+    if (profile?.role === 'admin') {
+      return; // Allow navigation
+    }
+    
+    // Users with beta access have access to all tabs
+    if (profile?.betaActive) {
+      return; // Allow navigation
+    }
+    
+    // Non-subscribed users can only access pricing and plans
+    const isLocked = href !== '/pricing' && href !== '/plans'
     if (isLocked) {
       e.preventDefault()
       router.push('/pricing?ref=nav')
     }
   }
 
-  // Determine which nav items to show based on subscription status
+  // Determine which nav items to show based on subscription status and role
   const getVisibleNavItems = () => {
-    // If user is subscribed (betaActive is true), show all items
+    // Admin users see all items
+    if (profile?.role === 'admin') {
+      return [...allNavItems, ...publicNavItems]
+    }
+    
+    // Users with beta access see all items
     if (profile?.betaActive) {
       return [...allNavItems, ...publicNavItems]
     }
     
-    // If user is not subscribed, only show public items
+    // Non-subscribed users only see public items
     return publicNavItems
   }
 
@@ -117,7 +133,8 @@ export default function Navigation() {
         <div className="flex items-center gap-2">
           {visibleNavItems.map((item) => {
             const isActive = pathname === item.href
-            const isLocked = !profile?.betaActive && item.href !== '/pricing' && item.href !== '/plans'
+            // Admin users and beta users have access to all tabs
+            const isLocked = profile?.role !== 'admin' && !profile?.betaActive && item.href !== '/pricing' && item.href !== '/plans'
             
             return (
               <div 

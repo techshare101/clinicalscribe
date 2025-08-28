@@ -13,12 +13,17 @@
     "get-id-token": "node ./scripts/get-id-token.js",
     "set-admin": "node ./scripts/set-admin.js",
     "seed-demo": "tsx scripts/seed-demo.ts",
+    "seed-soap-demo": "tsx scripts/seed-demo.ts soap-history",
     "test:permissions": "firebase emulators:exec --project clinicalscribe-test 'node scripts/test-firestore-permissions.js'",
     "test:rules": "firebase emulators:exec --project clinicalscribe-test 'node scripts/test-firestore-permissions.js'",
     "deploy:rules": "node scripts/deploy-firestore-rules.js",
     "verify:components": "node scripts/verify-components.cjs",
     "migrate:active-sessions": "node scripts/migrate-active-sessions.js",
-    "test:active-sessions": "node scripts/test-active-sessions.js"
+    "test:active-sessions": "node scripts/test-active-sessions.js",
+    "seed-scroll": "tsx scripts/seedScroll.ts",
+    "test-firebase": "tsx --env-file=.env.local scripts/test-firebase.ts",
+    "check-soap-notes": "tsx --env-file=.env.local scripts/check-soap-notes.ts",
+    "clear-demo": "tsx --env-file=.env.local scripts/seed-demo.ts clear"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
@@ -34,7 +39,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.1",
-    "firebase": "^11.10.0",
+    "firebase": "^12.1.0",
     "firebase-admin": "^12.5.0",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.454.0",

@@ -19,6 +19,7 @@ export default function AdminHome() {
   const [error, setError] = useState<string | null>(null)
   const [busyUid, setBusyUid] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [seeding, setSeeding] = useState(false)
 
   async function loadProfiles() {
     setLoading(true)
@@ -77,10 +78,69 @@ export default function AdminHome() {
     }
   }
 
+  async function seedSOAPHistoryDemo() {
+    try {
+      setSeeding(true)
+      setMessage(null)
+      setError(null)
+      
+      const currentUser = auth.currentUser
+      if (!currentUser) throw new Error('Not signed in')
+      const userId = currentUser.uid
+      
+      // Call the API route to seed demo data
+      const idToken = await currentUser.getIdToken()
+      const res = await fetch('/api/seed-soap-demo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ userId }),
+      })'/api/seed-soap-demo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${currentUser.getIdToken()}`,
+        },
+        body: JSON.stringify({ userId }),
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) throw new Error(data?.error || 'Failed to seed demo data')
+      
+      setMessage('SOAP History demo data seeded successfully!')
+    } catch (e: any) {
+      setError(e?.message || 'Failed to seed demo data')
+    } finally {
+      setSeeding(false)
+    }
+  }
+
   return (
     <main className="p-8">
       <h1 className="text-2xl font-semibold">Admin Console</h1>
       <p className="mt-2 text-sm text-gray-600">Welcome{userEmail ? `, ${userEmail}` : ''}.</p>
+
+      {/* Seed Demo Data Button */}
+      <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h2 className="text-lg font-semibold text-blue-800">Demo Data Seeding</h2>
+        <p className="mt-1 text-sm text-blue-600">
+          Seed demo data for the SOAP History page to see it in action
+        </p>
+        <button
+          onClick={seedSOAPHistoryDemo}
+          disabled={seeding}
+          className={`mt-3 px-4 py-2 rounded-md text-white font-medium ${
+            seeding 
+              ? 'bg-blue-400 cursor-not-allowed' 
+              : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
+          {seeding ? 'Seeding...' : 'Seed SOAP History Demo Data'}
+        </button>
+      </div>
 
       {loading && (
         <div className="mt-4 text-sm text-gray-600">Loading profiles…</div>

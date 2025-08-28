@@ -72,8 +72,10 @@ export default function SOAPHistoryPage() {
 
     const fetchSOAPNotes = async () => {
       try {
-        // Get the current user's ID token
-        const token = await user.getIdToken();
+        // Get the current user's ID token (force refresh to ensure it's not expired)
+        const token = await user.getIdToken(true);
+        console.log('🔍 SOAP History: Token length:', token?.length || 0);
+        console.log('🔍 SOAP History: Token preview:', token?.substring(0, 50) + (token?.length > 50 ? "..." : ""));
         
         // Fetch SOAP notes from the API route
         const res = await fetch("/api/soap-history", {
@@ -82,12 +84,16 @@ export default function SOAPHistoryPage() {
           }
         });
         
+        console.log('🔍 SOAP History: API response status:', res.status);
+        
         if (!res.ok) {
           const errorText = await res.text();
+          console.error('❌ SOAP History: API error response:', errorText);
           throw new Error(`Failed to fetch SOAP notes: ${res.status} ${res.statusText} - ${errorText}`);
         }
         
         const notesData = await res.json();
+        console.log('Fetched SOAP notes:', notesData); // Debug log
         
         // Map to array with IDs and formatted dates
         const notesList = notesData.map((note: any) => ({
@@ -97,6 +103,7 @@ export default function SOAPHistoryPage() {
           createdAt: note.createdAt?.toDate?.() || new Date(note.createdAt)
         }));
         
+        console.log('Processed SOAP notes:', notesList); // Debug log
         setSoapNotes(notesList);
       } catch (err: any) {
         console.error('Error fetching SOAP notes:', err);

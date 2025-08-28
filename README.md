@@ -81,6 +81,30 @@ pnpm run qa:cards:sh
 pnpm run qa:cards:ps
 ```
 
+## 🌱 Demo Data Seeding
+
+Seed all demo data (including patients, transcripts, SOAP notes, etc.):
+```bash
+pnpm run seed-demo
+```
+
+Seed specific demo data for the SOAP History page:
+```bash
+pnpm run seed-soap-demo
+```
+
+Check what SOAP notes exist in the database:
+```bash
+pnpm run check-soap-notes
+```
+
+Clear all demo data:
+```bash
+pnpm run clear-demo
+```
+
+You can also seed demo data directly from the Admin Panel by clicking the "Seed SOAP History Demo Data" button.
+
 ## 📦 Build for Production
 
 ```bash

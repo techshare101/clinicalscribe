@@ -16,8 +16,23 @@ export async function exchangeEpicCodeForToken(
   const clientId = process.env.NEXT_PUBLIC_SMART_CLIENT_ID
   const clientSecret = process.env.SMART_CLIENT_SECRET
   const redirectPath = process.env.SMART_REDIRECT_PATH || '/api/smart/callback'
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
-  const computedRedirect = baseUrl ? new URL(redirectPath, baseUrl).toString() : redirectPath
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+  
+  // Ensure redirectPath is properly handled as either relative or absolute
+  let computedRedirect: string
+  if (redirectPath.startsWith('http://') || redirectPath.startsWith('https://')) {
+    // Already an absolute URL
+    computedRedirect = redirectPath
+  } else {
+    // Relative path - construct full URL
+    try {
+      computedRedirect = new URL(redirectPath, baseUrl).toString()
+    } catch (e) {
+      // Fallback if URL construction fails
+      computedRedirect = `${baseUrl.replace(/\/$/, '')}${redirectPath.startsWith('/') ? redirectPath : `/${redirectPath}`}`
+    }
+  }
+  
   const redirectUri = opts?.redirectUriOverride || computedRedirect
 
   // For Epic, issuer for token endpoint should be this fixed base

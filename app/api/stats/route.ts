@@ -25,6 +25,13 @@ export async function GET() {
     });
   } catch (err: any) {
     console.error("❌ Stats API error:", err.message);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    // Return a more user-friendly error message
+    return NextResponse.json(
+      { 
+        error: "Failed to load stats", 
+        message: "Unable to connect to the database. Please check server logs for details."
+      }, 
+      { status: 500 }
+    );
   }
 }

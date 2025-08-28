@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 
 export const runtime = 'nodejs'
 
@@ -13,7 +14,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'SMART config missing' }, { status: 500 })
   }
 
-  const redirectUri = new URL(redirectPath, baseUrl).toString()
+  // Ensure redirectPath is properly handled as either relative or absolute
+  let redirectUri: string
+  if (redirectPath.startsWith('http://') || redirectPath.startsWith('https://')) {
+    // Already an absolute URL
+    redirectUri = redirectPath
+  } else {
+    // Relative path - construct full URL
+    try {
+      redirectUri = new URL(redirectPath, baseUrl).toString()
+    } catch (e) {
+      // Fallback if URL construction fails
+      redirectUri = `${baseUrl.replace(/\/$/, '')}${redirectPath.startsWith('/') ? redirectPath : `/${redirectPath}`}`
+    }
+  }
+  
   const aud = process.env.SMART_FHIR_BASE || ''
   const state = crypto.randomUUID()
 

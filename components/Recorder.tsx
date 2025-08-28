@@ -16,9 +16,12 @@ import {
   Stethoscope,
   CheckCircle,
   AlertCircle,
-  Timer
+  Timer,
+  Play,
+  Pause
 } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
+import { Progress } from '@/components/ui/progress';
 
 interface RecorderProps {
   onTranscriptGenerated?: (transcript: string, rawTranscript: string, patientLang?: string, docLang?: string) => void;
@@ -53,6 +56,12 @@ export default function Recorder({
   const [recordings, setRecordings] = useState<RecordingChunk[]>([]); // Store multiple recordings
   const [recordingTime, setRecordingTime] = useState(0); // Track recording time
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Chunk recording state
+  const [currentChunk, setCurrentChunk] = useState(1); // Current chunk number (1-4)
+  const [totalChunks, setTotalChunks] = useState(0); // Total chunks recorded
+  const [isChunkCompleted, setIsChunkCompleted] = useState(false); // Whether current chunk is completed
+  const [showNextChunkPrompt, setShowNextChunkPrompt] = useState(false); // Show prompt for next chunk
   
   // Waveform visualization refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -99,12 +108,12 @@ export default function Recorder({
     };
   }, []);
 
-  // Auto-stop recording after 15 minutes (900 seconds)
+  // Auto-stop recording after 15 minutes (900 seconds) or when chunk is completed
   useEffect(() => {
-    if (isRecording && recordingTime >= 900) { // 15 minutes
+    if (isRecording && (recordingTime >= 900 || isChunkCompleted)) { // 15 minutes
       handleStop();
     }
-  }, [recordingTime, isRecording]);
+  }, [recordingTime, isRecording, isChunkCompleted]);
 
   const setupVisualizer = async (stream: MediaStream) => {
     try {
@@ -179,6 +188,7 @@ export default function Recorder({
       
       // Reset recording time
       setRecordingTime(0);
+      setIsChunkCompleted(false);
       
       // Start recording timer
       if (recordingTimerRef.current) {
@@ -278,12 +288,27 @@ export default function Recorder({
           }
           
           // Notify parent component about new transcript with language information
+          // Pass the detected language from Whisper API if available
+          const detectedLang = result.patientLang && result.patientLang !== "auto" ? result.patientLang : undefined;
           onTranscriptGenerated?.(
             result.transcript, 
             result.rawTranscript, 
-            result.patientLang || patientLanguage, 
-            result.docLang || docLanguage
+            detectedLang
           );
+          
+          // Update chunk state
+          setIsChunkCompleted(true);
+          setTotalChunks(prev => prev + 1);
+          
+          // Show prompt for next chunk if we haven't reached the limit
+          if (currentChunk < 4) {
+            setShowNextChunkPrompt(true);
+          } else {
+            // All chunks recorded, combine automatically
+            setTimeout(() => {
+              combineRecordings();
+            }, 1000);
+          }
         } catch (err) {
           console.error('Transcription error:', err);
           const errorMessage = err instanceof Error ? err.message : '⚠️ Failed to transcribe.';
@@ -322,6 +347,16 @@ export default function Recorder({
     
     // Set session as inactive when recording stops
     setSessionActive(false);
+  };
+
+  const startNextChunk = () => {
+    setShowNextChunkPrompt(false);
+    setCurrentChunk(prev => prev + 1);
+    setIsChunkCompleted(false);
+    // Auto-start the next chunk after a short delay
+    setTimeout(() => {
+      handleStart();
+    }, 500);
   };
 
   const copyTranscript = async () => {
@@ -419,6 +454,9 @@ export default function Recorder({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Calculate progress percentage for current chunk
+  const chunkProgress = (recordingTime / 900) * 100; // 900 seconds = 15 minutes
+
   return (
     <div className="space-y-6">
       {/* Waveform Visualization */}
@@ -469,14 +507,37 @@ export default function Recorder({
           </Badge>
         </div>
         
+        {/* Chunk progress indicator */}
+        <div className="mt-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium text-gray-700">
+              Chunk {currentChunk} of 4
+            </span>
+            <span className="text-sm font-medium text-gray-700">
+              {formatTime(recordingTime)} / 15:00
+            </span>
+          </div>
+          <Progress value={chunkProgress} className="h-2" />
+        </div>
+        
         {/* Recording timer */}
         {isRecording && (
           <div className="flex items-center justify-center mt-4 gap-2 text-red-600 font-medium">
             <Timer className="h-5 w-5 animate-pulse" />
-            <span>Recording: {formatTime(recordingTime)}</span>
+            <span>Recording Chunk {currentChunk}: {formatTime(recordingTime)}</span>
             {recordingTime >= 840 && ( // Warning at 14 minutes
               <span className="text-orange-600">(Approaching 15-min limit)</span>
             )}
+          </div>
+        )}
+        
+        {/* All chunks completed message */}
+        {totalChunks >= 4 && !isRecording && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center justify-center">
+            <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+            <span className="font-medium text-green-800">
+              All chunks recorded. Final SOAP note generated.
+            </span>
           </div>
         )}
       </div>
@@ -484,25 +545,54 @@ export default function Recorder({
       {/* Recording Controls */}
       <div className="flex flex-col sm:flex-row items-center gap-4">
         {!isRecording ? (
-          <Button
-            onClick={handleStart}
-            disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-          >
-            <Mic className="h-5 w-5" />
-            {loading ? 'Transcribing...' : 'Start Recording'}
-          </Button>
+          !showNextChunkPrompt ? (
+            <Button
+              onClick={handleStart}
+              disabled={loading || totalChunks >= 4}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <Mic className="h-5 w-5" />
+              {loading ? 'Transcribing...' : totalChunks >= 4 ? 'All Chunks Recorded' : `Start Chunk ${currentChunk}`}
+            </Button>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
+              <Button
+                onClick={startNextChunk}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <Play className="h-5 w-5" />
+                Start Chunk {currentChunk + 1}
+              </Button>
+              <Button
+                onClick={combineRecordings}
+                disabled={loading}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Combining...
+                  </>
+                ) : (
+                  <>
+                    <Stethoscope className="h-5 w-5" />
+                    Combine All Chunks Now
+                  </>
+                )}
+              </Button>
+            </div>
+          )
         ) : (
           <Button
             onClick={handleStop}
             className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
           >
             <Square className="h-5 w-5" />
-            Stop Recording ({formatTime(recordingTime)})
+            Stop Chunk {currentChunk} ({formatTime(recordingTime)})
           </Button>
         )}
         
-        {transcript && (
+        {transcript && !showNextChunkPrompt && (
           <Button
             onClick={generateSOAP}
             className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
@@ -512,8 +602,8 @@ export default function Recorder({
           </Button>
         )}
         
-        {/* Show Combine button when we have multiple recordings */}
-        {recordings.length > 1 && (
+        {/* Show Combine button when we have multiple recordings and not showing next chunk prompt */}
+        {recordings.length > 1 && !showNextChunkPrompt && (
           <Button
             onClick={combineRecordings}
             disabled={loading}
@@ -533,6 +623,39 @@ export default function Recorder({
           </Button>
         )}
       </div>
+
+      {/* Next Chunk Prompt */}
+      {showNextChunkPrompt && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold text-blue-800">Chunk {currentChunk} Completed</h4>
+              <p className="text-blue-700 text-sm">
+                Would you like to start the next chunk or combine all chunks into a final SOAP note?
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={startNextChunk}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl"
+              >
+                <Play className="h-4 w-4" />
+                Next Chunk
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowNextChunkPrompt(false);
+                  combineRecordings();
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl"
+              >
+                <Stethoscope className="h-4 w-4" />
+                Combine Now
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error Message */}
       {error && (
