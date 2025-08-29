@@ -1,14 +1,21 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export default function LandingPageClientInner() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);
   const [user, setUser] = useState<any>(null);
+
+  // Safely get search params on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSearchParams(new URLSearchParams(window.location.search));
+    }
+  }, []);
 
   // Handle authentication redirects
   useEffect(() => {
@@ -43,9 +50,11 @@ export default function LandingPageClientInner() {
 
   // Handle special URL parameters
   useEffect(() => {
-    const ref = searchParams?.get("ref");
-    const utm_source = searchParams?.get("utm_source");
-    const utm_campaign = searchParams?.get("utm_campaign");
+    if (!searchParams) return;
+
+    const ref = searchParams.get("ref");
+    const utm_source = searchParams.get("utm_source");
+    const utm_campaign = searchParams.get("utm_campaign");
 
     // Track referrals or campaigns
     if (ref || utm_source || utm_campaign) {
@@ -67,9 +76,11 @@ export default function LandingPageClientInner() {
 
   // Show special messages based on URL parameters
   const showSpecialMessage = () => {
-    const activated = searchParams?.get("activated");
-    const pending = searchParams?.get("pending");
-    const ref = searchParams?.get("ref");
+    if (!searchParams) return null;
+
+    const activated = searchParams.get("activated");
+    const pending = searchParams.get("pending");
+    const ref = searchParams.get("ref");
     
     if (activated === "true") {
       return (

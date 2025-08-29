@@ -51,7 +51,6 @@ const patientLanguages = [
 
 export default function SettingsPageInner() {
   const { profile, isLoading } = useProfile()
-  const searchParams = useSearchParams()
   const router = useRouter()
   const { toast } = useToast()
   const [formData, setFormData] = useState({
@@ -66,11 +65,21 @@ export default function SettingsPageInner() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
   const [showSuccessBanner, setShowSuccessBanner] = useState(false)
+  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null)
+
+  // Safely get search params on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSearchParams(new URLSearchParams(window.location.search))
+    }
+  }, [])
 
   // Handle Stripe checkout status
   useEffect(() => {
-    const status = searchParams?.get('status')
-    const sessionId = searchParams?.get('session_id')
+    if (!searchParams) return
+    
+    const status = searchParams.get('status')
+    const sessionId = searchParams.get('session_id')
     
     if (status) {
       setCheckoutStatus(status)

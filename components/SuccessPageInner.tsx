@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { CheckCircle, ArrowRight, Sparkles, Gift, Users, FileText, Shield } from "lucide-react";
@@ -11,21 +11,26 @@ import { Badge } from "@/components/ui/badge";
 
 export default function SuccessPageInner() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);
   const [betaActivated, setBetaActivated] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [autoRedirect, setAutoRedirect] = useState(false);
   const [countdown, setCountdown] = useState(5);
 
+  // Safely get search params on client side only
   useEffect(() => {
     setMounted(true);
-    // Check if auto-redirect is requested via URL parameter
-    const autoParam = searchParams?.get("auto");
-    if (autoParam === "1") {
-      setAutoRedirect(true);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setSearchParams(params);
+      // Check if auto-redirect is requested via URL parameter
+      const autoParam = params.get("auto");
+      if (autoParam === "1") {
+        setAutoRedirect(true);
+      }
     }
-  }, [searchParams]);
+  }, []);
 
   useEffect(() => {
     if (!mounted) return;
@@ -199,47 +204,22 @@ export default function SuccessPageInner() {
                 className="text-sm py-3"
                 onClick={() => router.push("/help/getting-started")}
               >
-                📖 Quick Start Guide
+                Getting Started Guide
               </Button>
               <Button 
                 variant="outline" 
                 className="text-sm py-3"
-                onClick={() => router.push("/pricing")}
+                onClick={() => router.push("/dashboard")}
               >
-                ✨ View All Features
+                Go to Dashboard
               </Button>
               <Button 
                 variant="outline" 
                 className="text-sm py-3"
-                onClick={() => router.push("/settings/account")}
+                onClick={() => router.push("/support")}
               >
-                ⚙️ Account Settings
+                Contact Support
               </Button>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="border-t pt-6 mt-8">
-            <div className="flex items-center justify-center space-x-6 text-sm text-gray-500">
-              <div className="flex items-center space-x-2">
-                <Shield className="h-4 w-4" />
-                <span>Secure Stripe Payment</span>
-              </div>
-              <span className="text-gray-300">•</span>
-              <div className="flex items-center space-x-2">
-                <Sparkles className="h-4 w-4" />
-                <span>HIPAA Compliant Platform</span>
-              </div>
-              <span className="text-gray-300">•</span>
-              <div className="flex items-center space-x-2">
-                <Gift className="h-4 w-4" />
-                <span>Beta Access Activated</span>
-              </div>
-            </div>
-            <div className="text-center mt-4">
-              <p className="text-xs text-gray-400">
-                Need help? Contact our support team anytime
-              </p>
             </div>
           </div>
         </CardContent>

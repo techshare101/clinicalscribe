@@ -1,11 +1,19 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Sparkles, ArrowRight } from "lucide-react";
 
 export default function HomePageClientInner() {
-  const params = useSearchParams();
-  const ref = params.get("ref");
+  const [ref, setRef] = useState<string | null>(null);
+
+  // Safely get search params on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setRef(params.get("ref"));
+    }
+  }, []);
 
   return (
     <div className="text-center max-w-4xl px-6">

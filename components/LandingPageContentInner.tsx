@@ -1,14 +1,20 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import { ArrowRight, Sparkles, Shield, Zap, Users, Clock, Heart, CheckCircle, Star } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 
 export default function LandingPageContentInner() {
-  const params = useSearchParams();
-  const ref = params.get("ref");
+  const [ref, setRef] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  // Safely get search params on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setRef(params.get("ref"));
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -199,111 +205,7 @@ export default function LandingPageContentInner() {
               icon="🛡️" 
               title="Built for HIPAA compliance & security"
             />
-            <DifferentiatorCard 
-              icon="⚡" 
-              title="SOAP-ready notes with zero typing"
-            />
-            <DifferentiatorCard 
-              icon="🔗" 
-              title="Seamless EHR integration roadmap"
-            />
           </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="px-6 py-20 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white">
-        <div className="max-w-6xl mx-auto text-center">
-          <h2 className="text-5xl font-black mb-16">How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <StepCard 
-              number="1"
-              title="Record"
-              desc="Speak naturally during consultation"
-              icon="🎤"
-            />
-            <StepCard 
-              number="2"
-              title="Auto-generate"
-              desc="ClinicalScribe builds SOAP-ready notes"
-              icon="🧠"
-            />
-            <StepCard 
-              number="3"
-              title="Review & Export"
-              desc="Approve, sign, send to PDF or EHR"
-              icon="✅"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Trust Logos */}
-      <section className="px-6 py-16 bg-white/90 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto text-center">
-          <h3 className="text-2xl font-bold text-gray-700 mb-8">Trusted Tech Stack</h3>
-          <div className="flex flex-wrap justify-center items-center gap-8 opacity-60">
-            <div className="px-6 py-3 bg-gray-100 rounded-xl font-bold text-gray-700">HIPAA Compliant</div>
-            <div className="px-6 py-3 bg-gray-100 rounded-xl font-bold text-gray-700">Epic FHIR Sandbox</div>
-            <div className="px-6 py-3 bg-gray-100 rounded-xl font-bold text-gray-700">Stripe Secure Payments</div>
-            <div className="px-6 py-3 bg-gray-100 rounded-xl font-bold text-gray-700">Firebase by Google</div>
-          </div>
-          <p className="text-gray-600 mt-6 font-medium">
-            ClinicalScribe is built on enterprise-grade, compliant infrastructure.
-          </p>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="px-6 py-20 bg-gradient-to-br from-slate-100 to-gray-100">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-4xl font-black text-center mb-16 text-gray-900">Frequently Asked Questions</h2>
-          <div className="space-y-4">
-            <FaqItem 
-              question="Is ClinicalScribe HIPAA compliant?"
-              answer="✅ Yes, HIPAA-ready and built with privacy-first design."
-              isOpen={openFaq === 1}
-              onClick={() => setOpenFaq(openFaq === 1 ? null : 1)}
-            />
-            <FaqItem 
-              question="How long does the Beta last?"
-              answer="✅ Limited Beta access will continue until general release in Q1 2026."
-              isOpen={openFaq === 2}
-              onClick={() => setOpenFaq(openFaq === 2 ? null : 2)}
-            />
-            <FaqItem 
-              question="Can I cancel anytime?"
-              answer="✅ Yes, you can cancel your subscription with one click."
-              isOpen={openFaq === 3}
-              onClick={() => setOpenFaq(openFaq === 3 ? null : 3)}
-            />
-            <FaqItem 
-              question="Do I need special hardware?"
-              answer="✅ No, works on any browser with a microphone."
-              isOpen={openFaq === 4}
-              onClick={() => setOpenFaq(openFaq === 4 ? null : 4)}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="px-6 py-24 bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 text-white">
-        <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-5xl md:text-6xl font-black mb-8 leading-tight">
-            Stop wasting hours on paperwork.
-          </h2>
-          <p className="text-2xl mb-12 text-gray-300 max-w-3xl mx-auto">
-            Join the ClinicalScribe Beta today and reclaim your time.
-          </p>
-          <Link
-            href="/auth/signup"
-            className="group inline-flex items-center gap-4 px-12 py-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-400 hover:via-purple-400 hover:to-pink-400 text-white rounded-3xl shadow-2xl hover:shadow-3xl transform hover:scale-105 hover:-translate-y-2 transition-all duration-500 font-black text-2xl"
-          >
-            <Heart className="h-7 w-7 group-hover:animate-pulse" />
-            Join the Beta
-            <ArrowRight className="h-7 w-7 group-hover:translate-x-2 transition-transform duration-500" />
-          </Link>
         </div>
       </section>
     </div>
