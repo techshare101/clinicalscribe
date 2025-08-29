@@ -97,13 +97,6 @@ export default function AdminHome() {
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({ userId }),
-      })'/api/seed-soap-demo', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${currentUser.getIdToken()}`,
-        },
-        body: JSON.stringify({ userId }),
       })
       
       const data = await res.json()
