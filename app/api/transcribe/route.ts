@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { translateText } from "@/lib/translate";
 import { initializeApp } from 'firebase/app';
+import { adminDb } from '@/lib/firebaseAdmin'; // Import Firebase Admin for Firestore
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -17,9 +17,18 @@ const firebaseConfig = {
 };
 
 initializeApp(firebaseConfig);
-const db = getFirestore();
 
-export const runtime = 'edge';
+// Use Node.js runtime for large files + Buffer
+export const runtime = 'nodejs';
+
+// Add configuration for larger payload size
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '100mb',
+    },
+  },
+};
 
 export async function POST(req: Request) {
   try {
@@ -27,12 +36,14 @@ export async function POST(req: Request) {
     
     const formData = await req.formData();
     const file = formData.get("file") as File;
+    const index = parseInt(formData.get("index") as string) || 0;   // 🆕 capture chunk index as number
     const uid = formData.get("uid") as string;
     const patientLang = formData.get("patientLang") as string || "auto";
     const docLang = formData.get("docLang") as string || "en";
 
     // Debug logging
     console.log("Received file:", file?.name, file?.type, file?.size);
+    console.log("Received index:", index);
     console.log("Received uid:", uid);
     console.log("Patient language:", patientLang);
     console.log("Documentation language:", docLang);
@@ -135,7 +146,31 @@ export async function POST(req: Request) {
       }
     }
 
+    // Save transcription result to Firestore if uid is provided
+    if (uid) {
+      try {
+        const transcriptionRef = adminDb.collection('transcriptions').doc(uid);
+        const sessionChunksRef = transcriptionRef.collection('chunks');
+        
+        await sessionChunksRef.doc(`chunk-${index}`).set({
+          index,
+          rawTranscript: fullRawText.trim(),
+          transcript: fullText.trim(),
+          patientLang,
+          docLang,
+          createdAt: new Date(),
+          status: 'completed'
+        });
+        
+        console.log(`Saved chunk ${index} to Firestore for user ${uid}`);
+      } catch (firestoreError) {
+        console.error('Error saving to Firestore:', firestoreError);
+        // Don't fail the transcription if Firestore save fails
+      }
+    }
+
     return NextResponse.json({
+      index,                                           // 🆕 return index for stitching
       rawTranscript: fullRawText.trim(),
       transcript: fullText.trim(),
       patientLang: patientLang,

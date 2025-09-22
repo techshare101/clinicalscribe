@@ -20,7 +20,7 @@ import {
   Play,
   Pause
 } from 'lucide-react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, collection } from 'firebase/firestore';
 import { Progress } from '@/components/ui/progress';
 
 interface RecorderProps {
@@ -37,6 +37,17 @@ interface RecordingChunk {
   timestamp: Date;
   audioUrl?: string; // Add audio URL for playback
   duration?: number; // Recording duration in seconds
+}
+
+// Define transcript chunk interface for ordered stitching
+interface TranscriptChunk {
+  index: number;
+  transcript: string;
+  rawTranscript: string;
+  patientLang?: string;
+  docLang?: string;
+  success: boolean;
+  error?: string;
 }
 
 export default function Recorder({ 
@@ -62,6 +73,10 @@ export default function Recorder({
   const [totalChunks, setTotalChunks] = useState(0); // Total chunks recorded
   const [isChunkCompleted, setIsChunkCompleted] = useState(false); // Whether current chunk is completed
   const [showNextChunkPrompt, setShowNextChunkPrompt] = useState(false); // Show prompt for next chunk
+  
+  // Ordered stitching state
+  const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>([]); // Store chunks with index for ordered stitching
+  const [progressMessage, setProgressMessage] = useState<string>(""); // Progress feedback message
   
   // Waveform visualization refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -232,10 +247,60 @@ export default function Recorder({
         
         const audioBlob = new Blob(audioChunks.current, { type: mimeType });
         setLoading(true);
+        setProgressMessage(`Uploading chunk ${currentChunk} of 4...`);
+        
         try {
-          const result = await transcribeAudio(audioBlob, patientLanguage, docLanguage);
-          setTranscript(result.transcript);
-          setRawTranscript(result.rawTranscript);
+          // Save chunk to Firestore immediately
+          if (sessionId && auth.currentUser) {
+            try {
+              const chunkRef = doc(collection(db, 'transcriptions', auth.currentUser.uid, sessionId));
+              await setDoc(chunkRef, {
+                index: currentChunk,
+                createdAt: new Date(),
+                status: 'uploading'
+              });
+            } catch (saveError) {
+              console.error('Error saving chunk metadata to Firestore:', saveError);
+            }
+          }
+          
+          const result = await transcribeAudio(audioBlob, patientLanguage, docLanguage, currentChunk);
+          
+          // Update Firestore with transcription result
+          if (sessionId && auth.currentUser) {
+            try {
+              const chunkRef = doc(collection(db, 'transcriptions', auth.currentUser.uid, sessionId));
+              await setDoc(chunkRef, {
+                index: currentChunk,
+                transcript: result.transcript,
+                rawTranscript: result.rawTranscript,
+                patientLang: result.patientLang,
+                docLang: result.docLang,
+                createdAt: new Date(),
+                status: 'completed'
+              }, { merge: true });
+            } catch (saveError) {
+              console.error('Error updating chunk in Firestore:', saveError);
+            }
+          }
+          
+          setProgressMessage(`✅ Chunk ${currentChunk}/4 complete`);
+          
+          // Store chunk with index for ordered stitching
+          const newChunk: TranscriptChunk = {
+            index: result.index ?? currentChunk,
+            transcript: result.transcript,
+            rawTranscript: result.rawTranscript,
+            patientLang: result.patientLang,
+            docLang: result.docLang,
+            success: true
+          };
+          
+          setTranscriptChunks(prev => {
+            const updated = [...prev, newChunk];
+            // Sort by index to ensure proper order
+            return updated.sort((a, b) => a.index - b.index);
+          });
           
           // Upload audio file to Firebase Storage if we have a session ID
           let audioUrl: string | undefined;
@@ -304,17 +369,45 @@ export default function Recorder({
           if (currentChunk < 4) {
             setShowNextChunkPrompt(true);
           } else {
-            // All chunks recorded, combine automatically
+            // All chunks recorded, combine automatically after a short delay
+            setProgressMessage("🎉 All chunks processed! Generating final transcript...");
             setTimeout(() => {
               combineRecordings();
-            }, 1000);
+            }, 1500);
           }
         } catch (err) {
           console.error('Transcription error:', err);
-          const errorMessage = err instanceof Error ? err.message : '⚠️ Failed to transcribe.';
-          setError(errorMessage);
-          setTranscript('');
-          setRawTranscript('');
+          setProgressMessage(`⚠️ Chunk ${currentChunk} failed, continuing...`);
+          
+          // Store failed chunk for partial transcript generation
+          const failedChunk: TranscriptChunk = {
+            index: currentChunk,
+            transcript: '',
+            rawTranscript: '',
+            success: false,
+            error: err instanceof Error ? err.message : 'Unknown error'
+          };
+          
+          setTranscriptChunks(prev => {
+            const updated = [...prev, failedChunk];
+            // Sort by index to ensure proper order
+            return updated.sort((a, b) => a.index - b.index);
+          });
+          
+          // Still update total chunks to continue the flow
+          setIsChunkCompleted(true);
+          setTotalChunks(prev => prev + 1);
+          
+          // Show prompt for next chunk if we haven't reached the limit
+          if (currentChunk < 4) {
+            setShowNextChunkPrompt(true);
+          } else {
+            // All chunks recorded (even with failures), combine automatically
+            setProgressMessage("⚠️ Some chunks failed, generating partial transcript...");
+            setTimeout(() => {
+              combineRecordings();
+            }, 1500);
+          }
         } finally {
           setLoading(false);
         }
@@ -384,66 +477,33 @@ export default function Recorder({
 
   // Function to combine all recordings into a single transcript
   const combineRecordings = async () => {
-    if (!sessionId) {
-      // Fallback to client-side combination if no session ID
-      const combinedTranscript = recordings.map(r => r.transcript).join('\n\n');
-      setTranscript(combinedTranscript);
-      setRawTranscript(combinedTranscript);
-      
-      // Notify parent component about combined transcript
-      onTranscriptGenerated?.(combinedTranscript, combinedTranscript, patientLanguage, docLanguage);
-      
-      // Scroll to SOAP generator
-      const soapSection = document.querySelector('[data-soap-generator]');
-      if (soapSection) {
-        soapSection.scrollIntoView({ behavior: 'smooth' });
-        const event = new CustomEvent('loadTranscript', { 
-          detail: { transcript: combinedTranscript, rawTranscript: combinedTranscript } 
-        });
-        window.dispatchEvent(event);
-      }
-      return;
-    }
+    // Combine chunks in order using the transcriptChunks array
+    const successfulChunks = transcriptChunks
+      .filter(chunk => chunk.success)
+      .sort((a, b) => a.index - b.index);
     
-    // Use backend API to combine recordings
-    setLoading(true);
-    try {
-      const response = await fetch('/api/soap/combine', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionId }),
+    const combinedTranscript = successfulChunks
+      .map(chunk => chunk.transcript)
+      .join(' ');
+    
+    const combinedRawTranscript = successfulChunks
+      .map(chunk => chunk.rawTranscript)
+      .join(' ');
+    
+    setTranscript(combinedTranscript);
+    setRawTranscript(combinedRawTranscript);
+    
+    // Notify parent component about combined transcript
+    onTranscriptGenerated?.(combinedTranscript, combinedRawTranscript, patientLanguage, docLanguage);
+    
+    // Scroll to SOAP generator
+    const soapSection = document.querySelector('[data-soap-generator]');
+    if (soapSection) {
+      soapSection.scrollIntoView({ behavior: 'smooth' });
+      const event = new CustomEvent('loadTranscript', { 
+        detail: { transcript: combinedTranscript, rawTranscript: combinedRawTranscript } 
       });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to combine recordings');
-      }
-      
-      // Format the combined SOAP note
-      const combinedSoap = `Subjective:\n${data.subjective}\n\nObjective:\n${data.objective}\n\nAssessment:\n${data.assessment}\n\nPlan:\n${data.plan}`;
-      setTranscript(combinedSoap);
-      setRawTranscript(combinedSoap);
-      
-      // Notify parent component about combined transcript
-      onTranscriptGenerated?.(combinedSoap, combinedSoap, patientLanguage, docLanguage);
-      
-      // Scroll to SOAP generator
-      const soapSection = document.querySelector('[data-soap-generator]');
-      if (soapSection) {
-        soapSection.scrollIntoView({ behavior: 'smooth' });
-        const event = new CustomEvent('loadTranscript', { 
-          detail: { transcript: combinedSoap, rawTranscript: combinedSoap } 
-        });
-        window.dispatchEvent(event);
-      }
-    } catch (err) {
-      console.error('Error combining recordings:', err);
-      setError(err instanceof Error ? err.message : 'Failed to combine recordings');
-    } finally {
-      setLoading(false);
+      window.dispatchEvent(event);
     }
   };
 
@@ -528,6 +588,13 @@ export default function Recorder({
             {recordingTime >= 840 && ( // Warning at 14 minutes
               <span className="text-orange-600">(Approaching 15-min limit)</span>
             )}
+          </div>
+        )}
+        
+        {/* Progress message */}
+        {progressMessage && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-center">
+            <span className="font-medium text-blue-800">{progressMessage}</span>
           </div>
         )}
         

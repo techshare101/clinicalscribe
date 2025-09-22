@@ -12,6 +12,7 @@
     "qa:cards:ps": "powershell -ExecutionPolicy Bypass -File ./qa-cards-1-2.ps1",
     "get-id-token": "node ./scripts/get-id-token.js",
     "set-admin": "node ./scripts/set-admin.js",
+    "activate-beta": "node ./scripts/activate-beta.cjs",
     "seed-demo": "tsx scripts/seed-demo.ts",
     "seed-soap-demo": "tsx scripts/seed-demo.ts soap-history",
     "test:permissions": "firebase emulators:exec --project clinicalscribe-test 'node scripts/test-firestore-permissions.js'",

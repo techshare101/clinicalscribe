@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     const { sessionId, recording, isActive } = body;
 
     if (!sessionId || !recording) {
-      return NextResponse.json({ error: 'Session ID and recording data are required' }, { status: 0 });
+      return NextResponse.json({ error: 'Session ID and recording data are required' }, { status: 400 });
     }
     
     // Set default duration if not provided

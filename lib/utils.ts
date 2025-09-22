@@ -12,8 +12,9 @@ export function cn(...inputs: ClassValue[]) {
 export async function transcribeAudio(
   audioBlob: Blob, 
   patientLang: string = "auto", 
-  docLang: string = "en"
-): Promise<{ rawTranscript: string; transcript: string; patientLang: string; docLang: string }> {
+  docLang: string = "en",
+  index?: number
+): Promise<{ index?: number; rawTranscript: string; transcript: string; patientLang: string; docLang: string }> {
   try {
     const user = auth.currentUser
     if (!user) {
@@ -21,13 +22,16 @@ export async function transcribeAudio(
     }
 
     // Create a proper File object with the correct MIME type for Whisper API
-    const audioFile = new File([audioBlob], "recording.webm", { type: "audio/webm" })
+    const audioFile = new File([audioBlob], `recording-chunk-${index || 0}.webm`, { type: "audio/webm" })
     
     const formData = new FormData()
     formData.append("file", audioFile)
     formData.append("uid", user.uid)
     formData.append("patientLang", patientLang)
     formData.append("docLang", docLang)
+    if (index !== undefined) {
+      formData.append("index", index.toString())
+    }
 
     const response = await fetch('/api/transcribe', {
       method: 'POST',
@@ -49,6 +53,7 @@ export async function transcribeAudio(
 
     const data = await response.json()
     return {
+      index: data.index,
       rawTranscript: data.rawTranscript || '[No raw transcription returned]',
       transcript: data.transcript || '[No transcription returned]',
       patientLang: data.patientLang || patientLang,
