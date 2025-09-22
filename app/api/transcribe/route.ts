@@ -1,22 +1,9 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { translateText } from "@/lib/translate";
-import { initializeApp } from 'firebase/app';
 import { adminDb } from '@/lib/firebaseAdmin'; // Import Firebase Admin for Firestore
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// Initialize Firebase Admin SDK
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
-};
-
-initializeApp(firebaseConfig);
 
 // Use Node.js runtime for large files + Buffer
 export const runtime = 'nodejs';
@@ -149,8 +136,9 @@ export async function POST(req: Request) {
     // Save transcription result to Firestore if uid is provided
     if (uid) {
       try {
-        const transcriptionRef = adminDb.collection('transcriptions').doc(uid);
-        const sessionChunksRef = transcriptionRef.collection('chunks');
+        // Create a reference to the user's transcript chunks collection
+        const userTranscriptsRef = adminDb.collection('transcriptions').doc(uid);
+        const sessionChunksRef = userTranscriptsRef.collection('chunks');
         
         await sessionChunksRef.doc(`chunk-${index}`).set({
           index,
