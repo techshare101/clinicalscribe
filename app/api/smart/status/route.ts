@@ -2,9 +2,12 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { exchangeRefreshTokenForAccessToken } from '@/lib/epicAuth';
 
+// Force dynamic rendering to prevent caching issues
+export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
+  console.log('🔍 SMART Status Route: GET request received');
   try {
     // ✅ Next 14+ requires await for cookies()
     const cookieStore = await cookies();
@@ -14,10 +17,26 @@ export async function GET() {
 
     // If we have an access token and fhir base, we're connected
     if (accessToken && fhirBase) {
+      // Try to decode the token to get expiry (if it's a JWT)
+      let expiresIn = 3600; // Default 1 hour
+      try {
+        // Simple JWT decode without verification (just to get exp claim)
+        const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString());
+        if (payload.exp) {
+          const expiryTime = payload.exp * 1000; // Convert to milliseconds
+          const now = Date.now();
+          expiresIn = Math.max(0, Math.floor((expiryTime - now) / 1000));
+        }
+      } catch (e) {
+        // Not a JWT or couldn't decode, use default
+      }
+
       return NextResponse.json({
         connected: true,
         fhirBase,
-        source: 'cookies'
+        source: 'cookies',
+        expiresIn, // Time in seconds until token expires
+        hasRefreshToken: !!refreshToken
       });
     }
     
@@ -29,11 +48,26 @@ export async function GET() {
         
         // If successful, update the access token cookie and return connected status
         if (tokenData.access_token) {
+          // Calculate token expiry
+          let expiresIn = tokenData.expires_in || 3600;
+          try {
+            const payload = JSON.parse(Buffer.from(tokenData.access_token.split('.')[1], 'base64').toString());
+            if (payload.exp) {
+              const expiryTime = payload.exp * 1000;
+              const now = Date.now();
+              expiresIn = Math.max(0, Math.floor((expiryTime - now) / 1000));
+            }
+          } catch (e) {
+            // Use expires_in from response
+          }
+
           const response = NextResponse.json({ 
             connected: true,
             fhirBase,
             source: 'refreshed',
-            refreshed: true
+            refreshed: true,
+            expiresIn,
+            hasRefreshToken: !!tokenData.refresh_token
           });
           
           // Set the new access token cookie

@@ -35,9 +35,8 @@ export async function exchangeEpicCodeForToken(
   
   const redirectUri = opts?.redirectUriOverride || computedRedirect
 
-  // For Epic, issuer for token endpoint should be this fixed base
-  const issuer = process.env.SMART_ISSUER || 'https://fhir.epic.com/interconnect-fhir-oauth/oauth2'
-  const tokenUrl = `${issuer.replace(/\/$/, '')}/token`
+  // Use explicit token URL from env
+  const tokenUrl = process.env.SMART_TOKEN_URL || 'https://fhir.epic.com/interconnect-fhir-oauth/oauth2/token'
 
   if (!clientId) throw new Error('NEXT_PUBLIC_SMART_CLIENT_ID missing')
   if (!clientSecret) throw new Error('SMART_CLIENT_SECRET missing')
@@ -73,8 +72,7 @@ export async function exchangeRefreshTokenForAccessToken(
 ): Promise<EpicTokenResponse> {
   const clientId = process.env.NEXT_PUBLIC_SMART_CLIENT_ID
   const clientSecret = process.env.SMART_CLIENT_SECRET
-  const issuer = process.env.SMART_ISSUER || 'https://fhir.epic.com/interconnect-fhir-oauth/oauth2'
-  const tokenUrl = `${issuer.replace(/\/$/, '')}/token`
+  const tokenUrl = process.env.SMART_TOKEN_URL || 'https://fhir.epic.com/interconnect-fhir-oauth/oauth2/token'
 
   if (!clientId) throw new Error('NEXT_PUBLIC_SMART_CLIENT_ID missing')
   if (!clientSecret) throw new Error('SMART_CLIENT_SECRET missing')
