@@ -16,10 +16,15 @@ export function LoginPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [redirectPath, setRedirectPath] = useState("/dashboard");
+  const [mounted, setMounted] = useState(false);
+
+  // Ensure we only render the form after mount to avoid hydration mismatches
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   // Get redirect path from URL query parameters
   useEffect(() => {
-    // Only run on client side after component mounts
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const pathParam = params.get("redirectPath");
@@ -71,12 +76,38 @@ export function LoginPageContent() {
     }
   };
 
+  // During SSR, render a non-interactive shell to keep markup stable
+  if (!mounted) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4">
+        <div className="w-full max-w-md border rounded-lg bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-semibold mb-2">Login</h1>
+          <p className="text-sm text-gray-500 mb-6">Sign in with your email and password.</p>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Email</div>
+              <div className="h-10 w-full rounded-md border bg-gray-100" />
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Password</div>
+              <div className="h-10 w-full rounded-md border bg-gray-100" />
+            </div>
+            <div className="h-10 w-full rounded-md bg-gray-200" />
+          </div>
+          <div className="text-sm text-gray-600 mt-4">
+            Don't have an account? <span className="text-blue-600">Sign up</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
       <div className="w-full max-w-md border rounded-lg bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold mb-2">Login</h1>
         <p className="text-sm text-gray-500 mb-6">Sign in with your email and password.</p>
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4" autoComplete="off" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -86,6 +117,11 @@ export function LoginPageContent() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="username"
+              inputMode="email"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              data-bwignore="true"
             />
           </div>
           <div className="space-y-2">
@@ -97,6 +133,10 @@ export function LoginPageContent() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              data-bwignore="true"
             />
           </div>
           {error && (

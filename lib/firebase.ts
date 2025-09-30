@@ -43,6 +43,16 @@ const firebaseConfig = {
   ...(MEASUREMENT_ID ? { measurementId: MEASUREMENT_ID } : {}),
 };
 
+// Debug: Log Firebase config
+console.log('Firebase Config:', {
+  apiKey: API_KEY?.slice(0, 5) + '...',  // Only log first 5 chars for security
+  authDomain: AUTH_DOMAIN,
+  projectId: PROJECT_ID,
+  storageBucket: STORAGE_BUCKET,
+  messagingSenderId: MESSAGING_SENDER_ID,
+  appId: APP_ID?.split(':')[0] + '...',  // Only log first part for security
+});
+
 // Initialize Firebase (avoid re-initializing in Fast Refresh/dev)
 let app: FirebaseApp;
 if (typeof window !== 'undefined') {

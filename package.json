@@ -24,7 +24,8 @@
     "seed-scroll": "tsx scripts/seedScroll.ts",
     "test-firebase": "tsx --env-file=.env.local scripts/test-firebase.ts",
     "check-soap-notes": "tsx --env-file=.env.local scripts/check-soap-notes.ts",
-    "clear-demo": "tsx --env-file=.env.local scripts/seed-demo.ts clear"
+    "clear-demo": "tsx --env-file=.env.local scripts/seed-demo.ts clear",
+    "backfill-stripe": "tsx --env-file=.env.local scripts/backfill-stripe-customers.ts"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
@@ -50,6 +51,7 @@
     "react": "^19",
     "react-dom": "^19",
     "react-firebase-hooks": "^5.1.1",
+    "sonner": "^2.0.7",
     "stripe": "^18.4.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",

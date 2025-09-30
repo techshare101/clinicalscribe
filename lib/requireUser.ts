@@ -1,6 +1,6 @@
 import { cookies } from "next/headers"
-import { adminAuth } from "./firebaseAdmin"
-import { adminDb } from "./firebaseAdmin"
+import { adminAuth } from "./firebase-admin"
+import { adminDb } from "./firebase-admin"
 
 /**
  * Unified user authentication and authorization helper

@@ -762,6 +762,31 @@ export default function SettingsPageInner() {
                           <motion.button
                             whileHover={{ scale: 1.02, y: -2 }}
                             whileTap={{ scale: 0.98 }}
+                            onClick={async () => {
+                              try {
+                                const { handleManageSubscription } = await import("@/lib/subscription");
+                                const result = await handleManageSubscription();
+                                
+                                if (result.noCustomer) {
+                                  toast({
+                                    title: "No active subscription",
+                                    description: "Redirecting to plans page...",
+                                  });
+                                  setTimeout(() => {
+                                    window.location.href = result.url;
+                                  }, 1500);
+                                  return;
+                                }
+                                
+                                window.location.href = result.url;
+                              } catch (err) {
+                                console.error(err);
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to access subscription settings. Please try again later.",
+                                });
+                              }
+                            }}
                             className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl font-semibold shadow-lg hover:from-emerald-700 hover:to-green-700 transition-all duration-300"
                           >
                             Manage Subscription
@@ -769,6 +794,56 @@ export default function SettingsPageInner() {
                           <motion.button
                             whileHover={{ scale: 1.02, y: -2 }}
                             whileTap={{ scale: 0.98 }}
+                            onClick={async () => {
+                              try {
+                                const [{ getInvoices }, { InvoiceDialog }] = await Promise.all([
+                                  import("@/lib/subscription"),
+                                  import("@/components/invoice-dialog"),
+                                ]);
+                                const response = await getInvoices();
+                                
+                                if (!response.invoices?.length) {
+                                  toast({
+                                    title: "No invoices available",
+                                    description: response.message || "You don't have any invoices yet.",
+                                  });
+                                  
+                                  if (response.redirectUrl) {
+                                    setTimeout(() => {
+                                      window.location.href = response.redirectUrl;
+                                    }, 1500);
+                                  }
+                                  return;
+                                }
+                                
+                                // Render dialog imperatively if there's a portal root
+                                const container = document.createElement("div");
+                                document.body.appendChild(container);
+                                const React = await import("react");
+                                const { createRoot } = await import("react-dom/client");
+                                const root = createRoot(container);
+                                const App = () => {
+                                  const [open, setOpen] = React.useState(true);
+                                  return (
+                                    <InvoiceDialog 
+                                      isOpen={open} 
+                                      onClose={() => { 
+                                        setOpen(false); 
+                                        setTimeout(() => root.unmount(), 0); 
+                                      }} 
+                                      invoices={response.invoices} 
+                                    />
+                                  );
+                                };
+                                root.render(React.createElement(App));
+                              } catch (err) {
+                                console.error(err);
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to load invoices. Please try again later.",
+                                });
+                              }
+                            }}
                             className="px-6 py-3 bg-white text-emerald-700 border-2 border-emerald-200 rounded-2xl font-semibold hover:bg-emerald-50 transition-all duration-300"
                           >
                             View Invoices
