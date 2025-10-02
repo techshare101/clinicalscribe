@@ -1,6 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { 
+      return isSignedIn() && 
+      (request.auth.token.role == "system-admin" || 
+       request.auth.token.role == "nurse-admin");
+    }
+    
     // Default deny all reads and writes
     match /{document=**} {
       allow read, write: if false;

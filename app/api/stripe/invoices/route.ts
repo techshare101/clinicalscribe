@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getFirestore } from "firebase-admin/firestore";
-import { initFirebaseAdmin } from "@/lib/firebase-admin";
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("Missing STRIPE_SECRET_KEY environment variable");
@@ -11,20 +10,28 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2023-10-16", // Using stable API version
 });
 
-// Initialize Firebase Admin if not already initialized
-initFirebaseAdmin();
-const db = getFirestore();
-
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const { uid } = await req.json();
-
-    if (!uid) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    // Get the auth token from the Authorization header
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Missing authorization header" }, { status: 401 });
     }
 
+    const token = authHeader.split("Bearer ")[1];
+    
+    // Verify the Firebase ID token
+    let decodedToken;
+    try {
+      decodedToken = await adminAuth.verifyIdToken(token);
+    } catch (error) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    const uid = decodedToken.uid;
+
     // Get the user's profile to find their Stripe customer ID
-    const profileDoc = await db.collection("users").doc(uid).get();
+    const profileDoc = await adminDb.collection("profiles").doc(uid).get();
     const profile = profileDoc.data();
     const stripeCustomerId = profile?.stripeCustomerId;
 

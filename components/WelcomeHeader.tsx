@@ -27,8 +27,8 @@ export function WelcomeHeader({ className }: WelcomeHeaderProps) {
   const displayName = profile?.displayName || profile?.email?.split("@")[0] || "Clinician";
 
   // Determine badge based on role
-  const isAdmin = profile?.role === "admin";
-  const role = isAdmin ? "Admin" : "Clinician";
+  const isAdmin = profile?.role === "system-admin" || profile?.role === "nurse-admin";
+  const roleDisplay = profile?.role === "system-admin" ? "System Admin" : profile?.role === "nurse-admin" ? "Nurse Admin" : "Nurse";
 
   return (
     <motion.div
@@ -58,8 +58,12 @@ export function WelcomeHeader({ className }: WelcomeHeaderProps) {
           
           <div className="flex flex-col md:flex-row items-end md:items-center gap-3">
             {/* Role badge */}
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${isAdmin ? 'bg-purple-500 text-white' : 'bg-blue-200 text-blue-800'}`}>
-              {role}
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+              profile?.role === "system-admin" ? 'bg-purple-500 text-white' : 
+              profile?.role === "nurse-admin" ? 'bg-emerald-500 text-white' : 
+              'bg-blue-200 text-blue-800'
+            }`}>
+              {roleDisplay}
             </span>
             
             {/* Date display */}

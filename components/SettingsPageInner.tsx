@@ -535,11 +535,13 @@ export default function SettingsPageInner() {
                           </label>
                           <div className="flex items-center gap-3">
                             <Badge className={`px-4 py-2 text-sm font-bold border-0 ${
-                              profile.role === 'admin' 
+                              profile.role === 'system-admin' 
                                 ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white' 
+                                : profile.role === 'nurse-admin'
+                                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white'
                                 : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
                             }`}>
-                              {profile.role === 'admin' ? '👑 Administrator' : '👤 User'}
+                              {profile.role === 'system-admin' ? '👑 System Administrator' : profile.role === 'nurse-admin' ? '🏥 Nurse Administrator' : '👤 Nurse'}
                             </Badge>
                             {profile.betaActive && (
                               <Badge className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0">

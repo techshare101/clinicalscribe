@@ -4,6 +4,7 @@ import Navigation from "@/components/Navigation"
 import Footer from "@/components/Footer"
 import "./globals.css"
 import Toaster from "@/components/Toaster"
+import RoleDebugger from "@/components/RoleDebugger"
 
 export const metadata: Metadata = {
   title: "ClinicalScribe",
@@ -23,6 +24,7 @@ export default function RootLayout({
         {children}
         <Footer />
         <Toaster />
+        <RoleDebugger />
       </body>
     </html>
   )

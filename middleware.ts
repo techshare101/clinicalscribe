@@ -13,8 +13,12 @@ export async function middleware(req: NextRequest) {
   const role = req.cookies.get("role")?.value;
 
   // Admin route check
-  if (isAdminRoute && role !== "admin") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+  if (isAdminRoute) {
+    // Check if user has any admin role
+    const hasAdminAccess = role === "system-admin" || role === "nurse-admin";
+    if (!hasAdminAccess) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
   }
 
   // Protected route check

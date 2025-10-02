@@ -32,6 +32,17 @@ export default function Navigation() {
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
 
+  // Debug logging
+  useEffect(() => {
+    if (!isLoading && profile) {
+      console.log('Navigation - Profile loaded:', { 
+        role: profile.role,
+        email: profile.email,
+        betaActive: profile.betaActive 
+      })
+    }
+  }, [profile, isLoading])
+
   // Prevent hydration mismatch by only showing dynamic content after hydration
   useEffect(() => {
     setIsHydrated(true)
@@ -40,8 +51,8 @@ export default function Navigation() {
   // Keep a lightweight cookie in sync for middleware checks
   useEffect(() => {
     if (typeof document === 'undefined') return
-    if (profile?.role === 'admin') {
-      document.cookie = `role=admin; Path=/; Max-Age=${60 * 60 * 24 * 7}` // 7 days
+    if (profile?.role === 'system-admin' || profile?.role === 'nurse-admin') {
+      document.cookie = `role=${profile.role}; Path=/; Max-Age=${60 * 60 * 24 * 7}` // 7 days
     } else {
       // Overwrite to clear for non-admin
       document.cookie = 'role=; Path=/; Max-Age=0'
@@ -68,7 +79,7 @@ export default function Navigation() {
 
   const handleTabClick = (e: React.MouseEvent, href: string) => {
     // Admin users have access to all tabs
-    if (profile?.role === 'admin') {
+    if (profile?.role === 'system-admin' || profile?.role === 'nurse-admin') {
       return; // Allow navigation
     }
     
@@ -88,7 +99,7 @@ export default function Navigation() {
   // Determine which nav items to show based on subscription status and role
   const getVisibleNavItems = () => {
     // Admin users see all items
-    if (profile?.role === 'admin') {
+    if (profile?.role === 'system-admin' || profile?.role === 'nurse-admin') {
       return [...allNavItems, ...publicNavItems]
     }
     
@@ -111,20 +122,40 @@ export default function Navigation() {
           <Link href="/" className="text-xl font-bold text-blue-600 hover:text-blue-700">
             ClinicalScribe
           </Link>
-          {isHydrated && !isLoading && profile?.role === 'admin' && (
+          {isHydrated && !isLoading && profile?.role && (
             <>
-              <Link
-                href="/admin"
-                className="text-sm font-semibold text-purple-700 hover:underline"
-              >
-                Admin Panel
-              </Link>
-              <span
-                title="You are signed in as an Admin. Elevated privileges enabled."
-                className="px-2 py-0.5 text-xs font-semibold text-white bg-purple-600 rounded-full shadow-sm"
-              >
-                Admin Mode
-              </span>
+              {profile.role === 'nurse-admin' && (
+                <>
+                  <Link
+                    href="/admin/dashboard"
+                    className="text-sm font-semibold text-indigo-700 hover:underline"
+                  >
+                    Training Tools
+                  </Link>
+                  <span
+                    title="You are signed in as a Nurse Admin. Training tools enabled."
+                    className="px-2 py-0.5 text-xs font-semibold text-white bg-indigo-600 rounded-full shadow-sm"
+                  >
+                    Nurse Admin
+                  </span>
+                </>
+              )}
+              {profile.role === 'system-admin' && (
+                <>
+                  <Link
+                    href="/admin/dashboard"
+                    className="text-sm font-semibold text-purple-700 hover:underline"
+                  >
+                    Admin Panel
+                  </Link>
+                  <span
+                    title="You are signed in as a System Admin. Full privileges enabled."
+                    className="px-2 py-0.5 text-xs font-semibold text-white bg-purple-600 rounded-full shadow-sm"
+                  >
+                    System Admin
+                  </span>
+                </>
+              )}
             </>
           )}
         </div>
@@ -134,7 +165,7 @@ export default function Navigation() {
           {visibleNavItems.map((item) => {
             const isActive = pathname === item.href
             // Admin users and beta users have access to all tabs
-            const isLocked = profile?.role !== 'admin' && !profile?.betaActive && item.href !== '/pricing' && item.href !== '/plans'
+            const isLocked = profile?.role !== 'system-admin' && profile?.role !== 'nurse-admin' && !profile?.betaActive && item.href !== '/pricing' && item.href !== '/plans'
             
             return (
               <div 
