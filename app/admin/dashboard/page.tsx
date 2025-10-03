@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import DemoAccountsAdmin from "@/components/DemoAccountsAdmin";
 import RoleManagementPanel from "@/components/RoleManagementPanel";
 import SeedSOAPHistoryDemo from "@/components/SeedSOAPHistoryDemo";
+import HealthcheckWidget from "@/components/HealthcheckWidget";
 import { useUserRole } from "@/hooks/useUserRole";
 import { withRoleGuard } from "@/lib/withRoleGuard";
 import { 
@@ -169,6 +170,11 @@ function AdminDashboardContent() {
                       {isSystemAdmin ? "Full" : "Limited"}
                     </p>
                   </div>
+                </div>
+
+                {/* System Health Check */}
+                <div className="mt-6">
+                  <HealthcheckWidget />
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-6">
