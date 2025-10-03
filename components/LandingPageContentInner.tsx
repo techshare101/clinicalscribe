@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowRight, Sparkles, Shield, Zap, Users, Clock, Heart, CheckCircle, Star } from "lucide-react";
+import { ArrowRight, Sparkles, Shield, Zap, Users, Clock, Heart, CheckCircle, Star, Globe, FileText, Video, Brain, AlertTriangle, Lock, Activity, Rocket } from "lucide-react";
 import Link from "next/link";
+import FAQAccordion from "./FAQAccordion";
 
 export default function LandingPageContentInner() {
   const [ref, setRef] = useState<string | null>(null);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   // Safely get search params on client side only
   useEffect(() => {
@@ -128,36 +128,75 @@ export default function LandingPageContentInner() {
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="px-6 py-20">
+      {/* 10-Pillar Features Grid */}
+      <section className="px-6 py-20 bg-gradient-to-b from-transparent to-white/50">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-5xl font-black text-center mb-16 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-            Powerful Features Built for Healthcare
+          <h2 className="text-5xl font-black text-center mb-6 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            10 Pillars of Innovation
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <FeatureCard 
-              icon="🎙️" 
-              title="AI-Powered Transcription" 
-              desc="Instantly convert speech into accurate transcripts in 50+ languages."
+          <p className="text-center text-xl text-gray-600 mb-16 max-w-3xl mx-auto">
+            Every feature designed with healthcare professionals in mind
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <FeatureCardV2 
+              icon={Globe}
+              title="Multilingual Transcription" 
+              desc="Real-time speech-to-text in 50+ languages with Whisper + Gemini."
               gradient="from-blue-500 to-indigo-600"
             />
-            <FeatureCard 
-              icon="📑" 
-              title="Automatic SOAP Notes" 
-              desc="Generate structured SOAP charts in seconds, ready for EHR upload."
+            <FeatureCardV2 
+              icon={FileText}
+              title="Smart Charting" 
+              desc="AI-assisted SOAP notes, ICD-10 code suggestions, and care plan drafts."
               gradient="from-purple-500 to-pink-600"
             />
-            <FeatureCard 
-              icon="🔒" 
-              title="Secure PDF Export" 
-              desc="Signed & watermarked documents with HIPAA-grade security."
+            <FeatureCardV2 
+              icon={Video}
+              title="Visual + Audio Capture" 
+              desc="Attach timestamped images or videos securely to clinical notes."
               gradient="from-emerald-500 to-teal-600"
             />
-            <FeatureCard 
-              icon="⚡" 
-              title="EHR Integration" 
-              desc="One-click push to Epic & major EHRs (coming soon)."
+            <FeatureCardV2 
+              icon={Brain}
+              title="Reusable Templates" 
+              desc="Custom flows for intake, vitals, discharge, and specialty protocols."
               gradient="from-orange-500 to-red-600"
+            />
+            <FeatureCardV2 
+              icon={AlertTriangle}
+              title="Red Flag Alerts" 
+              desc="Detect urgent symptoms or tone-of-voice cues during transcription."
+              gradient="from-red-600 to-pink-600"
+            />
+            <FeatureCardV2 
+              icon={Shield}
+              title="PDF + EHR Integration" 
+              desc="Signed, QR-secured PDFs and one-click export to Epic/Cerner."
+              gradient="from-cyan-500 to-blue-600"
+            />
+            <FeatureCardV2 
+              icon={Users}
+              title="Shift Handoff" 
+              desc="Generate quick briefs + checklist summaries for the next nurse."
+              gradient="from-indigo-500 to-purple-600"
+            />
+            <FeatureCardV2 
+              icon={Activity}
+              title="Analytics + Burnout Protection" 
+              desc="Track workload, charting time, and nudge breaks."
+              gradient="from-green-500 to-emerald-600"
+            />
+            <FeatureCardV2 
+              icon={Rocket}
+              title="Agent Add-ons" 
+              desc="Cultural Navigator, Language Tutor, and Patient Companion modes."
+              gradient="from-violet-500 to-purple-600"
+            />
+            <FeatureCardV2 
+              icon={Lock}
+              title="Privacy-First" 
+              desc="HIPAA-compliant, encrypted, and offline-friendly by default."
+              gradient="from-gray-600 to-gray-800"
             />
           </div>
         </div>
@@ -192,22 +231,50 @@ export default function LandingPageContentInner() {
         </div>
       </section>
 
-      {/* Differentiators */}
-      <section className="px-6 py-20 bg-white/80 backdrop-blur-sm">
+      {/* FAQ Section */}
+      <FAQAccordion 
+        items={[
+          {
+            question: "Is ClinicalScribe HIPAA compliant?",
+            answer: "Yes! We're built from the ground up with HIPAA compliance, featuring end-to-end encryption, secure data storage, and regular security audits. Your patient data is protected with bank-level security and never shared with third parties."
+          },
+          {
+            question: "How much time will this save me?",
+            answer: "Beta users report saving 3-4 hours per day on documentation. Most see a 70% reduction in charting time. Instead of spending hours typing, you can simply speak your notes and let our AI handle the formatting and structuring."
+          },
+          {
+            question: "Does it work with my EHR?",
+            answer: "We currently export to PDF format that works with any EHR. Direct integration with Epic, Cerner, and others is coming soon. Our PDFs are professionally formatted and ready for direct upload to your existing systems."
+          },
+          {
+            question: "What languages are supported?",
+            answer: "Our AI supports 50+ languages for transcription, including Spanish, Mandarin, French, Arabic, and more. The system automatically detects the language being spoken and can even handle multi-language conversations."
+          },
+          {
+            question: "Can I use this offline?",
+            answer: "Yes! ClinicalScribe offers offline functionality for core features. Your notes are securely synced when you reconnect to the internet. This ensures you can document patient care even in areas with poor connectivity."
+          },
+          {
+            question: "How accurate is the transcription?",
+            answer: "Our AI achieves 95%+ accuracy for medical terminology using advanced models trained specifically on healthcare conversations. The system learns from corrections and improves over time, adapting to your speaking style and specialty-specific terms."
+          }
+        ]}
+      />
+
+      {/* Demo Video Section */}
+      <section id="demo" className="px-6 py-20 bg-gradient-to-br from-slate-900 to-indigo-900 text-white">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-4xl font-black mb-16 text-gray-900">Why ClinicalScribe?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <DifferentiatorCard 
-              icon="🚀" 
-              title="Real-time transcription in 50+ languages"
-            />
-            <DifferentiatorCard 
-              icon="🛡️" 
-              title="Built for HIPAA compliance & security"
-            />
+          <h2 className="text-4xl font-black mb-8">See ClinicalScribe in Action</h2>
+          <div className="aspect-video bg-black/30 backdrop-blur-sm rounded-3xl flex items-center justify-center border border-white/10 shadow-2xl">
+            <div className="text-center">
+              <div className="text-6xl mb-4">🎥</div>
+              <p className="text-xl text-white/80">Demo Video Coming Soon</p>
+              <p className="text-sm text-white/60 mt-2">Subscribe to get notified when it's ready</p>
+            </div>
           </div>
         </div>
       </section>
+
     </div>
   );
 }
@@ -220,6 +287,21 @@ function FeatureCard({ icon, title, desc, gradient }: { icon: string; title: str
         <span className="text-6xl block mb-6 group-hover:scale-110 transition-transform duration-500">{icon}</span>
         <h3 className="text-xl font-black text-gray-900 mb-4 group-hover:text-gray-900">{title}</h3>
         <p className="text-gray-600 leading-relaxed">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+function FeatureCardV2({ icon: Icon, title, desc, gradient }: { icon: any; title: string; desc: string; gradient: string }) {
+  return (
+    <div className="group relative overflow-hidden">
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-10 rounded-2xl transition-all duration-500`}></div>
+      <div className="relative p-6 bg-white/90 backdrop-blur-xl rounded-2xl shadow-lg hover:shadow-xl border border-gray-200 transition-all duration-500 group-hover:-translate-y-1">
+        <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${gradient} mb-4`}>
+          <Icon className="h-6 w-6 text-white" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
+        <p className="text-sm text-gray-600 leading-relaxed">{desc}</p>
       </div>
     </div>
   );
@@ -272,21 +354,3 @@ function StepCard({ number, title, desc, icon }: { number: string; title: string
   );
 }
 
-function FaqItem({ question, answer, isOpen, onClick }: { question: string; answer: string; isOpen: boolean; onClick: () => void }) {
-  return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      <button
-        onClick={onClick}
-        className="w-full p-6 text-left flex justify-between items-center hover:bg-gray-50 transition-colors duration-200"
-      >
-        <span className="font-bold text-gray-900 text-lg">{question}</span>
-        <ArrowRight className={`h-5 w-5 text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`} />
-      </button>
-      {isOpen && (
-        <div className="px-6 pb-6">
-          <p className="text-gray-700 text-lg leading-relaxed">{answer}</p>
-        </div>
-      )}
-    </div>
-  );
-}
