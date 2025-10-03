@@ -1,8 +1,10 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Navigation } from "@/components/Navigation"
+import Navigation from "@/components/Navigation"
+import Footer from "@/components/Footer"
 import "./globals.css"
 import Toaster from "@/components/Toaster"
+import RoleDebugger from "@/components/RoleDebugger"
 
 export const metadata: Metadata = {
   title: "ClinicalScribe",
@@ -20,7 +22,9 @@ export default function RootLayout({
       <body>
         <Navigation />
         {children}
+        <Footer />
         <Toaster />
+        {process.env.NODE_ENV === "development" && <RoleDebugger />}
       </body>
     </html>
   )

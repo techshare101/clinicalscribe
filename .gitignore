@@ -29,3 +29,4 @@ dist/
 Thumbs.db
 
 certificates
+.vercel

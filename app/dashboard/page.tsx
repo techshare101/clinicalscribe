@@ -1,386 +1,435 @@
-"use client";
+"use client"
 
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
+import { useProfile } from "@/hooks/useProfile"
+import PaywallCard from "@/components/PaywallCard"
+import { useState, useEffect } from "react"
+import { motion } from "framer-motion"
+import { 
+  CheckCircle, 
+  AlertCircle, 
+  FileSpreadsheet, 
+  Filter,
+  Clock,
+  UserCheck,
+  BarChart3,
+  Shield,
+  Mic,
+  FileText,
+  Play,
+  Plus,
+  RefreshCw
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { DashboardCard } from "@/components/DashboardCard"
+import { WelcomeHeader } from "@/components/WelcomeHeader"
+import { DashboardDataProvider, useDashboardData } from "@/components/DashboardDataProvider"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 
-import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
-import { EhrStatusBadge } from "@/components/EhrStatusBadge";
-import { useBetaAccess } from "@/hooks/useBetaAccess";
-import PaywallCard from "@/components/PaywallCard";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Activity, FileText, Users, Calendar, TrendingUp } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-
-export default function DashboardPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { toast } = useToast();
-  const [authChecked, setAuthChecked] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const { isLoading: isBetaLoading, hasBetaAccess, needsUpgrade } = useBetaAccess();
-  const [stats, setStats] = useState({
-    totalNotes: 0,
-    uniquePatients: 0,
-    notesThisWeek: 0,
-    pdfGenerated: 0
-  });
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [checkoutHandled, setCheckoutHandled] = useState(false);
-
+// Add hydration state to prevent SSR mismatch
+function useHydration() {
+  const [hydrated, setHydrated] = useState(false)
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      setAuthChecked(true);
-      if (!u) return;
-      try {
-        setLoadingProfile(true);
-        const ref = doc(db, "profiles", u.uid);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          setProfile(snap.data());
-        } else {
-          // Create a default profile for new users
-          const initial = {
-            uid: u.uid,
-            email: u.email || null,
-            displayName: u.displayName || (u.email ? u.email.split("@")[0] : "New User"),
-            betaActive: false,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          };
-          await setDoc(ref, initial, { merge: true });
-          const fresh = await getDoc(ref);
-          setProfile(fresh.exists() ? fresh.data() : initial);
-        }
-      } catch (e) {
-        setProfile(null);
-        setErrorMsg("Failed to load your profile. This may be due to Firestore rules or missing indexes.");
-      } finally {
-        setLoadingProfile(false);
-      }
-    });
-    return () => unsub();
-  }, []);
+    setHydrated(true)
+  }, [])
+  return hydrated
+}
 
-  useEffect(() => {
-    if (authChecked && !user) {
-      // Not logged in, redirect to signup
-      router.push("/auth/signup");
-    }
-  }, [authChecked, user, router]);
+// Mock data for Admin Actions (not in Firestore)
+const mockAdminActions = [
+  { id: 1, action: "Approve Note", count: 3, icon: CheckCircle, color: "text-green-500" },
+  { id: 2, action: "Flag for Review", count: 1, icon: AlertCircle, color: "text-yellow-500" },
+  { id: 3, action: "Export to PDF", count: 5, icon: FileSpreadsheet, color: "text-blue-500" },
+]
 
-  // Handle checkout redirect toast notifications
-  useEffect(() => {
-    if (!searchParams || checkoutHandled) return;
-    
-    const checkoutStatus = searchParams.get("checkout");
-    const activated = searchParams.get("activated");
-    const pending = searchParams.get("pending");
-    
-    if (checkoutStatus && !checkoutHandled) {
-      setCheckoutHandled(true);
-      
-      // Small delay to ensure page has loaded
-      setTimeout(() => {
-        if (checkoutStatus === "success") {
-          if (activated === "true") {
-            // Beta access confirmed by webhook
-            toast({
-              title: "🎉 Payment Successful!",
-              description: "Your Beta access has been activated. Welcome to ClinicalScribe!",
-              variant: "default",
-            });
-          } else if (pending === "true") {
-            // Webhook still processing
-            toast({
-              title: "✅ Payment Received",
-              description: "Your payment is being processed. Beta access will activate shortly.",
-              variant: "default",
-            });
-          } else {
-            // Standard success message
-            toast({
-              title: "✅ Payment Successful",
-              description: "Your subscription is being activated.",
-              variant: "default",
-            });
-          }
-        } else if (checkoutStatus === "cancel") {
-          toast({
-            title: "❌ Payment Canceled",
-            description: "No charges were made. You can try again anytime.",
-            variant: "destructive",
-          });
-        }
-        
-        // Clean URL after showing toast
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-      }, 500);
-    }
-  }, [searchParams, checkoutHandled, toast]);
+// Dashboard content component that uses the dashboard data context
+function DashboardContent() {
+  const { patients, transcriptions, analytics, auditLogs, loading, error, mode } = useDashboardData();
+  const [viewMode, setViewMode] = useState<"summary" | "soap">("summary")
+  const [filter, setFilter] = useState<string>("all")
 
-  // Fetch dashboard statistics
-  useEffect(() => {
-    if (!user?.uid) return;
-    
-    async function fetchStats() {
-      try {
-        setLoadingStats(true);
-        
-        // Get total SOAP notes
-        const notesQuery = query(
-          collection(db, 'soapNotes'),
-          where('uid', '==', user!.uid)
-        );
-        const notesSnapshot = await getDocs(notesQuery);
-        const totalNotes = notesSnapshot.size;
-        
-        // Count unique patients
-        const patientIds = new Set();
-        notesSnapshot.forEach(doc => {
-          const data = doc.data();
-          if (data.patientId) {
-            patientIds.add(data.patientId);
-          }
-        });
-        const uniquePatients = patientIds.size;
-        
-        // Count notes this week
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        
-        let notesThisWeek = 0;
-        let pdfGenerated = 0;
-        
-        notesSnapshot.forEach(doc => {
-          const data = doc.data();
-          const createdAt = data.createdAt;
-          
-          // Check if created this week
-          if (createdAt && createdAt.toDate && createdAt.toDate() > oneWeekAgo) {
-            notesThisWeek++;
-          }
-          
-          // Check if has PDF
-          if (data.storagePath || data.pdf?.status === 'generated') {
-            pdfGenerated++;
-          }
-        });
-        
-        setStats({
-          totalNotes,
-          uniquePatients,
-          notesThisWeek,
-          pdfGenerated
-        });
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-      } finally {
-        setLoadingStats(false);
-      }
-    }
-    
-    fetchStats();
-  }, [user]);
-
-  if (!authChecked || (user && loadingProfile)) {
+  // Show loading state if data is loading
+  if (loading) {
     return (
-      <main className="p-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-gray-600 mt-2">Loading your account…</p>
-      </main>
-    );
-  }
-
-  if (!user) {
-    // Brief placeholder before redirect
-    return (
-      <main className="p-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-gray-600 mt-2">Redirecting…</p>
-      </main>
-    );
-  }
-
-  if (errorMsg) {
-    return (
-      <main className="p-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-red-700">
-          {errorMsg}
+      <div className="flex justify-center py-12">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500/20 border-t-blue-500" />
+          <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 border border-blue-300/30" />
+          <div className="absolute inset-2 animate-pulse rounded-full bg-blue-100" />
         </div>
-      </main>
-    );
+      </div>
+    )
   }
-
-  const displayName = profile?.displayName || user.displayName || "new user";
 
   return (
-    <main className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-2">Welcome back, {displayName}.</p>
-      </div>
-      
-      <div className="mb-6">
-        <EhrStatusBadge />
-      </div>
-
-      {/* Beautiful Hero Stats - Always Show */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none shadow-xl">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-100 text-sm font-medium">Total Patients</p>
-                <p className="text-3xl font-bold">{loadingStats ? '...' : stats.uniquePatients || 324}</p>
-              </div>
-              <Users className="h-8 w-8 text-blue-200" />
-            </div>
-            <div className="mt-4 flex items-center text-blue-100">
-              <TrendingUp className="h-4 w-4 mr-1" />
-              <span className="text-sm">+12% this month</span>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-none shadow-xl">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-100 text-sm font-medium">PDF Reports</p>
-                <p className="text-3xl font-bold">{loadingStats ? '...' : stats.pdfGenerated || 87}</p>
-              </div>
-              <FileText className="h-8 w-8 text-green-200" />
-            </div>
-            <div className="mt-4 flex items-center text-green-100">
-              <TrendingUp className="h-4 w-4 mr-1" />
-              <span className="text-sm">+24% this week</span>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-none shadow-xl">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-100 text-sm font-medium">SOAP Notes</p>
-                <p className="text-3xl font-bold">{loadingStats ? '...' : stats.totalNotes || 156}</p>
-              </div>
-              <Activity className="h-8 w-8 text-purple-200" />
-            </div>
-            <div className="mt-4 flex items-center text-purple-100">
-              <TrendingUp className="h-4 w-4 mr-1" />
-              <span className="text-sm">+8% this week</span>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-none shadow-xl">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-orange-100 text-sm font-medium">Sessions</p>
-                <p className="text-3xl font-bold">{loadingStats ? '...' : stats.notesThisWeek * 3 || 42}</p>
-              </div>
-              <Calendar className="h-8 w-8 text-orange-200" />
-            </div>
-            <div className="mt-4 flex items-center text-orange-100">
-              <TrendingUp className="h-4 w-4 mr-1" />
-              <span className="text-sm">+18% this week</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Beta Access Check */}
-      {needsUpgrade && (
-        <div className="max-w-2xl mx-auto mb-8">
-          <PaywallCard 
-            title="Unlock Full ClinicalScribe Features"
-            description="Upgrade to access unlimited transcriptions, advanced SOAP templates, and premium EHR integration."
-            className=""
-          />
+    <>
+      {/* Demo Mode Badge */}
+      {mode === "demo" && (
+        <div className="mb-6">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+            <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+            Demo Mode
+          </span>
+          <p className="mt-1 text-sm text-gray-600">
+            Showing sample data. Real patient data will appear here when available.
+          </p>
         </div>
       )}
 
-      <div className="space-y-8">
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Notes</CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{loadingStats ? '...' : stats.totalNotes}</div>
-                <p className="text-xs text-muted-foreground">SOAP notes created</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Patients</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{loadingStats ? '...' : stats.uniquePatients}</div>
-                <p className="text-xs text-muted-foreground">Unique patients</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">This Week</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{loadingStats ? '...' : stats.notesThisWeek}</div>
-                <p className="text-xs text-muted-foreground">Notes this week</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">PDFs Generated</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{loadingStats ? '...' : stats.pdfGenerated}</div>
-                <p className="text-xs text-muted-foreground">Documents ready</p>
-              </CardContent>
-            </Card>
+      {/* Quick Launch Cards */}
+      <motion.div 
+        className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.5 }}
+      >
+        {/* Quick Transcription Launch */}
+        <DashboardCard 
+          title="Quick Transcription" 
+          description="Start a new voice recording session"
+          badge={{ text: "🎙️ RECORD", variant: "destructive" }}
+          className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white border-0 shadow-2xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-500 relative overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjMwIiBjeT0iMzAiIHI9IjMiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI3BhdHRlcm4pIi8+PC9zdmc+')] opacity-20"></div>
+          <div className="flex flex-col items-center justify-center p-6 relative z-10">
+            <div className="relative mb-4">
+              <div className="absolute inset-0 bg-white/30 rounded-full blur-md animate-pulse"></div>
+              <Link href="/transcription">
+                <Button 
+                  size="lg" 
+                  className="relative h-24 w-24 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 group shadow-red-500/30"
+                >
+                  <Mic className="h-10 w-10 text-white group-hover:text-white/90 transition-colors duration-300" />
+                </Button>
+              </Link>
+            </div>
+            <p className="text-white/90 text-center mt-2 font-medium">
+              Click to start recording a new patient encounter
+            </p>
+            <div className="mt-4 flex items-center text-white/80 text-sm">
+              <Play className="h-4 w-4 mr-1 animate-pulse text-white" />
+              <span>Ready to record</span>
+            </div>
           </div>
+        </DashboardCard>
 
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Start documenting patient encounters</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-3">
-              <Button asChild>
-                <a href="/transcription">🎤 Start Recording</a>
+        {/* Quick SOAP Note Launch */}
+        <DashboardCard 
+          title="Quick SOAP Note" 
+          description="Create a manual SOAP note"
+          badge={{ text: "📝 WRITE", variant: "default" }}
+          className="bg-gradient-to-br from-green-600 via-emerald-600 to-teal-700 text-white border-0 shadow-2xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-500 relative overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjMwIiBjeT0iMzAiIHI9IjMiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI3BhdHRlcm4pIi8+PC9zdmc+')] opacity-20"></div>
+          <div className="flex flex-col items-center justify-center p-6 relative z-10">
+            <div className="relative mb-4">
+              <div className="absolute inset-0 bg-white/30 rounded-full blur-md animate-pulse"></div>
+              <Link href="/soap-entry">
+                <Button 
+                  size="lg" 
+                  className="relative h-24 w-24 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 group shadow-green-500/30"
+                >
+                  <FileText className="h-10 w-10 text-white group-hover:text-white/90 transition-colors duration-300" />
+                </Button>
+              </Link>
+            </div>
+            <p className="text-white/90 text-center mt-2 font-medium">
+              Click to create a new manual SOAP note
+            </p>
+            <div className="mt-4 flex items-center text-white/80 text-sm">
+              <Plus className="h-4 w-4 mr-1 text-white" />
+              <span>New note</span>
+            </div>
+          </div>
+        </DashboardCard>
+      </motion.div>
+
+      {/* Dashboard Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Patient Queue Overview */}
+        <DashboardCard 
+          title="Patient Queue Overview" 
+          description="Real-time status tracking of patients"
+          badge={{ text: "LIVE", variant: "default" }}
+        >
+          <div className="space-y-4">
+            {patients.map((patient, index) => (
+              <motion.div 
+                key={patient.id} 
+                className="flex items-center justify-between p-4 bg-white/50 rounded-xl border border-white/50 hover:bg-white/70 transition-all duration-300 backdrop-blur-sm shadow-sm hover:shadow-md"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-800">{patient.name}</span>
+                    <Badge 
+                      variant={patient.priority === "High" ? "destructive" : patient.priority === "Medium" ? "default" : "secondary"}
+                      className="text-xs px-2 py-1 rounded-full"
+                    >
+                      {patient.priority}
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1 flex items-center">
+                    <UserCheck className="h-4 w-4 mr-1" />
+                    {patient.room} • {patient.formattedTime}
+                  </div>
+                </div>
+                <Badge 
+                  variant={patient.status === "Signed" ? "default" : "secondary"}
+                  className="text-xs px-2 py-1 rounded-full"
+                >
+                  {patient.status}
+                </Badge>
+              </motion.div>
+            ))}
+          </div>
+        </DashboardCard>
+
+        {/* Summary Feed */}
+        <DashboardCard 
+          title="Summary Feed" 
+          description="Last 5 transcriptions"
+          badge={{ text: "REAL-TIME", variant: "default" }}
+        >
+          <div className="space-y-4">
+            {/* Toggle Buttons */}
+            <div className="flex gap-2">
+              <Button 
+                variant={viewMode === "summary" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setViewMode("summary")}
+                className="rounded-full px-4 transition-all duration-300"
+              >
+                Summary
               </Button>
-              <Button variant="outline" asChild>
-                <a href="/soap">📝 Create SOAP Note</a>
+              <Button 
+                variant={viewMode === "soap" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setViewMode("soap")}
+                className="rounded-full px-4 transition-all duration-300"
+              >
+                SOAP
               </Button>
-              <Button variant="outline" asChild>
-                <a href="/soap-history">📋 View History</a>
+            </div>
+            
+            {/* Transcription List */}
+            <div className="space-y-3">
+              {transcriptions
+                .filter(item => filter === "all" || item.type?.toLowerCase() === filter)
+                .slice(0, 5)
+                .map((item, index) => (
+                  <motion.div 
+                    key={item.id} 
+                    className="p-4 bg-white/50 rounded-xl border border-white/50 hover:bg-white/70 transition-all duration-300 backdrop-blur-sm shadow-sm hover:shadow-md"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-medium text-gray-800 flex items-center">
+                          <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                          {item.patient}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1 line-clamp-2">{item.content}</div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs px-2 py-1 rounded-full">
+                        {item.type}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-2 flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {item.formattedTime}
+                    </div>
+                  </motion.div>
+                ))}
+            </div>
+          </div>
+        </DashboardCard>
+
+        {/* Triage Analytics */}
+        <DashboardCard 
+          title="Triage Analytics" 
+          description="Daily metrics and performance indicators"
+          badge={{ text: "ANALYTICS", variant: "default" }}
+        >
+          <div className="space-y-4">
+            {analytics.map((metric, index) => (
+              <div key={metric.id}>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-700 flex items-center">
+                    <BarChart3 className="h-4 w-4 mr-2 text-indigo-500" />
+                    {metric.metric}
+                  </span>
+                  <span className="text-sm font-medium text-gray-900">{metric.value}{metric.unit} / {metric.target}{metric.unit}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <motion.div 
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full" 
+                    style={{ width: `${(metric.value / metric.target) * 100}%` }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(metric.value / metric.target) * 100}%` }}
+                    transition={{ duration: 1, delay: index * 0.2 }}
+                  ></motion.div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DashboardCard>
+
+        {/* Audit Trail */}
+        <DashboardCard 
+          title="Audit Trail" 
+          description="Complete activity log"
+          badge={{ text: "SECURE", variant: "default" }}
+        >
+          <div className="space-y-4">
+            {/* Filter Controls */}
+            <div className="flex gap-2 flex-wrap">
+              <Button 
+                variant={filter === "all" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setFilter("all")}
+                className="rounded-full px-4 transition-all duration-300"
+              >
+                <Filter className="w-4 h-4 mr-1" />
+                All
               </Button>
-            </CardContent>
-          </Card>
-        </div>
-    </main>
+              <Button 
+                variant={filter === "summary" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setFilter("summary")}
+                className="rounded-full px-4 transition-all duration-300"
+              >
+                Summary
+              </Button>
+              <Button 
+                variant={filter === "soap" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setFilter("soap")}
+                className="rounded-full px-4 transition-all duration-300"
+              >
+                SOAP
+              </Button>
+            </div>
+            
+            {/* Audit Log List */}
+            <div className="space-y-3">
+              {auditLogs.map((log, index) => (
+                <motion.div 
+                  key={log.id} 
+                  className="p-4 bg-white/50 rounded-xl border border-white/50 hover:bg-white/70 transition-all duration-300 backdrop-blur-sm shadow-sm hover:shadow-md"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <div className="flex justify-between">
+                    <div>
+                      <div className="font-medium text-gray-800 flex items-center">
+                        <Shield className="h-4 w-4 mr-2 text-amber-500" />
+                        {log.user}
+                      </div>
+                      <div className="text-sm text-gray-600">{log.action} • {log.patient}</div>
+                    </div>
+                    <div className="text-xs text-gray-400 flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {log.formattedTime}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </DashboardCard>
+
+        {/* Admin Actions */}
+        <DashboardCard 
+          title="Admin Actions" 
+          description="Quick controls and oversight"
+          className="md:col-span-2"
+          badge={{ text: "ADMIN", variant: "destructive" }}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {mockAdminActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <motion.div 
+                  key={action.id} 
+                  className="flex items-center p-4 bg-white/50 rounded-xl border border-white/50 hover:bg-white/70 transition-all duration-300 backdrop-blur-sm shadow-sm hover:shadow-md"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <div className={`p-3 rounded-xl bg-gradient-to-br ${action.color.replace('text-', 'from-').replace('-500', '-100')} to-white mr-4`}>
+                    <Icon className={`w-6 h-6 ${action.color}`} />
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-800">{action.action}</div>
+                    <div className="text-2xl font-bold text-gray-900">{action.count}</div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </DashboardCard>
+      </div>
+    </>
   );
+}
+
+export default function DashboardPage() {
+  const hydrated = useHydration()
+  const { profile, isLoading } = useProfile()
+  const router = useRouter()
+
+  // Dev override: always show dashboard
+  const devOverride = process.env.NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS === "true"
+
+  // Show loading state until hydrated
+  if (!hydrated) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500/20 border-t-blue-500" />
+          <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 border border-blue-300/30" />
+          <div className="absolute inset-2 animate-pulse rounded-full bg-blue-100" />
+        </div>
+      </div>
+    )
+  }
+
+  // Show paywall if user doesn't have active subscription AND no dev override
+  if (!devOverride && !isLoading && profile && !profile.betaActive) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <PaywallCard />
+        </div>
+      </div>
+    )
+  }
+
+  // Show full dashboard if admin OR has active plan OR dev override
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+      {/* Floating background elements for glassmorphism effect */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-10 left-10 w-72 h-72 bg-blue-300/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+        <div className="absolute top-1/3 right-1/3 w-80 h-80 bg-indigo-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }} />
+      </div>
+      
+      <div className="container mx-auto px-4 py-8 max-w-6xl relative">
+        {/* Welcome Header */}
+        <WelcomeHeader />
+        
+        {/* Dashboard Data Provider with Dashboard Content */}
+        <DashboardDataProvider>
+          <DashboardContent />
+        </DashboardDataProvider>
+      </div>
+    </div>
+  )
 }

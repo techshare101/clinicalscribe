@@ -30,78 +30,106 @@ export async function POST(req: NextRequest) {
     
     console.log(`[PDF Render] HTML content received (${html.length} characters)`)
     
-    // 🖥 Launch browser
-    console.log('[PDF Render] Launching browser...')
+    // Set a timeout for the entire operation
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('PDF generation timeout - took longer than 45 seconds')), 45000)
+    })
     
-    let browser
-    if (process.env.NODE_ENV === 'production') {
-      const puppeteerCore = await import('puppeteer-core')
-      browser = await puppeteerCore.default.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: true,
-      })
-    } else {
-      const puppeteer = await import('puppeteer')
-      browser = await puppeteer.default.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      })
+    // Main PDF generation promise
+    const pdfGenerationPromise = async () => {
+      // 🖥 Launch browser
+      console.log('[PDF Render] Launching browser...')
+      
+      let browser
+      if (process.env.NODE_ENV === 'production') {
+        const puppeteerCore = await import('puppeteer-core')
+        browser = await puppeteerCore.default.launch({
+          args: chromium.args,
+          defaultViewport: chromium.defaultViewport,
+          executablePath: await chromium.executablePath(),
+          headless: true,
+        })
+      } else {
+        const puppeteer = await import('puppeteer')
+        browser = await puppeteer.default.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        })
+      }
+      
+      console.log('[PDF Render] Browser launched successfully')
+      
+      try {
+        // Generate PDF with more lenient wait options
+        const page = await browser.newPage()
+        
+        // Set a reasonable timeout for page operations
+        page.setDefaultTimeout(30000)
+        
+        // Use a more efficient wait strategy
+        await page.setContent(html, { 
+          waitUntil: ['domcontentloaded'] // Faster than networkidle0
+        })
+        
+        const pdfBuffer = await page.pdf({ 
+          format: 'A4', 
+          printBackground: true,
+          margin: {
+            top: '20px',
+            right: '20px',
+            bottom: '20px',
+            left: '20px'
+          }
+        })
+        
+        await browser.close()
+        console.log(`[PDF Render] PDF generated successfully (${pdfBuffer.length} bytes)`)
+        
+        // ☁️ Upload to Firebase Storage using centralized adminBucket
+        console.log('[PDF Render] Uploading to Firebase Storage...')
+        const filePath = `pdfs/${ownerId}/${timestamp}.pdf`
+        const file = adminBucket.file(filePath)
+        
+        await file.save(pdfBuffer, { 
+          metadata: {
+            contentType: 'application/pdf',
+            metadata: {
+              ownerId,
+              createdAt: new Date().toISOString(),
+            }
+          }
+        })
+        
+        console.log(`[PDF Render] Successfully uploaded to ${filePath}`)
+        
+        // 🔗 Generate signed URL
+        console.log('[PDF Render] Generating signed URL...')
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 1000 * 60 * 60, // 1 hour
+        })
+        
+        console.log('[PDF Render] Signed URL generated successfully')
+        
+        return { 
+          success: true, 
+          url: signedUrl,
+          filePath,
+          timestamp 
+        }
+      } catch (pageError) {
+        // Ensure browser is closed even if an error occurs
+        if (browser) {
+          await browser.close().catch(err => console.error('[PDF Render] Error closing browser:', err))
+        }
+        throw pageError
+      }
     }
     
-    console.log('[PDF Render] Browser launched successfully')
+    // Race the PDF generation against the timeout
+    const result = await Promise.race([pdfGenerationPromise(), timeoutPromise])
     
-    // Generate PDF
-    const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0' })
-    
-    const pdfBuffer = await page.pdf({ 
-      format: 'A4', 
-      printBackground: true,
-      margin: {
-        top: '20px',
-        right: '20px',
-        bottom: '20px',
-        left: '20px'
-      }
-    })
-    
-    await browser.close()
-    console.log(`[PDF Render] PDF generated successfully (${pdfBuffer.length} bytes)`)
-    
-    // ☁️ Upload to Firebase Storage using centralized adminBucket
-    console.log('[PDF Render] Uploading to Firebase Storage...')
-    const filePath = `pdfs/${ownerId}/${timestamp}.pdf`
-    const file = adminBucket.file(filePath)
-    
-    await file.save(pdfBuffer, { 
-      metadata: {
-        contentType: 'application/pdf',
-        metadata: {
-          ownerId,
-          createdAt: new Date().toISOString(),
-        }
-      }
-    })
-    
-    console.log(`[PDF Render] Successfully uploaded to ${filePath}`)
-    
-    // 🔗 Generate signed URL
-    console.log('[PDF Render] Generating signed URL...')
-    const [signedUrl] = await file.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 1000 * 60 * 60, // 1 hour
-    })
-    
-    console.log('[PDF Render] Signed URL generated successfully')
-    
-    return NextResponse.json({ 
-      success: true, 
-      url: signedUrl,
-      filePath,
-      timestamp 
-    })
+    return NextResponse.json(result)
     
   } catch (error: any) {
     console.error('[PDF Render] Error occurred:', {

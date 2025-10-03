@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebaseAdmin'
 
+export const runtime = "nodejs"; // ✅ force Node.js runtime
+
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get('authorization') || ''

@@ -36,7 +36,7 @@ async function assertOwnershipOrAdmin({
 
   const [top, owner] = normalized.split('/')
   const isOwner = owner === uid
-  const isAdmin = role === 'admin'
+  const isAdmin = role === 'system-admin' || role === 'nurse-admin'
   if (!isOwner && !isAdmin) {
     const err: any = new Error('forbidden')
     err.status = 403

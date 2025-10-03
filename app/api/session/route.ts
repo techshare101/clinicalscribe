@@ -7,10 +7,19 @@ export async function POST(req: Request) {
   try {
     console.log('🔄 Session API: Request received');
     
-    const { idToken } = await req.json()
+    let requestData;
+    try {
+      requestData = await req.json();
+      console.log('📝 Session API: Request data keys:', Object.keys(requestData));
+    } catch (parseError: any) {
+      console.error('❌ Session API: Failed to parse request body:', parseError.message);
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+    }
+    
+    const { idToken } = requestData;
     if (!idToken) {
       console.error('❌ Session API: Missing idToken in request');
-      return NextResponse.json({ error: 'Missing idToken' }, { status: 400 })
+      return NextResponse.json({ error: 'Missing idToken' }, { status: 400 });
     }
     
     console.log('🔐 Session API: Verifying ID token...');
@@ -38,6 +47,7 @@ export async function POST(req: Request) {
     
     let sessionCookie;
     try {
+      console.log('🔧 Session API: About to call createSessionCookie');
       sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
       console.log('✅ Session API: Session cookie created successfully');
       console.log('Cookie length:', sessionCookie?.length || 0);
@@ -47,6 +57,10 @@ export async function POST(req: Request) {
         code: cookieError.code,
         userId: decodedToken?.uid
       });
+      // Log additional details about the error
+      if (cookieError.stack) {
+        console.error('Error stack:', cookieError.stack);
+      }
       return NextResponse.json({ 
         error: `Session cookie creation failed: ${cookieError.message}` 
       }, { status: 500 });
@@ -74,10 +88,10 @@ export async function POST(req: Request) {
     }, { status: 500 })
   }
 }
+
 export async function GET() {
   return NextResponse.json({ ok: true })
 }
-
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true })

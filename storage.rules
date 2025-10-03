@@ -2,7 +2,11 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function isSignedIn() { return request.auth != null; }
-    function isAdmin() { return isSignedIn() && request.auth.token.role == "admin"; }
+    function isAdmin() { 
+      return isSignedIn() && 
+      (request.auth.token.role == "system-admin" || 
+       request.auth.token.role == "nurse-admin");
+    }
 
     // private user folders
     match /recordings/{uid}/{allPaths=**} {
