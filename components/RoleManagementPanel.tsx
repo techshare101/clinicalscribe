@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Shield, ShieldAlert, ShieldCheck, Loader2, RefreshCw, ChevronDown } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
+import DemoUnlockBetaButton from "@/components/DemoUnlockBetaButton";
 
 type User = {
   uid: string;
@@ -192,14 +193,24 @@ export default function RoleManagementPanel() {
                       <div className="text-xs text-gray-500 mt-1">{roleInfo.description}</div>
                     </td>
                     <td className="py-3">
-                      <div className="text-sm">
-                        {user.betaActive ? (
-                          <span className="text-green-600 font-medium">Pro Active</span>
-                        ) : (
-                          <span className="text-gray-500">Free</span>
-                        )}
-                        {user.subscriptionStatus && (
-                          <div className="text-xs text-gray-500">{user.subscriptionStatus}</div>
+                      <div className="space-y-2">
+                        <div className="text-sm">
+                          {user.betaActive ? (
+                            <span className="text-green-600 font-medium">Pro Active</span>
+                          ) : (
+                            <span className="text-gray-500">Free</span>
+                          )}
+                          {user.subscriptionStatus && (
+                            <div className="text-xs text-gray-500">{user.subscriptionStatus}</div>
+                          )}
+                        </div>
+                        {/* Demo Unlock button for admins */}
+                        {canEditRoles && (
+                          <DemoUnlockBetaButton 
+                            uid={user.uid} 
+                            email={user.email}
+                            currentBetaStatus={user.betaActive}
+                          />
                         )}
                       </div>
                     </td>
