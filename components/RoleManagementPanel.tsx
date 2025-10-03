@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Shield, ShieldAlert, ShieldCheck, Loader2, RefreshCw, ChevronDown } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
-import DemoUnlockBetaButton from "@/components/DemoUnlockBetaButton";
+import BetaAccessToggle from "@/components/BetaAccessToggle";
 
 type User = {
   uid: string;
@@ -204,12 +204,12 @@ export default function RoleManagementPanel() {
                             <div className="text-xs text-gray-500">{user.subscriptionStatus}</div>
                           )}
                         </div>
-                        {/* Demo Unlock button for admins */}
+                        {/* Beta access toggle for admins */}
                         {canEditRoles && (
-                          <DemoUnlockBetaButton 
+                          <BetaAccessToggle 
                             uid={user.uid} 
                             email={user.email}
-                            currentBetaStatus={user.betaActive}
+                            currentBetaStatus={user.betaActive || false}
                           />
                         )}
                       </div>
