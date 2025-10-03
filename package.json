@@ -25,7 +25,10 @@
     "test-firebase": "tsx --env-file=.env.local scripts/test-firebase.ts",
     "check-soap-notes": "tsx --env-file=.env.local scripts/check-soap-notes.ts",
     "clear-demo": "tsx --env-file=.env.local scripts/seed-demo.ts clear",
-    "backfill-stripe": "tsx --env-file=.env.local scripts/backfill-stripe-customers.ts"
+    "backfill-stripe": "tsx --env-file=.env.local scripts/backfill-stripe-customers.ts",
+    "roles:list": "ts-node scripts/listRoles.ts",
+    "roles:change": "ts-node scripts/changeRole.ts",
+    "roles:admins": "ts-node scripts/listRoles.ts --role system-admin"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",

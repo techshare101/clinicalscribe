@@ -2,7 +2,7 @@
 
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { auth } from "@/lib/firebase";
 
 export default function RoleDebugger() {
@@ -10,6 +10,31 @@ export default function RoleDebugger() {
   const { user, loading: authLoading } = useAuth();
   const [idToken, setIdToken] = useState<string>("");
   const [showToken, setShowToken] = useState(false);
+  const [isOpen, setIsOpen] = useState(() => {
+    // Check localStorage for saved state
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('roleDebuggerOpen');
+      return saved === 'true';
+    }
+    return false;
+  });
+
+  // Save state to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('roleDebuggerOpen', isOpen.toString());
+  }, [isOpen]);
+
+  // Add keyboard shortcut (Escape to close)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
   const refreshToken = async () => {
     if (auth.currentUser) {
@@ -22,9 +47,63 @@ export default function RoleDebugger() {
     return <div className="p-4 bg-gray-100 rounded">Loading...</div>;
   }
 
+  // Collapsed state - just show a floating button
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-4 right-4 p-3 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 transition-all z-50 flex items-center gap-2"
+        title="Open Dev Tools"
+      >
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+          />
+        </svg>
+        <span className="text-sm font-medium">Dev</span>
+      </button>
+    );
+  }
+
+  // Expanded state - show the full debugger
   return (
-    <div className="fixed bottom-4 right-4 p-4 bg-white border-2 border-purple-500 rounded-lg shadow-xl max-w-md z-50">
-      <h3 className="text-lg font-bold mb-2 text-purple-700">Role Debugger</h3>
+    <div className="fixed bottom-4 right-4 p-4 bg-white border-2 border-purple-500 rounded-lg shadow-xl max-w-md z-50 animate-in slide-in-from-bottom-2 fade-in duration-200">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg font-bold text-purple-700">Role Debugger</h3>
+        <button
+          onClick={() => setIsOpen(false)}
+          className="p-1 hover:bg-gray-100 rounded transition-colors"
+          title="Close Dev Tools"
+        >
+          <svg
+            className="w-5 h-5 text-gray-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
       
       <div className="space-y-2 text-sm">
         <div>

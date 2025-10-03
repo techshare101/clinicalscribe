@@ -24,7 +24,7 @@ export default function RootLayout({
         {children}
         <Footer />
         <Toaster />
-        <RoleDebugger />
+        {process.env.NODE_ENV === "development" && <RoleDebugger />}
       </body>
     </html>
   )
