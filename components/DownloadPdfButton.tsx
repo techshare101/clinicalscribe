@@ -3,18 +3,42 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { getSignedUrlForPath } from "@/lib/storage";
+import { useAuth } from "@/hooks/useAuth";
 
 export function DownloadPdfButton({ pdfPath }: { pdfPath: string }) {
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  
   async function handleClick() {
+    if (!user) {
+      alert("Please log in to download PDFs");
+      return;
+    }
+
     try {
       setLoading(true);
-      const url = await getSignedUrlForPath(pdfPath);
-      window.open(url, "_blank");
+      const token = await user.getIdToken();
+      
+      const res = await fetch("/api/pdf/get-url", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ filePath: pdfPath }),
+      });
+      
+      const data = await res.json();
+      
+      if (data.success && data.url) {
+        window.open(data.url, "_blank");
+      } else {
+        console.error("Failed to fetch download link:", data.error);
+        alert(data.error || "Failed to fetch download link");
+      }
     } catch (e) {
       console.error("Could not generate download link.", e);
-      alert("Download failed. Please ensure you are signed in.");
+      alert("Download failed. Please try again.");
     } finally {
       setLoading(false);
     }

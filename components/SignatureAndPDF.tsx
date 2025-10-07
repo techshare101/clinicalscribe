@@ -829,6 +829,12 @@ export default function SignatureAndPDF({
           description: "There was an issue with the PDF generation service. Please try again later.",
           variant: "destructive"
         })
+      } else if (error.message.includes('bucket does not exist') || error.message.includes('Firebase Storage')) {
+        toast({
+          title: "Storage Setup Required",
+          description: "Firebase Storage needs to be enabled. Please contact your administrator.",
+          variant: "destructive"
+        })
       } else {
         toast({
           title: "Download Failed",
@@ -933,6 +939,12 @@ export default function SignatureAndPDF({
         toast({
           title: "PDF Generation Failed",
           description: "There was an issue with the PDF generation service. Please try again later.",
+          variant: "destructive"
+        })
+      } else if (error.message.includes('bucket does not exist') || error.message.includes('Firebase Storage')) {
+        toast({
+          title: "Storage Setup Required",
+          description: "Firebase Storage needs to be enabled. Please contact your administrator to enable Cloud Storage.",
           variant: "destructive"
         })
       } else {

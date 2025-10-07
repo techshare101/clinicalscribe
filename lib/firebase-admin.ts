@@ -43,14 +43,19 @@ export const adminDb = adminApp.firestore();
 let adminStorage: admin.storage.Bucket | undefined;
 if (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) {
   try {
-    adminStorage = adminApp.storage().bucket();
+    adminStorage = adminApp.storage().bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
+    console.log('[Firebase Admin] Storage bucket initialized:', process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
   } catch (error) {
     // Storage initialization failed, but we can continue without it
-    console.error('Failed to initialize Firebase storage bucket');
+    console.error('[Firebase Admin] Failed to initialize Firebase storage bucket:', error);
+    adminStorage = undefined;
   }
+} else {
+  console.warn('[Firebase Admin] NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET not configured - storage disabled');
 }
 
 export { adminStorage };
+export const adminBucket = adminStorage; // Alias for backward compatibility
 
 // Default export for backwards compatibility
 export default admin;

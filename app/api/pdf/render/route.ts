@@ -2,7 +2,7 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import chromium from '@sparticuz/chromium'
-import { adminAuth, adminBucket } from '@/lib/firebaseAdmin'
+import { adminAuth, adminStorage } from '@/lib/firebaseAdmin'
 
 export async function POST(req: NextRequest) {
   const timestamp = Date.now()
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     console.log(`[PDF Render] Authenticated user: ${ownerId}`)
     
     // Get request body
-    const { html } = await req.json()
+    const { html, noteId, signature } = await req.json()
     if (!html) {
       console.error('[PDF Render] Missing HTML content')
       return NextResponse.json({ success: false, error: 'Missing HTML content' }, { status: 400 })
@@ -74,10 +74,15 @@ export async function POST(req: NextRequest) {
         const pdfBuffer = await page.pdf({ 
           format: 'A4', 
           printBackground: true,
+          displayHeaderFooter: !!signature,
+          footerTemplate: signature
+            ? `<div style="font-size:10px;width:100%;text-align:right;padding-right:20px;">Signed by ${signature}</div>`
+            : '<div></div>',
+          headerTemplate: '<div></div>',
           margin: {
             top: '20px',
             right: '20px',
-            bottom: '20px',
+            bottom: signature ? '40px' : '20px',
             left: '20px'
           }
         })
@@ -85,10 +90,26 @@ export async function POST(req: NextRequest) {
         await browser.close()
         console.log(`[PDF Render] PDF generated successfully (${pdfBuffer.length} bytes)`)
         
-        // ☁️ Upload to Firebase Storage using centralized adminBucket
+        // ☁️ Upload to Firebase Storage using centralized adminStorage
         console.log('[PDF Render] Uploading to Firebase Storage...')
-        const filePath = `pdfs/${ownerId}/${timestamp}.pdf`
-        const file = adminBucket.file(filePath)
+        
+        if (!adminStorage) {
+          throw new Error('Firebase Storage not initialized - check NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET')
+        }
+        
+        // Check if bucket exists first
+        try {
+          const [bucketExists] = await adminStorage.exists();
+          if (!bucketExists) {
+            throw new Error('Firebase Storage bucket does not exist. Please enable Cloud Storage in Firebase Console: https://console.firebase.google.com/project/clinicalscribe-511e7/storage');
+          }
+        } catch (existsError) {
+          console.error('[PDF Render] Bucket existence check failed:', existsError.message);
+          throw new Error('Firebase Storage bucket not accessible. Please enable Cloud Storage in Firebase Console and verify your service account permissions.');
+        }
+        
+        const filePath = `pdfs/${ownerId}/${noteId || timestamp}.pdf`
+        const file = adminStorage.file(filePath)
         
         await file.save(pdfBuffer, { 
           metadata: {

@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useSOAPNotes } from '@/hooks/useSOAPNotes'
-import { openPDF, downloadPDF } from '@/lib/pdfRetrieval'
+import { DownloadPdfButton } from '@/components/DownloadPDFButton'
+import { useAuth } from '@/hooks/useAuth'
 import { FileText, Download, ExternalLink, Clock, User, Globe, Languages } from 'lucide-react'
 
 // Language flag mapping
@@ -34,7 +35,7 @@ interface SOAPNotesListProps {
 
 export default function SOAPNotesList({ limit = 10 }: SOAPNotesListProps) {
   const { soapNotes, isLoading, error } = useSOAPNotes(limit)
-  const [downloading, setDownloading] = useState<string | null>(null)
+  const { user } = useAuth()
 
   if (isLoading) {
     return (
@@ -70,27 +71,16 @@ export default function SOAPNotesList({ limit = 10 }: SOAPNotesListProps) {
     )
   }
 
-  const handleOpenPDF = async (storagePath: string | undefined) => {
-    if (!storagePath) return
-    try {
-      await openPDF(storagePath)
-    } catch (error) {
-      console.error("Error opening PDF:", error)
-    }
-  }
-
-  const handleDownloadPDF = async (storagePath: string | undefined, patientName: string | undefined) => {
-    if (!storagePath) return
-    setDownloading(storagePath)
-    try {
-      const filename = `SOAP_Note_${patientName || 'Patient'}_${new Date().toISOString().split('T')[0]}.pdf`
-      await downloadPDF(storagePath, filename)
-    } catch (error) {
-      console.error("Error downloading PDF:", error)
-    } finally {
-      setDownloading(null)
-    }
-  }
+  // Helper to get PDF path from note
+  const getPDFPath = (note: any): string | undefined => {
+    // Check for filePath (new format from PDF generation)
+    if (note.filePath) return note.filePath;
+    // Fallback to storagePath (legacy format)
+    if (note.storagePath) return note.storagePath;
+    // Try to construct path if we have user and note ID
+    if (user && note.id) return `pdfs/${user.uid}/${note.id}.pdf`;
+    return undefined;
+  };
 
   // Format date helper function
   const formatDate = (date: any): string => {
@@ -213,37 +203,16 @@ export default function SOAPNotesList({ limit = 10 }: SOAPNotesListProps) {
             
             {/* Action Buttons - Stacked on mobile */}
             <div className="flex flex-col sm:flex-row gap-2 mb-4">
-              {note.storagePath && (
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => handleOpenPDF(note.storagePath)}
-                  disabled={downloading === note.storagePath}
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View PDF
-                </Button>
-              )}
-              
-              {note.storagePath && (
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => handleDownloadPDF(note.storagePath, note.patientName || note.soap?.patientName)}
-                  disabled={downloading === note.storagePath}
-                >
-                  {downloading === note.storagePath ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
-                      <span className="truncate">Downloading...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-4 w-4 mr-2" />
-                      <span className="truncate">Download PDF</span>
-                    </>
-                  )}
-                </Button>
+              {getPDFPath(note) ? (
+                <DownloadPdfButton 
+                  pdfPath={getPDFPath(note)!} 
+                  className="flex-1 flex items-center justify-center gap-2"
+                />
+              ) : (
+                <div className="flex-1 p-2 text-center text-sm text-gray-500 bg-gray-50 rounded border border-dashed border-gray-300">
+                  <FileText className="h-4 w-4 mx-auto mb-1" />
+                  No PDF available
+                </div>
               )}
             </div>
             
