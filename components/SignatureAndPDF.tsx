@@ -14,6 +14,7 @@ import { auth } from '@/lib/firebase'
 import { db } from '@/lib/firebase'
 import { doc, setDoc } from 'firebase/firestore'
 import { FileText, Upload, Download, Signature, CheckCircle, AlertCircle, Trash2, User, Loader2, AlertTriangle } from 'lucide-react'
+import { formatDate } from '@/lib/formatDate'
 
 interface SOAPNote {
   subjective: string
@@ -284,7 +285,7 @@ export default function SignatureAndPDF({
     const canvas = canvasRef.current
     const signatureDataUrl = canvas?.toDataURL('image/png') || ''
 
-    const currentDate = new Date().toLocaleString()
+    const currentDate = formatDate(new Date())
 
     return `
       <!DOCTYPE html>
@@ -776,6 +777,9 @@ export default function SignatureAndPDF({
       setStatusMessage('📄 Generating PDF document...')
       setIsGenerating(true)
       
+      // Generate noteId for this PDF
+      const noteId = `${user.uid}_${Date.now()}`
+      
       // Call PDF render API with timeout
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 45000) // 45 second timeout
@@ -787,7 +791,11 @@ export default function SignatureAndPDF({
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          html: htmlContent
+          html: htmlContent,
+          noteId: noteId,
+          patientId: patientName || 'unknown',
+          patientName: patientName || 'Unknown Patient',
+          docLang: docLang || 'en'
         }),
         signal: controller.signal
       })
@@ -885,6 +893,9 @@ export default function SignatureAndPDF({
       
       setStatusMessage('☁️ Generating PDF...')
       
+      // Generate noteId for this PDF
+      const noteId = `${user.uid}_${Date.now()}`
+      
       // Call PDF render API with timeout
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 45000) // 45 second timeout
@@ -896,7 +907,11 @@ export default function SignatureAndPDF({
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          html: htmlContent
+          html: htmlContent,
+          noteId: noteId,
+          patientId: patientName || 'unknown',
+          patientName: patientName || 'Unknown Patient',
+          docLang: docLang || 'en'
         }),
         signal: controller.signal
       })
@@ -1061,7 +1076,7 @@ export default function SignatureAndPDF({
                         SOAP Note - {soapNote.patientName || patientName || 'Unknown Patient'}
                       </div>
                       <div className="text-gray-600 text-xs">
-                        {new Date(soapNote.timestamp).toLocaleString()} • {encounterType || 'General Consultation'}
+                        {formatDate(soapNote.timestamp)} • {encounterType || 'General Consultation'}
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs mt-3">
                         <div>

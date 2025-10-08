@@ -25,7 +25,12 @@ export async function renderAndUploadPDF(
   html: string, 
   uid: string, 
   docId: string = `doc_${Date.now()}`,
-  watermark = 'ClinicalScribe Beta'
+  watermark = 'ClinicalScribe Beta',
+  metadata?: {
+    patientId?: string
+    patientName?: string
+    docLang?: string
+  }
 ): Promise<{ success: boolean; url?: string; path?: string; error?: string }> {
   try {
     const user = auth.currentUser
@@ -36,6 +41,9 @@ export async function renderAndUploadPDF(
     // Get fresh ID token for authentication
     const idToken = await user.getIdToken(true)
     
+    // Generate noteId if metadata is provided (for Firestore sync)
+    const noteId = metadata ? `${uid}_${Date.now()}` : undefined
+    
     // Call server-side PDF render API
     const response = await fetch('/api/pdf/render', {
       method: 'POST',
@@ -45,7 +53,11 @@ export async function renderAndUploadPDF(
       },
       body: JSON.stringify({
         html,
-        ownerId: uid
+        ownerId: uid,
+        ...(noteId && { noteId }),
+        ...(metadata?.patientId && { patientId: metadata.patientId }),
+        ...(metadata?.patientName && { patientName: metadata.patientName }),
+        ...(metadata?.docLang && { docLang: metadata.docLang })
       })
     })
     

@@ -28,6 +28,7 @@ import BodyMap from '@/components/body-map/BodyMap'
 import { usePatientsSearch } from '@/hooks/use-patients-search'
 import { renderAndUploadPDF } from '@/lib/pdf'
 import { toast } from '@/lib/toast'
+import { formatDate } from '@/lib/formatDate'
 
 interface SOAPNote {
   subjective: string
@@ -195,7 +196,7 @@ export default function SoapEntry2() {
         await updateDoc(doc(db, 'soapNotes', docRef.id), { pdf: { status: 'pending' } })
         const html = `
           <h1>SOAP Note</h1>
-          <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+          <p><strong>Date:</strong> ${formatDate(new Date())}</p>
           <p><strong>Patient:</strong> ${trimmedName || 'Unknown'}</p>
           <p><strong>Pain Level:</strong> ${painLevel || 'N/A'}</p>
           <h2>Subjective</h2><div>${subjective.replace(/\n/g,'<br/>')}</div>
@@ -245,7 +246,7 @@ export default function SoapEntry2() {
 
   const exportSOAP = () => {
     const fullSOAP = `SOAP NOTE
-Date: ${new Date().toLocaleDateString()}
+Date: ${formatDate(new Date())}
 
 PAIN LEVEL: ${painLevel || 'Not recorded'}
 

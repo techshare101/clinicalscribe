@@ -2,7 +2,7 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import chromium from '@sparticuz/chromium'
-import { adminAuth, adminStorage } from '@/lib/firebaseAdmin'
+import { adminAuth, adminStorage, adminDb } from '@/lib/firebaseAdmin'
 
 export async function POST(req: NextRequest) {
   const timestamp = Date.now()
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     console.log(`[PDF Render] Authenticated user: ${ownerId}`)
     
     // Get request body
-    const { html, noteId, signature } = await req.json()
+    const { html, noteId, signature, patientId, patientName, docLang } = await req.json()
     if (!html) {
       console.error('[PDF Render] Missing HTML content')
       return NextResponse.json({ success: false, error: 'Missing HTML content' }, { status: 400 })
@@ -148,7 +148,29 @@ export async function POST(req: NextRequest) {
     }
     
     // Race the PDF generation against the timeout
-    const result = await Promise.race([pdfGenerationPromise(), timeoutPromise])
+    const result = await Promise.race([pdfGenerationPromise(), timeoutPromise]) as { success: boolean; url: string; filePath: string; timestamp: number }
+    
+    // 🧾 Write PDF metadata to Firestore for SOAP History sync
+    if (result.success && noteId) {
+      try {
+        const admin = await import('firebase-admin')
+        await adminDb.collection('soapNotes').doc(noteId).set({
+          userId: ownerId,
+          patientId: patientId || 'unknown',
+          patientName: patientName || 'Unknown Patient',
+          filePath: result.filePath,
+          pdfUrl: result.url,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          status: 'generated',
+          language: docLang || 'en',
+        }, { merge: true })
+        
+        console.log('✅ PDF metadata written to Firestore:', noteId)
+      } catch (firestoreError: any) {
+        console.error('❌ Failed to write PDF metadata:', firestoreError)
+        // Don't fail the entire request if Firestore write fails
+      }
+    }
     
     return NextResponse.json(result)
     

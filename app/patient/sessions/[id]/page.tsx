@@ -22,6 +22,7 @@ import RecordingsList from '@/components/RecordingsList';
 import { getAudioUrl } from '@/lib/getAudioUrl';
 import AutoCombineBanner from '@/components/AutoCombineBanner';
 import AutoCombineRetry from '@/components/AutoCombineRetry';
+import { formatDate } from '@/lib/formatDate';
 
 interface Recording {
   id: string;
@@ -284,9 +285,7 @@ export default function PatientSessionDetail({ params }: { params: { id: string 
                   </h2>
                   <p className="text-gray-300 flex items-center gap-1">
                     <Clock className="h-4 w-4" />
-                    {sessionData.createdAt?.toDate ? 
-                      sessionData.createdAt.toDate().toLocaleString() : 
-                      new Date(sessionData.createdAt).toLocaleString()}
+                    {formatDate(sessionData.createdAt)}
                   </p>
                 </div>
               </div>

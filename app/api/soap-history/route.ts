@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     // Fetch SOAP notes for the user
     const notesSnapshot = await adminDb
       .collection("soapNotes")
-      .where("uid", "==", userId)
+      .where("userId", "==", userId)
       .orderBy("createdAt", "desc")
       .get();
     

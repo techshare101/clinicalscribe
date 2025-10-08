@@ -29,6 +29,7 @@ import {
   Trash2,
   AlertTriangle,
 } from 'lucide-react';
+import { formatDate } from '@/lib/formatDate';
 
 interface SOAPNote {
   subjective: string;
@@ -210,7 +211,7 @@ export function SOAPGenerator({
     const fullSOAP = `SOAP NOTE
 ${soapNote.patientName ? `Patient: ${soapNote.patientName}` : ''}
 ${soapNote.encounterType ? `Encounter: ${soapNote.encounterType}` : ''}
-Date: ${new Date(soapNote.timestamp).toLocaleDateString()}
+Date: ${formatDate(soapNote.timestamp)}
 Patient Language: ${soapNote.patientLang || patientLanguage}
 Documentation Language: ${soapNote.docLang || documentationLanguage}
 
@@ -235,7 +236,7 @@ ${soapNote.plan}`;
     const fullSOAP = `SOAP NOTE
 ${soapNote.patientName ? `Patient: ${soapNote.patientName}` : ''}
 ${soapNote.encounterType ? `Encounter: ${soapNote.encounterType}` : ''}
-Date: ${new Date(soapNote.timestamp).toLocaleDateString()}
+Date: ${formatDate(soapNote.timestamp)}
 Patient Language: ${soapNote.patientLang || patientLanguage}
 Documentation Language: ${soapNote.docLang || documentationLanguage}
 

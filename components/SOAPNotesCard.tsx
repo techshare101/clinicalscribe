@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { FileText } from 'lucide-react';
+import { formatDate } from '@/lib/formatDate';
 
 export default function SOAPNotesCard() {
   const { user, loading: authLoading } = useAuth();
@@ -36,12 +37,10 @@ export default function SOAPNotesCard() {
         
         const notesData = await res.json();
         
-        // Map to array with IDs and formatted dates
+        // Map to array with IDs
         const soapNotesList = notesData.map((note: any) => ({
           id: note.id,
-          ...note,
-          // Ensure createdAt is a Date object for proper formatting
-          createdAt: note.createdAt?.toDate?.() || new Date(note.createdAt)
+          ...note
         }));
         
         setSoapNotes(soapNotesList);
@@ -141,7 +140,7 @@ export default function SOAPNotesCard() {
                         {note.patientName || note.soap?.patientName || 'Unknown Patient'}
                       </p>
                       <p className="text-xs text-gray-500 mt-1 truncate">
-                        {new Date(note.createdAt).toLocaleString()}
+                        {formatDate(note.createdAt)}
                       </p>
                       <div className="flex items-center gap-2 mt-2">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyle(status)}`}>

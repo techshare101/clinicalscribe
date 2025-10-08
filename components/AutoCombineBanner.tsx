@@ -2,6 +2,7 @@
 
 import { ArrowRight, Clock, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import { formatDate } from '@/lib/formatDate';
 
 interface AutoCombineBannerProps {
   sessionId: string;
@@ -16,7 +17,7 @@ export default function AutoCombineBanner({
 }: AutoCombineBannerProps) {
   if (!autoCombinedAt) return null;
 
-  const formattedDate = new Date(autoCombinedAt).toLocaleString();
+  const formattedDate = formatDate(autoCombinedAt);
 
   return (
     <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border-l-4 border-amber-400 p-4 mb-4 rounded-lg shadow-sm">

@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import useInvoices from "@/hooks/useInvoices";
+import { formatDate } from "@/lib/formatDate";
 
 export default function InvoicesPanel() {
   const { invoices, loading, error, reload } = useInvoices();
@@ -33,7 +34,7 @@ export default function InvoicesPanel() {
         </thead>
         <tbody>
           {invoices.map((inv) => {
-            const date = inv.created ? new Date(inv.created * 1000).toLocaleDateString() : "-";
+            const date = inv.created ? formatDate(new Date(inv.created * 1000)) : "-";
             const amount =
               typeof inv.amount_due === "number"
                 ? `${(inv.amount_due / 100).toFixed(2)} ${inv.currency?.toUpperCase() || ""}`

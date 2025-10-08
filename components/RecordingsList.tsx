@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Spinner from "./ui/Spinner";
+import { formatDate } from "@/lib/formatDate";
 
 interface Recording {
   id: string;
@@ -27,7 +28,7 @@ export default function RecordingsList({ recordings, onCombine }: {
             <div className="flex justify-between items-center">
               <div className="flex-1">
                 <p className="text-sm text-gray-600">
-                  Recording {index + 1} - {rec.timestamp?.toDate ? rec.timestamp.toDate().toLocaleString() : new Date(rec.timestamp).toLocaleString()}
+                  Recording {index + 1} - {formatDate(rec.timestamp)}
                 </p>
                 <p className="text-gray-800 text-sm mt-1 line-clamp-2">
                   {rec.transcript.slice(0, 120)}...

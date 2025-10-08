@@ -8,18 +8,36 @@ export type BucketFolder = "recordings" | "images" | "pdfs";
  * Server-only PDF generation to avoid Firebase Storage retry errors
  * Use this instead of uploadToFirebase for PDFs
  */
-export async function generateAndUploadPDF(html: string): Promise<{ url: string; path: string }> {
+export async function generateAndUploadPDF(
+  html: string,
+  metadata?: {
+    patientId?: string
+    patientName?: string
+    docLang?: string
+  }
+): Promise<{ url: string; path: string }> {
   const user = auth.currentUser;
   if (!user) throw new Error("Not authenticated");
 
   const idToken = await user.getIdToken(true);
+  
+  // Generate noteId if metadata is provided (for Firestore sync)
+  const noteId = metadata ? `${user.uid}_${Date.now()}` : undefined;
+  
   const response = await fetch("/api/pdf/render", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${idToken}`,
     },
-    body: JSON.stringify({ html, ownerId: user.uid }),
+    body: JSON.stringify({
+      html,
+      ownerId: user.uid,
+      ...(noteId && { noteId }),
+      ...(metadata?.patientId && { patientId: metadata.patientId }),
+      ...(metadata?.patientName && { patientName: metadata.patientName }),
+      ...(metadata?.docLang && { docLang: metadata.docLang })
+    }),
   });
   
   const result = await response.json();
@@ -27,8 +45,6 @@ export async function generateAndUploadPDF(html: string): Promise<{ url: string;
   
   return { url: result.url, path: result.path };
 }
-
-export type BucketFolder = "recordings" | "images" | "pdfs";
 
 function randomId() {
   // crypto.randomUUID with fallback for older browsers/environments

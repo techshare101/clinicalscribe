@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +9,8 @@ import { useSOAPNotes } from '@/hooks/useSOAPNotes'
 import { DownloadPdfButton } from '@/components/DownloadPDFButton'
 import { useAuth } from '@/hooks/useAuth'
 import { FileText, Download, ExternalLink, Clock, User, Globe, Languages } from 'lucide-react'
+import { formatDate } from '@/lib/formatDate'
+import { formatRelativeTime } from '@/lib/formatRelativeTime'
 
 // Language flag mapping
 const languageFlags: Record<string, string> = {
@@ -71,43 +74,46 @@ export default function SOAPNotesList({ limit = 10 }: SOAPNotesListProps) {
     )
   }
 
+  return (
+    <div className="space-y-4">
+      <AnimatePresence>
+        {soapNotes.map((note, index) => (
+          <AnimatedNoteCard key={note.id} note={note} index={index} user={user} />
+        ))}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// Individual animated note card component
+function AnimatedNoteCard({ note, index, user }: { note: any; index: number; user: any }) {
+  const [pdfFlash, setPdfFlash] = useState(false)
+  const [previousPdfUrl, setPreviousPdfUrl] = useState(note.pdfUrl)
+
+  // Detect when PDF becomes available
+  useEffect(() => {
+    if (!previousPdfUrl && note.pdfUrl) {
+      setPdfFlash(true)
+      const timer = setTimeout(() => setPdfFlash(false), 1500)
+      return () => clearTimeout(timer)
+    }
+    setPreviousPdfUrl(note.pdfUrl)
+  }, [note.pdfUrl, previousPdfUrl])
+
   // Helper to get PDF path from note
   const getPDFPath = (note: any): string | undefined => {
-    // Check for filePath (new format from PDF generation)
     if (note.filePath) return note.filePath;
-    // Fallback to storagePath (legacy format)
     if (note.storagePath) return note.storagePath;
-    // Try to construct path if we have user and note ID
     if (user && note.id) return `pdfs/${user.uid}/${note.id}.pdf`;
     return undefined;
   };
 
-  // Format date helper function
-  const formatDate = (date: any): string => {
-    if (!date) return 'Unknown date'
-    
-    try {
-      // Handle Firestore Timestamp
-      if (date.toDate) {
-        return date.toDate().toLocaleString()
-      }
-      // Handle regular Date object
-      else if (date instanceof Date) {
-        return date.toLocaleString()
-      }
-      // Handle ISO string
-      else if (typeof date === 'string') {
-        return new Date(date).toLocaleString()
-      }
-      // Handle timestamp in seconds
-      else if (typeof date === 'object' && date.seconds) {
-        return new Date(date.seconds * 1000).toLocaleString()
-      }
-      return 'Unknown date'
-    } catch (e) {
-      return 'Invalid date'
-    }
-  }
+  // Helper to get direct PDF URL (signed URL from backend)
+  const getPDFUrl = (note: any): string | undefined => {
+    return note.pdfUrl || note.pdf?.url;
+  };
+
+  // Date formatting is now handled by imported utilities
 
   // Get language display with flag and badge
   const getLanguageDisplay = (langCode: string | undefined) => {
@@ -127,143 +133,193 @@ export default function SOAPNotesList({ limit = 10 }: SOAPNotesListProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {soapNotes.map((note) => (
-        <Card key={note.id} className="hover:shadow-md transition-shadow">
-          <CardHeader className="pb-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-blue-500" />
-                  {note.patientName || note.soap?.patientName || 'Unknown Patient'}
-                </CardTitle>
-                <CardDescription className="flex items-center gap-2 mt-1">
-                  <Clock className="h-4 w-4" />
-                  <span className="text-sm">{formatDate(note.createdAt || note.soap?.timestamp)}</span>
-                </CardDescription>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {note.encounterType && (
-                  <Badge variant="secondary">{note.encounterType}</Badge>
-                )}
-                {note.soap?.encounterType && (
-                  <Badge variant="secondary">{note.soap.encounterType}</Badge>
-                )}
-                {note.pdf?.status === 'generated' && (
-                  <Badge className="bg-green-100 text-green-800">PDF Ready</Badge>
-                )}
-              </div>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -12, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="relative overflow-hidden rounded-xl"
+    >
+      {/* 🔮 Violet-Blue "New Entry" flash for latest card */}
+      {index === 0 && (
+        <motion.div
+          initial={{
+            opacity: 0.6,
+            background: "linear-gradient(90deg, rgba(147,51,234,0.6), rgba(79,70,229,0.6))",
+          }}
+          animate={{
+            opacity: 0,
+            background: "linear-gradient(90deg, rgba(147,51,234,0), rgba(79,70,229,0))",
+          }}
+          transition={{ duration: 1.4, ease: "easeOut" }}
+          className="absolute inset-0 z-0 blur-sm pointer-events-none"
+        />
+      )}
+
+      {/* 💜 PDF Ready Flash Overlay */}
+      {pdfFlash && (
+        <motion.div
+          initial={{
+            opacity: 0.8,
+            background: "linear-gradient(90deg, rgba(147,51,234,0.7), rgba(79,70,229,0.7))",
+          }}
+          animate={{
+            opacity: 0,
+            background: "linear-gradient(90deg, rgba(147,51,234,0), rgba(79,70,229,0))",
+          }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          className="absolute inset-0 z-0 blur-sm pointer-events-none"
+        />
+      )}
+
+      <Card className="relative z-10 hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-500" />
+                {note.patientName || note.soap?.patientName || 'Unknown Patient'}
+              </CardTitle>
+              <CardDescription className="flex items-center gap-2 mt-1">
+                <Clock className="h-4 w-4" />
+                <span className="text-sm" title={formatDate(note.createdAt || note.soap?.timestamp)}>
+                  {formatRelativeTime(note.createdAt || note.soap?.timestamp)}
+                </span>
+              </CardDescription>
             </div>
-          </CardHeader>
-          <CardContent>
-            {/* Mobile-friendly language information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              {/* Patient Language */}
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  <Languages className="h-4 w-4" />
-                  Patient Language
-                </h4>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Language:</span>
-                  <span className="font-medium">
-                    {getLanguageDisplay(note.patientLang)}
-                  </span>
-                </div>
-              </div>
-              
-              {/* Documentation Language */}
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
-                  Documentation
-                </h4>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Language:</span>
-                  <span className="font-medium">
-                    {getLanguageDisplay(note.docLang)}
-                  </span>
-                </div>
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {note.encounterType && (
+                <Badge variant="secondary">{note.encounterType}</Badge>
+              )}
+              {note.soap?.encounterType && (
+                <Badge variant="secondary">{note.soap.encounterType}</Badge>
+              )}
+              {note.pdf?.status === 'generated' && (
+                <Badge className="bg-green-100 text-green-800">PDF Ready</Badge>
+              )}
             </div>
-            
-            {/* Doctor Information */}
-            <div className="bg-gray-50 p-3 rounded-lg mb-4">
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Mobile-friendly language information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Patient Language */}
+            <div className="bg-gray-50 p-3 rounded-lg">
               <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Provider Information
+                <Languages className="h-4 w-4" />
+                Patient Language
               </h4>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Doctor:</span>
+                <span className="text-gray-600">Language:</span>
                 <span className="font-medium">
-                  {note.doctorName || 'Unknown Doctor'}
+                  {getLanguageDisplay(note.patientLang)}
                 </span>
               </div>
             </div>
             
-            {/* Action Buttons - Stacked on mobile */}
-            <div className="flex flex-col sm:flex-row gap-2 mb-4">
-              {getPDFPath(note) ? (
-                <DownloadPdfButton 
-                  pdfPath={getPDFPath(note)!} 
-                  className="flex-1 flex items-center justify-center gap-2"
-                />
-              ) : (
-                <div className="flex-1 p-2 text-center text-sm text-gray-500 bg-gray-50 rounded border border-dashed border-gray-300">
-                  <FileText className="h-4 w-4 mx-auto mb-1" />
-                  No PDF available
-                </div>
-              )}
+            {/* Documentation Language */}
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Documentation
+              </h4>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Language:</span>
+                <span className="font-medium">
+                  {getLanguageDisplay(note.docLang)}
+                </span>
+              </div>
             </div>
-            
-            {/* SOAP Content - Responsive layout */}
-            {note.soap && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          </div>
+          
+          {/* Doctor Information */}
+          <div className="bg-gray-50 p-3 rounded-lg mb-4">
+            <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Provider Information
+            </h4>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Doctor:</span>
+              <span className="font-medium">
+                {note.doctorName || 'Unknown Doctor'}
+              </span>
+            </div>
+          </div>
+          
+          {/* Action Buttons - Stacked on mobile */}
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
+            {getPDFUrl(note) ? (
+              <a 
+                href={getPDFUrl(note)} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex-1"
+              >
+                <Button variant="default" className="w-full bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  View PDF
+                </Button>
+              </a>
+            ) : getPDFPath(note) ? (
+              <DownloadPdfButton 
+                pdfPath={getPDFPath(note)!} 
+              />
+            ) : (
+              <div className="flex-1 p-2 text-center text-sm text-gray-500 bg-gray-50 rounded border border-dashed border-gray-300">
+                <FileText className="h-4 w-4 mx-auto mb-1" />
+                No PDF available
+              </div>
+            )}
+          </div>
+          
+          {/* SOAP Content - Responsive layout */}
+          {note.soap && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                  <h4 className="font-medium text-blue-900 mb-1">Subjective</h4>
+                  <p className="text-blue-800 text-sm">{note.soap.subjective}</p>
+                </div>
+                <div className="bg-green-50 p-3 rounded border border-green-200">
+                  <h4 className="font-medium text-green-900 mb-1">Assessment</h4>
+                  <p className="text-green-800 text-sm">{note.soap.assessment}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Transcripts - Mobile optimized */}
+          {(note.rawTranscript || note.transcript || note.translatedTranscript) && (
+            <div className="mt-4 space-y-3">
+              <h4 className="font-medium text-gray-900 border-b pb-1">Transcripts</h4>
+              <div className="space-y-3">
+                {note.rawTranscript && (
+                  <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-yellow-800">Raw Transcript</span>
+                      {getLanguageDisplay(note.patientLang)}
+                    </div>
+                    <p className="text-yellow-700 text-sm">{note.rawTranscript}</p>
+                  </div>
+                )}
+                
+                {(note.transcript || note.translatedTranscript) && (
                   <div className="bg-blue-50 p-3 rounded border border-blue-200">
-                    <h4 className="font-medium text-blue-900 mb-1">Subjective</h4>
-                    <p className="text-blue-800 text-sm">{note.soap.subjective}</p>
-                  </div>
-                  <div className="bg-green-50 p-3 rounded border border-green-200">
-                    <h4 className="font-medium text-green-900 mb-1">Assessment</h4>
-                    <p className="text-green-800 text-sm">{note.soap.assessment}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Transcripts - Mobile optimized */}
-            {(note.rawTranscript || note.transcript || note.translatedTranscript) && (
-              <div className="mt-4 space-y-3">
-                <h4 className="font-medium text-gray-900 border-b pb-1">Transcripts</h4>
-                <div className="space-y-3">
-                  {note.rawTranscript && (
-                    <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-yellow-800">Raw Transcript</span>
-                        {getLanguageDisplay(note.patientLang)}
-                      </div>
-                      <p className="text-yellow-700 text-sm">{note.rawTranscript}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-blue-800">Translated Transcript</span>
+                      {getLanguageDisplay(note.docLang)}
                     </div>
-                  )}
-                  
-                  {(note.transcript || note.translatedTranscript) && (
-                    <div className="bg-blue-50 p-3 rounded border border-blue-200">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-blue-800">Translated Transcript</span>
-                        {getLanguageDisplay(note.docLang)}
-                      </div>
-                      <p className="text-blue-700 text-sm">
-                        {note.translatedTranscript || note.transcript}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                    <p className="text-blue-700 text-sm">
+                      {note.translatedTranscript || note.transcript}
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
   )
 }

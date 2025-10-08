@@ -33,6 +33,8 @@ import {
   TrendingUp,
   Eye
 } from 'lucide-react'
+import { formatDate } from '@/lib/formatDate'
+import { formatRelativeTime } from '@/lib/formatRelativeTime'
 
 interface SOAPNote {
   id: string
@@ -95,12 +97,10 @@ export default function SOAPHistoryPage() {
         const notesData = await res.json();
         console.log('Fetched SOAP notes:', notesData); // Debug log
         
-        // Map to array with IDs and formatted dates
+        // Map to array with IDs
         const notesList = notesData.map((note: any) => ({
           id: note.id,
-          ...note,
-          // Ensure createdAt is a Date object for proper formatting
-          createdAt: note.createdAt?.toDate?.() || new Date(note.createdAt)
+          ...note
         }));
         
         console.log('Processed SOAP notes:', notesList); // Debug log
@@ -151,14 +151,6 @@ export default function SOAPHistoryPage() {
     return true
   })
 
-  const formatDate = (date: any) => {
-    if (!date) return 'Unknown'
-    // Handle both Firestore timestamps and JavaScript Date objects
-    if (date.seconds) {
-      return new Date(date.seconds * 1000).toLocaleDateString()
-    }
-    return new Date(date).toLocaleDateString()
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
@@ -343,7 +335,9 @@ export default function SOAPHistoryPage() {
                             <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                               <div className="flex items-center gap-1">
                                 <Calendar className="h-4 w-4" />
-                                {formatDate(note.createdAt)}
+                                <span title={formatDate(note.createdAt)}>
+                                  {formatRelativeTime(note.createdAt)}
+                                </span>
                               </div>
                               {note.patientId && (
                                 <div className="flex items-center gap-1">
@@ -394,6 +388,7 @@ export default function SOAPHistoryPage() {
                                       </h3>
                                       <div className="space-y-2 text-sm">
                                         <div><span className="font-semibold">Created:</span> {formatDate(selectedNote.createdAt)}</div>
+                                        <div><span className="font-semibold">Relative:</span> {formatRelativeTime(selectedNote.createdAt)}</div>
                                         <div><span className="font-semibold">User ID:</span> {selectedNote.uid}</div>
                                       </div>
                                     </div>
@@ -448,7 +443,18 @@ export default function SOAPHistoryPage() {
                                       author={undefined}
                                       attachment={undefined}
                                     />
-                                    {(selectedNote as any).storagePath && (
+                                    {((selectedNote as any).pdfUrl || (selectedNote as any).pdf?.url) ? (
+                                      <a 
+                                        href={(selectedNote as any).pdfUrl || (selectedNote as any).pdf?.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <Button className="w-full bg-green-600 hover:bg-green-700">
+                                          <ExternalLink className="h-4 w-4 mr-2" />
+                                          View PDF
+                                        </Button>
+                                      </a>
+                                    ) : (selectedNote as any).storagePath && (
                                       <DownloadPdfButton pdfPath={(selectedNote as any).storagePath} />
                                     )}
                                   </div>
@@ -471,13 +477,25 @@ export default function SOAPHistoryPage() {
                         {/* Status Indicators */}
                         <div className="flex items-center justify-between">
                           <div className="flex gap-3">
-                            <Badge className={`${
-                              (note as any).storagePath || (note as any).pdf?.status === 'generated' 
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
-                                : 'bg-gray-100 text-gray-600 border-gray-200'
-                            } border font-semibold`}>
-                              {(note as any).storagePath || (note as any).pdf?.status === 'generated' ? '📄 PDF Ready' : '— No PDF'}
-                            </Badge>
+                            {(note as any).pdfUrl || (note as any).pdf?.url ? (
+                              <a 
+                                href={(note as any).pdfUrl || (note as any).pdf?.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 border font-semibold cursor-pointer hover:bg-emerald-200 transition-colors">
+                                  📄 View PDF
+                                </Badge>
+                              </a>
+                            ) : (note as any).storagePath || (note as any).pdf?.status === 'generated' ? (
+                              <Badge className="bg-gray-100 text-gray-600 border-gray-200 border font-semibold">
+                                📄 PDF Ready
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-gray-100 text-gray-600 border-gray-200 border font-semibold">
+                                — No PDF
+                              </Badge>
+                            )}
                             <Badge className={`${
                               note.fhirExport?.status === 'exported' ? 'bg-blue-100 text-blue-800 border-blue-200' :
                               note.fhirExport?.status === 'failed' ? 'bg-red-100 text-red-800 border-red-200' :
