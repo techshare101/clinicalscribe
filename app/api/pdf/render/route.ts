@@ -13,11 +13,29 @@ import sanitizeHtml from "sanitize-html";
 // Environment detection
 const isDevelopment = process.env.NODE_ENV === 'development';
 const isWindows = os.platform() === 'win32';
+const isVercel = !!process.env.VERCEL || !!process.env.VERCEL_URL;
+const isLocalDev = isDevelopment && !isVercel;
 
 // Puppeteer configuration based on environment
 const getPuppeteerConfig = async () => {
-  if (isDevelopment || isWindows) {
-    // Use local Puppeteer with bundled Chromium for development
+  // Always use @sparticuz/chromium in serverless environments (Vercel, Lambda, etc.)
+  if (isVercel || (!isLocalDev && !isWindows)) {
+    console.log('[PDF Render] Using @sparticuz/chromium for serverless environment');
+    const executablePath = await chromium.executablePath();
+    return {
+      browser: puppeteer,
+      config: {
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath,
+        headless: chromium.headless,
+      }
+    };
+  }
+  
+  // Only use local Chrome for local development
+  if (isLocalDev) {
+    console.log('[PDF Render] Using local Chrome for development');
     try {
       // Try to import puppeteer (not puppeteer-core) for local development
       const puppeteerFull = await import('puppeteer');
@@ -35,7 +53,7 @@ const getPuppeteerConfig = async () => {
         }
       };
     } catch (error) {
-      console.log('[PDF Render] Full puppeteer not available, falling back to puppeteer-core with system Chrome');
+      console.log('[PDF Render] Full puppeteer not available, falling back to system Chrome');
       // Fallback to puppeteer-core with system Chrome
       return {
         browser: puppeteer,
@@ -52,19 +70,20 @@ const getPuppeteerConfig = async () => {
         }
       };
     }
-  } else {
-    // Use @sparticuz/chromium for production (Vercel/Lambda)
-    const executablePath = await chromium.executablePath();
-    return {
-      browser: puppeteer,
-      config: {
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath,
-        headless: chromium.headless,
-      }
-    };
   }
+  
+  // Default fallback to @sparticuz/chromium
+  console.log('[PDF Render] Using @sparticuz/chromium as fallback');
+  const executablePath = await chromium.executablePath();
+  return {
+    browser: puppeteer,
+    config: {
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath,
+      headless: chromium.headless,
+    }
+  };
 };
 
 // Clinical-grade CSS template matching the polished design
@@ -379,11 +398,12 @@ export async function POST(req: NextRequest) {
     });
 
     // 🧱 Puppeteer launch
-    console.log(`[PDF Render] Launching browser... (Development: ${isDevelopment}, Windows: ${isWindows})`);
+    console.log(`[PDF Render] Environment: Development=${isDevelopment}, Windows=${isWindows}, Vercel=${isVercel}, LocalDev=${isLocalDev}`);
     const { browser: puppeteerInstance, config } = await getPuppeteerConfig();
     
-    console.log(`[PDF Render] Using config:`, { 
+    console.log(`[PDF Render] Puppeteer config:`, { 
       hasExecutablePath: !!config.executablePath, 
+      executablePath: config.executablePath?.slice(0, 50) + '...', 
       headless: config.headless, 
       argsCount: config.args?.length || 0 
     });
