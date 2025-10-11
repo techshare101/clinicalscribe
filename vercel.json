@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "app/api/pdf/render/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/**/route.ts": {
+      "maxDuration": 15
+    }
+  },
+  "regions": [
+    "iad1"
+  ]
+}

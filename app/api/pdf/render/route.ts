@@ -25,7 +25,19 @@ const getPuppeteerConfig = async () => {
     return {
       browser: puppeteer,
       config: {
-        args: chromium.args,
+        args: [
+          ...chromium.args,
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-features=TranslateUI',
+          '--disable-ipc-flooding-protection',
+        ],
         defaultViewport: chromium.defaultViewport,
         executablePath,
         headless: chromium.headless,
@@ -408,7 +420,18 @@ export async function POST(req: NextRequest) {
       argsCount: config.args?.length || 0 
     });
     
-    const browser = await puppeteerInstance.launch(config);
+    let browser;
+    try {
+      browser = await puppeteerInstance.launch(config);
+      console.log('[PDF Render] Browser launched successfully');
+    } catch (launchError: any) {
+      console.error('[PDF Render] Browser launch failed:', launchError.message);
+      
+      if (launchError.message.includes('libnss3.so') || launchError.message.includes('shared libraries')) {
+        throw new Error('PDF generation service is not available. This is a server configuration issue.');
+      }
+      throw launchError;
+    }
 
     const page = await browser.newPage();
     

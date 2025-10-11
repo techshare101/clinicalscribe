@@ -73,7 +73,7 @@ export default function SignatureAndPDF({
         // Restore signature if it exists
         if (data.signatureDataUrl && canvasRef.current) {
           const canvas = canvasRef.current;
-          const ctx = canvas.getContext('2d');
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
           if (ctx) {
             const img = new Image();
             img.onload = () => {
@@ -104,7 +104,7 @@ export default function SignatureAndPDF({
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
 
     // Set up canvas for better drawing
@@ -156,7 +156,7 @@ export default function SignatureAndPDF({
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
 
     const coords = getCoordinates(e)
@@ -190,7 +190,7 @@ export default function SignatureAndPDF({
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
 
     const coords = getCoordinates(e)
@@ -235,7 +235,7 @@ export default function SignatureAndPDF({
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (ctx) {
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -266,7 +266,7 @@ export default function SignatureAndPDF({
     const canvas = canvasRef.current
     if (!canvas) return true
 
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return true
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
