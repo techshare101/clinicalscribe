@@ -1,6 +1,6 @@
 import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
-import { adminStorage } from './firebaseAdmin';
+// Remove the adminStorage import from this file as we'll access it through firebaseAdmin
 
 /**
  * Get download URL for a PDF stored in Firebase Storage
@@ -9,6 +9,11 @@ import { adminStorage } from './firebaseAdmin';
  */
 export async function getPDFUrl(storagePath: string): Promise<string> {
   try {
+    // This function should only be used on the client-side
+    if (typeof window === 'undefined') {
+      throw new Error('getPDFUrl should only be called on the client-side');
+    }
+    
     const pdfRef = ref(storage, storagePath);
     const url = await getDownloadURL(pdfRef);
     return url;
@@ -24,6 +29,11 @@ export async function getPDFUrl(storagePath: string): Promise<string> {
  */
 export async function openPDF(storagePath: string): Promise<void> {
   try {
+    // This function should only be used on the client-side
+    if (typeof window === 'undefined') {
+      throw new Error('openPDF should only be called on the client-side');
+    }
+    
     const url = await getPDFUrl(storagePath);
     window.open(url, "_blank");
   } catch (error) {
@@ -39,6 +49,11 @@ export async function openPDF(storagePath: string): Promise<void> {
  */
 export async function downloadPDF(storagePath: string, filename: string = "document.pdf"): Promise<void> {
   try {
+    // This function should only be used on the client-side
+    if (typeof window === 'undefined') {
+      throw new Error('downloadPDF should only be called on the client-side');
+    }
+    
     const url = await getPDFUrl(storagePath);
     const link = document.createElement("a");
     link.href = url;
@@ -55,17 +70,21 @@ export async function downloadPDF(storagePath: string, filename: string = "docum
 // --- SERVER-SIDE FUNCTIONS (Node.js/Admin SDK) ---
 
 /**
- * Get a signed URL for a stored PDF (server-side only)
+ * Get a permanent public URL for a stored PDF (server-side only)
  * @param filePath string - The path in Firebase Storage (e.g., "pdfs/uid/noteId.pdf")
- * @param expiresIn number - Expiry in ms (default: 1 hour)
  */
-export async function getSignedPdfUrl(filePath: string, expiresIn: number = 60 * 60 * 1000) {
+export async function getSignedPdfUrl(filePath: string) {
+  // Dynamically import firebaseAdmin to avoid bundling it in client-side code
+  const { adminStorage } = await import('./firebaseAdmin');
+  
   try {
     if (!adminStorage) {
       throw new Error('Firebase Storage not initialized - check NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET');
     }
 
-    const file = adminStorage.file(filePath);
+    // Get the bucket from the storage instance
+    const bucket = adminStorage.bucket();
+    const file = bucket.file(filePath);
 
     // Check if file exists first
     const [exists] = await file.exists();
@@ -73,14 +92,15 @@ export async function getSignedPdfUrl(filePath: string, expiresIn: number = 60 *
       throw new Error(`PDF file not found: ${filePath}`);
     }
 
-    const [url] = await file.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + expiresIn,
+    // Generate signed URL that bypasses Storage Rules
+    const [signedUrl] = await file.getSignedUrl({
+      action: "read",
+      expires: "03-01-2080", // Long-lived signed URL
     });
 
-    return url;
+    return signedUrl;
   } catch (err: any) {
-    console.error('❌ Error generating signed PDF URL:', err.message);
+    console.error('❌ Error generating PDF URL:', err.message);
     throw new Error(`Failed to generate PDF download link: ${err.message}`);
   }
 }
@@ -90,12 +110,17 @@ export async function getSignedPdfUrl(filePath: string, expiresIn: number = 60 *
  * @param filePath string - The path in Firebase Storage
  */
 export async function pdfExists(filePath: string): Promise<boolean> {
+  // Dynamically import firebaseAdmin to avoid bundling it in client-side code
+  const { adminStorage } = await import('./firebaseAdmin');
+  
   try {
     if (!adminStorage) {
       return false;
     }
 
-    const file = adminStorage.file(filePath);
+    // Get the bucket from the storage instance
+    const bucket = adminStorage.bucket();
+    const file = bucket.file(filePath);
     const [exists] = await file.exists();
     return exists;
   } catch (err: any) {

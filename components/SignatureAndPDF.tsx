@@ -634,21 +634,29 @@ export default function SignatureAndPDF({
       // Generate HTML content for PDF
       const htmlContent = generateHTMLContent();
       
-      setStatusMessage('☁️ Generating PDF...');
+      setStatusMessage('☁️ Generating and uploading PDF...');
       
-      // Call PDF API with timeout
+      // Call PDF API with timeout - use the working /api/pdf/render endpoint
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout to match backend
       
-      // Call the simpler PDF API that returns the PDF directly
-      const response = await fetch('/api/pdf', {
+      // Generate a unique note ID for this PDF
+      const noteId = `${user.uid}_${Date.now()}`;
+      
+      // Call the working PDF render API that handles everything
+      const response = await fetch('/api/pdf/render', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          html: htmlContent
+          html: htmlContent,
+          noteId: noteId,
+          signature: doctorName,
+          patientId: patientName ? patientName.replace(/\s+/g, '_') : 'unknown',
+          patientName: patientName || 'Unknown Patient',
+          docLang: docLang || 'en'
         }),
         signal: controller.signal
       });
@@ -660,16 +668,16 @@ export default function SignatureAndPDF({
         throw new Error(errorResult.error || 'Failed to generate PDF');
       }
       
-      // Get the PDF blob
-      const blob = await response.blob();
+      const result = await response.json();
       
-      // Upload to Firebase Storage
-      setStatusMessage('☁️ Uploading to Storage...');
-      const uploadResult = await uploadToFirebase("pdfs", blob, user.uid, "pdf");
+      if (!result.success) {
+        throw new Error(result.error || 'PDF generation failed');
+      }
       
-      setUploadedPath(uploadResult.path);
-      setUploadUrl(uploadResult.path); // Store the path, not the URL
-      setStatusMessage('✅ PDF uploaded successfully!');
+      // Store the URL and path from the successful generation
+      setUploadUrl(result.url);
+      setUploadedPath(result.filePath);
+      setStatusMessage('✅ PDF generated and uploaded successfully!');
       
       toast({
         title: "PDF Generated Successfully!",
@@ -702,24 +710,18 @@ export default function SignatureAndPDF({
 
   const handleGetSignedUrl = async () => {
     try {
-      const user = auth.currentUser
-      const idToken = await user?.getIdToken()
-      if (!idToken) {
+      // Use the direct Firebase Storage URL from the render API
+      if (!uploadUrl) {
         toast({
-          title: "Authentication Required",
-          description: "Please sign in to open the document.",
+          title: "No Document Available",
+          description: "Please generate a PDF first.",
           variant: "destructive"
         })
         return
       }
-      const res = await fetch('/api/storage/signed-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ path: uploadedPath, expiresInSec: 300 }),
-      })
-      const { url, error } = await res.json()
-      if (error || !url) throw new Error(error || 'No URL returned')
-      window.open(url, '_blank')
+      
+      // Open the permanent Firebase Storage URL directly
+      window.open(uploadUrl, '_blank')
       
       toast({
         title: "Document Opened",
@@ -727,11 +729,11 @@ export default function SignatureAndPDF({
         variant: "default"
       })
     } catch (e: any) {
-      console.error('[SignatureAndPDF] Get signed URL error:', e)
+      console.error('[SignatureAndPDF] Open document error:', e)
       
       toast({
         title: "Failed to Open Document",
-        description: e.message || "Could not generate download link. Please try again.",
+        description: e.message || "Could not open document. Please try again.",
         variant: "destructive"
       })
     }
