@@ -1,7 +1,7 @@
 export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { adminAuth, adminBucket } from '@/lib/firebaseAdmin'
+import { adminAuth, adminBucket } from '@/lib/firebase-admin'
 
 function getBearerToken(req: NextRequest) {
   const auth = req.headers.get('authorization') || ''

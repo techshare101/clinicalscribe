@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
+import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getCombinedTranscript } from '@/lib/transcriptChunks';
 
 function getBearerToken(req: Request) {

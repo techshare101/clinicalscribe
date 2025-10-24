@@ -54,4 +54,19 @@ if (!admin.apps.length) {
 
 export const adminDb = admin.firestore();
 export const adminAuth = admin.auth();
-export const adminBucket = admin.storage().bucket();
+
+// Lazy initialization to avoid build-time errors
+let _adminBucket: admin.storage.Bucket | null = null;
+export function getAdminBucket(): admin.storage.Bucket {
+  if (!_adminBucket) {
+    _adminBucket = admin.storage().bucket();
+  }
+  return _adminBucket;
+}
+
+// Deprecated: Use getAdminBucket() instead
+export const adminBucket = new Proxy({} as admin.storage.Bucket, {
+  get(_target, prop) {
+    return (getAdminBucket() as any)[prop];
+  },
+});

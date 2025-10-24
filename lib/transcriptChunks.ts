@@ -1,4 +1,4 @@
-import { adminDb } from '@/lib/firebaseAdmin';
+import { adminDb } from '@/lib/firebase-admin';
 
 /**
  * Retrieves and combines transcript chunks from Firestore for a given session

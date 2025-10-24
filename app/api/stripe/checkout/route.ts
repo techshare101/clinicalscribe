@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { adminAuth } from "@/lib/firebaseAdmin";
+import { adminAuth } from "@/lib/firebase-admin";
 import { getAppUrl } from "@/lib/env";
 
 export const runtime = "nodejs"; // ✅ force Node.js runtime

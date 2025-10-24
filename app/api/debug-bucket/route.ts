@@ -1,4 +1,4 @@
-import { adminBucket } from "@/lib/firebaseAdmin";
+import { adminBucket } from "@/lib/firebase-admin";
 
 export async function GET() {
   try {

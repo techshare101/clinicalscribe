@@ -1,7 +1,7 @@
 export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { adminAuth } from '@/lib/firebaseAdmin'
+import { adminAuth } from '@/lib/firebase-admin'
 
 function adminCredsConfigured() {
   // At least one of these must be present for Admin SDK to work locally

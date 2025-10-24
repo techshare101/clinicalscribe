@@ -1,7 +1,7 @@
 export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { adminDb } from '@/lib/firebaseAdmin'
+import { adminDb } from '@/lib/firebase-admin'
 
 export async function POST(req: NextRequest) {
   try {

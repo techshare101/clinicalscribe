@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getFirestore } from "firebase-admin/firestore";
-import { initFirebaseAdmin } from "@/lib/firebase-admin";
+import { adminDb } from "@/lib/firebase-admin";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("Missing STRIPE_SECRET_KEY environment variable");
@@ -10,10 +9,6 @@ if (!process.env.STRIPE_SECRET_KEY) {
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2023-10-16", // Using stable API version
 });
-
-// Initialize Firebase Admin if not already initialized
-initFirebaseAdmin();
-const db = getFirestore();
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get the user's profile to find their Stripe customer ID
-    const profileDoc = await db.collection("users").doc(uid).get();
+    const profileDoc = await adminDb.collection("users").doc(uid).get();
     const profile = profileDoc.data();
     const stripeCustomerId = profile?.stripeCustomerId;
 

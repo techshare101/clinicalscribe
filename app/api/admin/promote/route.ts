@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { adminAuth, adminDb } from '@/lib/firebaseAdmin'
+import { adminAuth, adminDb } from '@/lib/firebase-admin'
 
 export const runtime = "nodejs"; // ✅ force Node.js runtime
 

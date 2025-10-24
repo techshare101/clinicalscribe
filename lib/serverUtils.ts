@@ -1,4 +1,4 @@
-import { adminDb } from '@/lib/firebaseAdmin'
+import { adminDb } from '@/lib/firebase-admin'
 
 /**
  * Server-side utility function to get scroll by ID from Firestore

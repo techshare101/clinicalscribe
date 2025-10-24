@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { translateText } from "@/lib/translate";
-import { adminDb } from '@/lib/firebaseAdmin'; // Import Firebase Admin for Firestore
+import { adminDb } from '@/lib/firebase-admin'; // Import Firebase Admin for Firestore
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 

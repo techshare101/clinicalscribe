@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSignedPdfUrl } from "@/lib/pdfRetrieval";
-import { adminAuth } from "@/lib/firebaseAdmin";
+import { adminAuth } from "@/lib/firebase-admin";
 
 export async function POST(req: Request) {
   try {
