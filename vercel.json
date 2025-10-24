@@ -1,11 +1,8 @@
 {
   "functions": {
-    "app/api/pdf/render/route.ts": {
+    "api/pdf/render.func": {
       "maxDuration": 60,
       "memory": 1024
-    },
-    "app/api/**/route.ts": {
-      "maxDuration": 15
     }
   },
   "regions": [
