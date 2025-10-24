@@ -26,7 +26,7 @@ export async function GET(req: Request) {
       return {
         id: doc.id,
         patientName: data.patientName || "Unknown Patient",
-        createdAt: data.createdAt || new Date().toISOString(),
+        createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : (data.createdAt || new Date().toISOString()),
         filePath: data.filePath, // This should be set when PDF is generated
         subjective: data.subjective,
         objective: data.objective,
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
       return {
         id: doc.id,
         patientName: data.patientName || "Unknown Patient",
-        createdAt: data.createdAt || new Date().toISOString(),
+        createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : (data.createdAt || new Date().toISOString()),
         filePath: data.filePath, // This should be set when PDF is generated
         subjective: data.subjective,
         objective: data.objective,

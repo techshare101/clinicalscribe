@@ -25,11 +25,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    console.log(`[PDF Get URL] Generating signed URL for: ${filePath}`);
+    console.log(`[PDF Get URL] Generating permanent download URL for: ${filePath}`);
 
+    // Returns a permanent public URL that never expires
     const url = await getSignedPdfUrl(filePath);
     
-    console.log(`[PDF Get URL] Signed URL generated successfully`);
+    console.log(`[PDF Get URL] Permanent URL generated successfully`);
     return NextResponse.json({ success: true, url });
   } catch (err: any) {
     console.error(`[PDF Get URL] Error:`, err.message);

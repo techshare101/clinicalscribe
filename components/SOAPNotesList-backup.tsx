@@ -8,6 +8,7 @@ import { useSOAPNotes } from '@/hooks/useSOAPNotes'
 import { DownloadPdfButton } from '@/components/DownloadPDFButton'
 import { useAuth } from '@/hooks/useAuth'
 import { FileText, Download, ExternalLink, Clock, User, Globe, Languages } from 'lucide-react'
+import { formatDate } from '@/lib/formatDate'
 
 // Language flag mapping
 const languageFlags: Record<string, string> = {
@@ -87,32 +88,6 @@ export default function SOAPNotesList({ limit = 10 }: SOAPNotesListProps) {
     return note.pdfUrl || note.pdf?.url;
   };
 
-  // Format date helper function
-  const formatDate = (date: any): string => {
-    if (!date) return 'Unknown date'
-    
-    try {
-      // Handle Firestore Timestamp
-      if (date.toDate) {
-        return date.toDate().toLocaleString()
-      }
-      // Handle regular Date object
-      else if (date instanceof Date) {
-        return date.toLocaleString()
-      }
-      // Handle ISO string
-      else if (typeof date === 'string') {
-        return new Date(date).toLocaleString()
-      }
-      // Handle timestamp in seconds
-      else if (typeof date === 'object' && date.seconds) {
-        return new Date(date.seconds * 1000).toLocaleString()
-      }
-      return 'Unknown date'
-    } catch (e) {
-      return 'Invalid date'
-    }
-  }
 
   // Get language display with flag and badge
   const getLanguageDisplay = (langCode: string | undefined) => {

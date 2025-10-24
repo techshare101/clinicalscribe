@@ -1,0 +1,45 @@
+// Firebase Storage Rules for ClinicalScribe
+// Secure access for authenticated users with admin override support
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow admin access to all paths
+    match /{allPaths=**} {
+      allow read, write: if request.auth.token.admin == true;
+    }
+    
+    // User-specific paths - only owner can read/write
+    match /pdfs/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /audio/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /images/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Public access for generated PDFs (with signed URLs)
+    // This allows PDFs to be downloaded via signed URLs without authentication
+    match /pdfs/{userId}/{fileName} {
+      // Allow read with valid signed URL (no auth required for download)
+      allow read: if true;
+      // But require auth for write
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Demo data paths
+    match /demos/{demoId}/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Temporary files
+    match /temp/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

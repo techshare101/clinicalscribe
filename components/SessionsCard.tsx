@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { Clock, AlertTriangle } from 'lucide-react';
+import { formatDate } from '@/lib/formatDate';
 
 export default function SessionsCard() {
   const { user, loading: authLoading } = useAuth();
@@ -36,12 +37,10 @@ export default function SessionsCard() {
         
         const sessionsData = await res.json();
         
-        // Map to array with IDs and formatted dates
+        // Map to array with IDs
         const sessionsList = sessionsData.map((session: any) => ({
           id: session.id,
-          ...session,
-          // Ensure createdAt is a Date object for proper formatting
-          createdAt: session.createdAt?.toDate?.() || new Date(session.createdAt)
+          ...session
         }));
         
         setSessions(sessionsList);
@@ -61,10 +60,6 @@ export default function SessionsCard() {
     }
   }, [authLoading, user]);
   
-  // Format date to a more readable format
-  const formatDate = (date: Date) => {
-    return date.toLocaleString(); // Simple full date/time formatting as per the requirement
-  };
 
   if (authLoading) return <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 overflow-hidden p-5 text-center">Loading sessions…</div>;
   if (!user) return <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 overflow-hidden p-5 text-center">Please log in to see your sessions.</div>;

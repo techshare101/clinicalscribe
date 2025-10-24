@@ -4,7 +4,8 @@ service firebase.storage {
     function isSignedIn() { return request.auth != null; }
     function isAdmin() { 
       return isSignedIn() && 
-      (request.auth.token.role == "system-admin" || 
+      (request.auth.token.role == "admin" ||
+       request.auth.token.role == "system-admin" || 
        request.auth.token.role == "nurse-admin");
     }
 

@@ -5,7 +5,8 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isAdmin() { 
       return isSignedIn() && 
-      (request.auth.token.role == "system-admin" || 
+      (request.auth.token.role == "admin" ||
+       request.auth.token.role == "system-admin" || 
        request.auth.token.role == "nurse-admin");
     }
     
@@ -17,6 +18,11 @@ service cloud.firestore {
     // Allow authenticated users to read and write their own documents
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow users to read their own profile
+    match /profiles/{profileId} {
+      allow read, write: if request.auth != null && request.auth.uid == profileId;
     }
 
     // Allow users to read their own documents in the dashboard collections
@@ -38,6 +44,21 @@ service cloud.firestore {
     match /audit_logs/{auditLogId} {
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
       allow write: if request.auth != null;
+    }
+
+    // SOAP Notes collection - allow users to read/write their own notes
+    match /soapNotes/{noteId} {
+      allow read: if request.auth != null && 
+                   (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.uid);
+      allow create: if request.auth != null && 
+                     (request.auth.uid == request.resource.data.userId || request.auth.uid == request.resource.data.uid);
+      allow update, delete: if request.auth != null && 
+                             (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.uid);
+    }
+
+    // Transcriptions collection - allow users to read/write their own transcriptions
+    match /transcriptions/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

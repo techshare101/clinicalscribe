@@ -55,31 +55,29 @@ console.log('Firebase Config:', {
 
 // Initialize Firebase (avoid re-initializing in Fast Refresh/dev)
 let app: FirebaseApp;
-if (typeof window !== 'undefined') {
-  // Client-side initialization
-  if (getApps().length === 0) {
-    console.log("Initializing new Firebase app");
-    app = initializeApp(firebaseConfig);
-  } else {
-    console.log("Using existing Firebase app");
-    app = getApps()[0]!;
-  }
-} else {
-  // Server-side initialization
-  console.log("Initializing Firebase app for server-side");
+if (typeof window !== 'undefined' && getApps().length === 0) {
+  // Client-side initialization only
+  console.log("Initializing new Firebase app");
   app = initializeApp(firebaseConfig);
+} else if (typeof window !== 'undefined') {
+  // Use existing app in browser
+  console.log("Using existing Firebase app");
+  app = getApps()[0]!;
+} else {
+  // Server-side: Don't initialize client SDK on server
+  console.log("Skipping Firebase client initialization on server-side");
+  // We'll return null here and handle it in the exports
+  app = null as any;
 }
 
-console.log("Firebase app initialized:", app?.name);
-
-// Initialize Firebase services
-export const auth: Auth = getAuth(app);
+// Initialize Firebase services only on client-side
+export const auth: Auth = typeof window !== 'undefined' ? getAuth(app) : null as any;
 console.log("Firebase auth initialized");
 
-export const storage: FirebaseStorage = getStorage(app);
+export const storage: FirebaseStorage = typeof window !== 'undefined' ? getStorage(app) : null as any;
 console.log("Firebase storage initialized");
 
-export const db: Firestore = getFirestore(app);
+export const db: Firestore = typeof window !== 'undefined' ? getFirestore(app) : null as any;
 console.log("Firebase firestore initialized");
 
 // Add debugging to verify db is properly initialized
@@ -93,6 +91,10 @@ if (typeof window !== 'undefined') {
 
 // Add a function to verify Firestore is working
 export const verifyFirestore = () => {
+  if (typeof window === 'undefined') {
+    // On server-side, we don't have client SDK
+    return true;
+  }
   if (!db) {
     throw new Error("Firestore is not initialized");
   }

@@ -32,10 +32,15 @@ export async function GET(req: Request) {
       .orderBy("createdAt", "desc")
       .get();
     
-    const notes = notesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const notes = notesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        // Convert Firestore Timestamp to ISO string for consistent serialization
+        createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : data.createdAt
+      };
+    });
     
     console.log('Found SOAP notes:', notes.length); // Debug log
     

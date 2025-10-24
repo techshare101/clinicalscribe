@@ -16,6 +16,11 @@ export async function generateAndUploadPDF(
     docLang?: string
   }
 ): Promise<{ url: string; path: string }> {
+  // This function should only be used on the client-side
+  if (typeof window === 'undefined') {
+    throw new Error('generateAndUploadPDF should only be called on the client-side');
+  }
+  
   const user = auth.currentUser;
   if (!user) throw new Error("Not authenticated");
 
@@ -60,6 +65,11 @@ export async function uploadToFirebase(
   uid: string,
   ext = "bin"
 ): Promise<{ path: string; size: number; contentType?: string | null }> {
+  // This function should only be used on the client-side
+  if (typeof window === 'undefined') {
+    throw new Error('uploadToFirebase should only be called on the client-side');
+  }
+  
   const id = randomId();
   const safeExt = ext.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin";
   const path = `${folder}/${uid}/${id}.${safeExt}`;
@@ -71,6 +81,11 @@ export async function uploadToFirebase(
 
 /** Auth-respecting fetch (no public URL). Handy for inline previews. */
 export async function getBlobUrl(path: string) {
+  // This function should only be used on the client-side
+  if (typeof window === 'undefined') {
+    throw new Error('getBlobUrl should only be called on the client-side');
+  }
+  
   const r = ref(storage, path);
   const bytes = await getBytes(r); // respects Storage rules (must be signed-in owner)
   const blob = new Blob([bytes]);
@@ -82,6 +97,11 @@ export async function uploadUserFile(
   file: File | Blob,
   fileName: string
 ): Promise<string> {
+  // This function should only be used on the client-side
+  if (typeof window === 'undefined') {
+    throw new Error('uploadUserFile should only be called on the client-side');
+  }
+  
   const user = auth.currentUser;
   if (!user) throw new Error("Not authenticated");
   const fileRef = ref(storage, `${path}/${user.uid}/${fileName}`);
@@ -93,6 +113,11 @@ export async function getUserFileUrl(
   path: BucketFolder,
   fileName: string
 ): Promise<string> {
+  // This function should only be used on the client-side
+  if (typeof window === 'undefined') {
+    throw new Error('getUserFileUrl should only be called on the client-side');
+  }
+  
   const user = auth.currentUser;
   if (!user) throw new Error("Not authenticated");
   const fileRef = ref(storage, `${path}/${user.uid}/${fileName}`);
@@ -100,6 +125,11 @@ export async function getUserFileUrl(
 }
 
 export async function getSignedUrlForPath(storagePath: string): Promise<string> {
+  // This function should only be used on the client-side
+  if (typeof window === 'undefined') {
+    throw new Error('getSignedUrlForPath should only be called on the client-side');
+  }
+  
   const user = auth.currentUser;
   if (!user) throw new Error("Not authenticated");
   const parts = storagePath.split("/");

@@ -1,4 +1,4 @@
-'''import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { auth } from "@/lib/firebase"; // Assuming you have an auth export
 
@@ -33,12 +33,10 @@ async function getPatients() {
 
   } catch (error) {
     console.error("Error fetching patients:", error);
-    // If you see a "Missing or insufficient permissions" error here,
     // it means the user's roles in `/users/{userId}` do not grant access
     // to the specified `clinicId`.
   }
 }
 
 // 3. Run the function
-getPatients();
-''
+getPatients().catch((error) => console.error("Error fetching patients:", error));

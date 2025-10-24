@@ -26,10 +26,15 @@ export async function GET(req: Request) {
       .limit(3)
       .get();
     
-    const sessions = sessionsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const sessions = sessionsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        // Convert Firestore Timestamp to ISO string for consistent serialization
+        createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : data.createdAt
+      };
+    });
     
     return NextResponse.json(sessions);
   } catch (err: any) {

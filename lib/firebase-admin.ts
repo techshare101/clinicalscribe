@@ -1,61 +1,57 @@
-import * as admin from 'firebase-admin';
+import admin from "firebase-admin";
 
-let app: admin.app.App;
-
-export function initFirebaseAdmin() {
-  if (!admin.apps.length) {
-    const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-
-    if (!serviceAccountBase64) {
-      throw new Error('Missing FIREBASE_SERVICE_ACCOUNT_BASE64 env');
-    }
-
-    try {
-      const serviceAccount = JSON.parse(
-        Buffer.from(serviceAccountBase64, 'base64').toString('utf-8')
-      );
-
-      app = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-        projectId: serviceAccount.project_id,
-      });
-    } catch (error) {
-      // Fallback initialization if service account parsing fails
-      app = admin.initializeApp({
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      });
-    }
+if (!admin.apps.length) {
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  
+  // Support both methods: base64 service account OR individual credentials
+  let credential;
+  const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+  
+  if (serviceAccountBase64) {
+    // Method 1: Base64-encoded service account JSON
+    const serviceAccount = JSON.parse(
+      Buffer.from(serviceAccountBase64, "base64").toString()
+    );
+    credential = admin.credential.cert(serviceAccount);
+    console.log("[Firebase Admin] Using base64 service account");
   } else {
-    app = admin.app();
+    // Method 2: Individual credential fields
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+    
+    if (!clientEmail || !privateKey) {
+      throw new Error(
+        "Missing Firebase credentials. Set either FIREBASE_SERVICE_ACCOUNT_BASE64 or both FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY"
+      );
+    }
+    
+    credential = admin.credential.cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    });
+    console.log("[Firebase Admin] Using individual credential fields");
   }
 
-  return app;
-}
+  const bucket =
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    `${projectId}.appspot.com`; // fallback for safety
 
-// Export helpers (server-only)
-export const adminApp = initFirebaseAdmin();
-export const adminAuth = adminApp.auth();
-export const adminDb = adminApp.firestore();
-
-// Only initialize storage if bucket is configured
-let adminStorage: admin.storage.Bucket | undefined;
-if (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) {
-  try {
-    adminStorage = adminApp.storage().bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
-    console.log('[Firebase Admin] Storage bucket initialized:', process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
-  } catch (error) {
-    // Storage initialization failed, but we can continue without it
-    console.error('[Firebase Admin] Failed to initialize Firebase storage bucket:', error);
-    adminStorage = undefined;
+  if (!bucket) {
+    throw new Error(
+      "❌ FIREBASE_STORAGE_BUCKET is missing. Please set it in your .env.local"
+    );
   }
-} else {
-  console.warn('[Firebase Admin] NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET not configured - storage disabled');
+
+  console.log("[Firebase Admin] Initializing with project:", projectId);
+  console.log("[Firebase Admin] Using storage bucket:", bucket);
+
+  admin.initializeApp({
+    credential,
+    storageBucket: bucket,
+  });
 }
 
-export { adminStorage };
-export const adminBucket = adminStorage; // Alias for backward compatibility
-
-// Default export for backwards compatibility
-export default admin;
+export const adminDb = admin.firestore();
+export const adminAuth = admin.auth();
+export const adminBucket = admin.storage().bucket();

@@ -8,14 +8,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Use Node.js runtime for large files + Buffer
 export const runtime = 'nodejs';
 
-// Add configuration for larger payload size
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '100mb',
-    },
-  },
-};
+// Increase max duration for long transcriptions (Vercel limit)
+export const maxDuration = 60; // 60 seconds for Pro plan, 10 for Hobby
 
 export async function POST(req: Request) {
   try {
@@ -79,7 +73,7 @@ export async function POST(req: Request) {
         console.log(`Processing chunk ${i + 1}/${chunks.length}`);
         
         // Create a new File object for this chunk
-        const chunkBlob = new Blob([chunks[i]], { type: file.type });
+        const chunkBlob = new Blob([new Uint8Array(chunks[i])], { type: file.type });
         const chunkFile = new File([chunkBlob], `chunk-${i}-${file.name}`, { type: file.type });
         
         try {
@@ -166,15 +160,34 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error("Transcription API error:", error);
+    console.error("Error type:", error.constructor.name);
+    console.error("Error code:", error.code);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
     
-    // Provide more specific error messages
+    // Check for specific OpenAI errors
     let errorMessage = "Failed to transcribe";
-    if (error.message) {
-      errorMessage = error.message;
+    let statusCode = 500;
+    
+    if (error.code === 'invalid_api_key') {
+      errorMessage = "Invalid OpenAI API key. Please check your API key configuration.";
+      statusCode = 401;
+    } else if (error.code === 'insufficient_quota') {
+      errorMessage = "OpenAI API quota exceeded. Please check your OpenAI account billing.";
+      statusCode = 429;
+    } else if (error.code === 'model_not_found') {
+      errorMessage = "OpenAI model not found. The Whisper model may not be available.";
+      statusCode = 404;
+    } else if (error.message) {
+      errorMessage = `OpenAI API error: ${error.message}`;
     } else if (error.code) {
-      errorMessage = `OpenAI API error: ${error.code}`;
+      errorMessage = `OpenAI API error code: ${error.code}`;
     }
     
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({ 
+      error: errorMessage,
+      code: error.code || 'unknown',
+      type: error.constructor.name || 'unknown'
+    }, { status: statusCode });
   }
 }

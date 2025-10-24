@@ -2,6 +2,11 @@ import { ref, uploadBytes } from 'firebase/storage';
 import { storage, auth } from './firebase';
 
 export async function uploadAudioFile(audioBlob: Blob, sessionId: string): Promise<string> {
+  // This function should only be used on the client-side
+  if (typeof window === 'undefined') {
+    throw new Error('uploadAudioFile should only be called on the client-side');
+  }
+  
   try {
     const user = auth.currentUser;
     if (!user) {
