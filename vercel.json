@@ -1,6 +1,7 @@
 {
   "functions": {
     "app/api/pdf/render/route.js": {
+      "runtime": "nodejs20.x",
       "maxDuration": 60,
       "memory": 1024
     }
