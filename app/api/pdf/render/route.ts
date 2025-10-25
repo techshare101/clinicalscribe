@@ -22,10 +22,19 @@ const getPuppeteerConfig = async () => {
   if (isVercel || (!isLocalDev && !isWindows)) {
     console.log('[PDF Render] Using @sparticuz/chromium for serverless environment');
     const executablePath = await chromium.executablePath();
+    
+    // Enhanced args for serverless environment
+    const serverlessArgs = [
+      ...chromium.args,
+      '--disable-software-rasterizer',
+      '--disable-gpu',
+      '--single-process',
+    ];
+    
     return {
       browser: puppeteer,
       config: {
-        args: chromium.args,
+        args: serverlessArgs,
         defaultViewport: chromium.defaultViewport,
         executablePath,
         headless: chromium.headless,
@@ -414,12 +423,22 @@ export async function POST(req: NextRequest) {
       browser = await puppeteerInstance.launch(config);
       console.log('[PDF Render] Browser launched successfully');
     } catch (launchError: any) {
-      console.error('[PDF Render] Browser launch failed:', launchError.message);
+      console.error('[PDF Render] Browser launch failed:', {
+        message: launchError.message,
+        stack: launchError.stack,
+        name: launchError.name
+      });
       
-      if (launchError.message.includes('libnss3.so') || launchError.message.includes('shared libraries')) {
+      // More specific error messages for debugging
+      if (launchError.message.includes('libnss3.so') || 
+          launchError.message.includes('shared libraries') ||
+          launchError.message.includes('libatk') ||
+          launchError.message.includes('libcups')) {
         throw new Error('PDF generation service is not available. This is a server configuration issue.');
       }
-      throw launchError;
+      
+      // Re-throw with more context
+      throw new Error(`Browser launch failed: ${launchError.message}`);
     }
 
     const page = await browser.newPage();
