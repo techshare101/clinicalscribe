@@ -1,13 +1,8 @@
 {
   "functions": {
-    "app/api/pdf/render/route.ts": {
+    "app/api/pdf/render/route.js": {
       "maxDuration": 60,
       "memory": 1024
-    }
-  },
-  "build": {
-    "env": {
-      "CHROMIUM_PATH": "/var/task/node_modules/@sparticuz/chromium/bin"
     }
   },
   "regions": [
