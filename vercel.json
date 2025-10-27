@@ -2,7 +2,7 @@
   "functions": {
     "app/api/pdf/render/route.js": {
       "maxDuration": 60,
-      "memory": 1024
+      "memory": 3009
     }
   },
   "regions": [
