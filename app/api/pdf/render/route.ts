@@ -414,9 +414,10 @@ export async function POST(req: NextRequest) {
     
     console.log(`[PDF Render] Puppeteer config:`, { 
       hasExecutablePath: !!config.executablePath, 
-      executablePath: config.executablePath?.slice(0, 50) + '...', 
+      executablePath: config.executablePath, 
       headless: config.headless, 
-      argsCount: config.args?.length || 0 
+      argsCount: config.args?.length || 0,
+      args: config.args
     });
     
     let browser;
@@ -427,7 +428,8 @@ export async function POST(req: NextRequest) {
       console.error('[PDF Render] Browser launch failed:', {
         message: launchError.message,
         stack: launchError.stack,
-        name: launchError.name
+        name: launchError.name,
+        fullError: JSON.stringify(launchError, null, 2)
       });
       
       // More specific error messages for debugging
@@ -435,10 +437,10 @@ export async function POST(req: NextRequest) {
           launchError.message.includes('shared libraries') ||
           launchError.message.includes('libatk') ||
           launchError.message.includes('libcups')) {
-        throw new Error('PDF generation service is not available. This is a server configuration issue.');
+        throw new Error(`PDF generation service is not available. Missing system libraries: ${launchError.message}`);
       }
       
-      // Re-throw with more context
+      // Re-throw with full error message for debugging
       throw new Error(`Browser launch failed: ${launchError.message}`);
     }
 
