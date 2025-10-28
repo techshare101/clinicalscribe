@@ -80,30 +80,37 @@ export async function POST(req: Request) {
       console.log('[PDF Render] Using local Chrome:', executablePath);
     }
 
-    const browser = await puppeteer.launch({
-      args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-      defaultViewport: chromium.defaultViewport,
-      executablePath,
-      headless: true,
-    });
+    let browser;
+    try {
+      browser = await puppeteer.launch({
+        args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+        defaultViewport: chromium.defaultViewport,
+        executablePath,
+        headless: true,
+      });
 
-    console.log('[PDF Render] Browser launched successfully');
+      console.log('[PDF Render] Browser launched successfully');
 
-    const page = await browser.newPage();
-    await page.setContent(htmlWithWatermark, { waitUntil: "networkidle0" });
-    
-    console.log('[PDF Render] Generating PDF...');
-    const pdf = await page.pdf({ format: "A4", printBackground: true });
-    await browser.close();
+      const page = await browser.newPage();
+      await page.setContent(htmlWithWatermark, { waitUntil: "networkidle0" });
+      
+      console.log('[PDF Render] Generating PDF...');
+      const pdf = await page.pdf({ format: "A4", printBackground: true });
+      await browser.close();
+      
+      console.log('[PDF Render] PDF generated successfully, size:', pdf.length, 'bytes');
 
-    console.log('[PDF Render] PDF generated successfully, size:', pdf.length, 'bytes');
-
-    return new NextResponse(pdf, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": 'attachment; filename="clinicalscribe-report.pdf"',
-      },
-    });
+      return new NextResponse(pdf, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": 'attachment; filename="clinicalscribe-report.pdf"',
+        },
+      });
+    } catch (launchError: any) {
+      console.error('[PDF Render] Browser launch failed:', launchError.message);
+      if (browser) await browser.close().catch(() => {});
+      throw launchError;
+    }
   } catch (error: any) {
     console.error('[PDF ERROR]', error);
     return NextResponse.json(
