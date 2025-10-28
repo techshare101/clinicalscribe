@@ -334,13 +334,11 @@ export async function POST(req: NextRequest) {
       // Production: Use @sparticuz/chromium
       try {
         executablePath = await chromium.executablePath();
-        if (!executablePath || executablePath.includes('/tmp/chromium')) {
-          // Force the correct path if executablePath() returns invalid path
-          executablePath = '/var/task/node_modules/@sparticuz/chromium/bin/headless_shell';
-        }
-      } catch (error) {
-        console.warn('⚠️ chromium.executablePath() failed, using fallback');
-        executablePath = '/var/task/node_modules/@sparticuz/chromium/bin/headless_shell';
+        console.log('📦 Chromium executable path:', executablePath);
+        console.log('📦 Chromium path exists:', require('fs').existsSync(executablePath));
+      } catch (error: any) {
+        console.error('❌ Failed to get chromium executable path:', error.message);
+        throw new Error(`Failed to initialize Chromium: ${error.message}`);
       }
       launchArgs = chromium.args;
       headlessMode = chromium.headless;
