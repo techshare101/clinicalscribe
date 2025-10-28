@@ -12,90 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import sanitizeHtml from "sanitize-html";
 
 // Environment detection
-const isDevelopment = process.env.NODE_ENV === 'development';
-const isWindows = os.platform() === 'win32';
 const isVercel = !!process.env.VERCEL || !!process.env.VERCEL_URL;
-const isLocalDev = isDevelopment && !isVercel;
-
-// Puppeteer configuration based on environment
-const getPuppeteerConfig = async () => {
-  // Always use @sparticuz/chromium in serverless environments (Vercel, Lambda, etc.)
-  if (isVercel || (!isLocalDev && !isWindows)) {
-    console.log('[PDF Render] Using @sparticuz/chromium for serverless environment');
-    const executablePath = await chromium.executablePath();
-    
-    // Enhanced args for serverless environment
-    const serverlessArgs = [
-      ...chromium.args,
-      '--disable-software-rasterizer',
-      '--disable-gpu',
-      '--single-process',
-    ];
-    
-    return {
-      browser: puppeteer,
-      config: {
-        args: serverlessArgs,
-        defaultViewport: chromium.defaultViewport,
-        executablePath,
-        headless: chromium.headless,
-        ignoreHTTPSErrors: true,
-      }
-    };
-  }
-  
-  // Only use local Chrome for local development
-  if (isLocalDev) {
-    console.log('[PDF Render] Using local Chrome for development');
-    try {
-      // Try to import puppeteer (not puppeteer-core) for local development
-      const puppeteerFull = await import('puppeteer');
-      return {
-        browser: puppeteerFull.default,
-        config: {
-          headless: true,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-web-security',
-            '--disable-features=VizDisplayCompositor'
-          ]
-        }
-      };
-    } catch (error) {
-      console.log('[PDF Render] Full puppeteer not available, falling back to system Chrome');
-      // Fallback to puppeteer-core with system Chrome
-      return {
-        browser: puppeteer,
-        config: {
-          headless: true,
-          executablePath: getSystemChromePath(),
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-web-security',
-            '--disable-features=VizDisplayCompositor'
-          ]
-        }
-      };
-    }
-  }
-  
-  // Default fallback to @sparticuz/chromium
-  console.log('[PDF Render] Using @sparticuz/chromium as fallback');
-  const executablePath = await chromium.executablePath();
-  return {
-    browser: puppeteer,
-    config: {
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath,
-      headless: chromium.headless,
-    }
-  };
-};
 
 // Clinical-grade CSS template matching the polished design
 const getClinicalCSS = () => {
@@ -408,38 +325,36 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // 🧱 Puppeteer launch
-    console.log(`[PDF Render] Environment: Development=${isDevelopment}, Windows=${isWindows}, Vercel=${isVercel}, LocalDev=${isLocalDev}`);
-    const { browser: puppeteerInstance, config } = await getPuppeteerConfig();
-    
-    // 🔍 Debug: Explicit Chromium path resolution
-    const explicitPath = process.env.CHROMIUM_PATH || await chromium.executablePath();
-    console.log('🔍 Chromium path resolved:', explicitPath);
-    console.log('🔍 CHROMIUM_PATH env:', process.env.CHROMIUM_PATH);
-    
-    // Override config with explicit path
-    if (explicitPath) {
-      config.executablePath = explicitPath;
-    }
-    
-    console.log(`[PDF Render] Puppeteer config:`, { 
-      hasExecutablePath: !!config.executablePath, 
-      executablePath: config.executablePath, 
-      headless: config.headless, 
-      argsCount: config.args?.length || 0,
-      args: config.args
-    });
+    // 🧱 Puppeteer launch with @sparticuz/chromium
+    const executablePath = await chromium.executablePath();
+    console.log('🚀 [PDF Render] Launching Chromium from:', executablePath);
+    console.log('🔍 Environment: Vercel=', isVercel, ', Node=', process.version);
     
     let browser;
     try {
-      browser = await puppeteerInstance.launch(config);
-      console.log('[PDF Render] Browser launched successfully');
+      browser = await puppeteer.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath,
+        headless: chromium.headless,
+        ignoreHTTPSErrors: true,
+      });
+      
+      // 💡 Debug info: log Chromium version + memory footprint
+      const version = await browser.version();
+      const metrics = await browser.target().createCDPSession();
+      const perf = await metrics.send("Performance.getMetrics");
+      console.log('🧠 Chromium Version:', version);
+      console.log('📊 Runtime Metrics (MB):', {
+        jsHeapUsed: (perf.metrics.find((m: any) => m.name === "JSHeapUsedSize")?.value ?? 0) / 1_000_000,
+        jsHeapTotal: (perf.metrics.find((m: any) => m.name === "JSHeapTotalSize")?.value ?? 0) / 1_000_000,
+      });
+      console.log('✅ [PDF Render] Browser launched successfully');
     } catch (launchError: any) {
-      console.error('[PDF Render] Browser launch failed:', {
+      console.error('❌ [PDF Render] Browser launch failed:', {
         message: launchError.message,
-        stack: launchError.stack,
-        name: launchError.name,
-        fullError: JSON.stringify(launchError, null, 2)
+        stack: launchError.stack?.substring(0, 500),
+        name: launchError.name
       });
       
       // More specific error messages for debugging
@@ -512,7 +427,7 @@ export async function POST(req: NextRequest) {
     });
     
     await browser.close();
-    console.log(`[PDF Render] PDF generated successfully (${pdfBuffer.length} bytes)`);
+    console.log("✅ [PDF Render] PDF generated successfully");
 
     // 🗂️ Write + upload inside try/finally to ensure cleanup
     try {

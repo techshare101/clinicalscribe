@@ -1,13 +1,14 @@
 {
   "functions": {
     "app/api/pdf/render/route.js": {
+      "runtime": "nodejs20.x",
       "maxDuration": 60,
-      "memory": 2048
+      "memory": 1024
     }
   },
   "build": {
     "env": {
-      "CHROMIUM_PATH": "/var/task/node_modules/@sparticuz/chromium/bin/chromium"
+      "CHROMIUM_PATH": "/var/task/node_modules/@sparticuz/chromium/bin/headless_shell"
     }
   },
   "regions": [
