@@ -326,7 +326,17 @@ export async function POST(req: NextRequest) {
     });
 
     // 🧱 Puppeteer launch with @sparticuz/chromium
-    const executablePath = await chromium.executablePath();
+    let executablePath: string;
+    try {
+      executablePath = await chromium.executablePath();
+      if (!executablePath || executablePath.includes('/tmp/chromium')) {
+        // Force the correct path if executablePath() returns invalid path
+        executablePath = '/var/task/node_modules/@sparticuz/chromium/bin/headless_shell';
+      }
+    } catch (error) {
+      console.warn('⚠️ chromium.executablePath() failed, using fallback');
+      executablePath = '/var/task/node_modules/@sparticuz/chromium/bin/headless_shell';
+    }
     console.log('🚀 [PDF Render] Launching Chromium from:', executablePath);
     console.log('🔍 Environment: Vercel=', isVercel, ', Node=', process.version);
     console.log('📦 @sparticuz/chromium args count:', chromium.args.length);
