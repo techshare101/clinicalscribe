@@ -50,7 +50,8 @@ export async function POST(req: NextRequest) {
     
     if (isVercel) {
       executablePath = await chromium.executablePath();
-      launchArgs = chromium.args;
+      // Add --single-process flag to help with library loading on Vercel
+      launchArgs = [...chromium.args, '--single-process'];
       headlessMode = chromium.headless;
     } else {
       executablePath = getSystemChromePath();

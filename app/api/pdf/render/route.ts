@@ -30,6 +30,7 @@ const getClinicalCSS = () => {
         margin: 0;
         padding: 0;
         font-size: 11pt;
+        position: relative;
         /* Subtle diagonal watermark pattern */
         background: 
           repeating-linear-gradient(
@@ -39,6 +40,23 @@ const getClinicalCSS = () => {
             transparent 25px,
             transparent 50px
           );
+      }
+      
+      /* Beta watermark overlay */
+      .beta-watermark {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-45deg);
+        font-size: 72px;
+        font-weight: 700;
+        color: rgba(0, 102, 204, 0.08);
+        text-transform: uppercase;
+        letter-spacing: 8px;
+        z-index: 1;
+        pointer-events: none;
+        user-select: none;
+        white-space: nowrap;
       }
       
       /* Blue header bar */
@@ -340,7 +358,8 @@ export async function POST(req: NextRequest) {
         console.error('❌ Failed to get chromium executable path:', error.message);
         throw new Error(`Failed to initialize Chromium: ${error.message}`);
       }
-      launchArgs = chromium.args;
+      // Add --single-process flag to help with library loading on Vercel
+      launchArgs = [...chromium.args, '--single-process'];
       headlessMode = chromium.headless;
     } else {
       // Development: Use local Chrome installation
@@ -418,6 +437,15 @@ export async function POST(req: NextRequest) {
       day: 'numeric'
     });
     
+    const currentDateTime = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+    
     const completeHtml = `
       <!DOCTYPE html>
       <html>
@@ -428,12 +456,13 @@ export async function POST(req: NextRequest) {
           ${clinicalCSS}
         </head>
         <body>
+          <div class="beta-watermark">ClinicalScribe Beta</div>
           <div class="document-header">SOAP Note</div>
           <div class="document-container">
             ${safeHtml}
           </div>
           <div class="document-footer">
-            ClinicalScribe Beta — Generated ${currentDate}
+            ClinicalScribe Beta — Generated ${currentDateTime}${signature ? ' • Signed by ' + signature : ''}
           </div>
         </body>
       </html>
