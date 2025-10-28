@@ -2,28 +2,7 @@ import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 import { NextResponse } from "next/server";
 
-export const runtime = "nodejs";
-
-// Helper to find local Chrome
-function getLocalChromePath(): string | undefined {
-  const paths = [
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    process.env.CHROME_PATH,
-  ];
-  
-  for (const path of paths) {
-    if (path) {
-      try {
-        const fs = require('fs');
-        if (fs.existsSync(path)) return path;
-      } catch (e) {
-        // Continue to next path
-      }
-    }
-  }
-  return undefined;
-}
+export const runtime = "nodejs"; // Force Node runtime for Vercel Pro
 
 export async function POST(req: Request) {
   try {
@@ -64,57 +43,36 @@ export async function POST(req: Request) {
       </body>
     </html>`;
 
-    // Determine executable path
-    const isVercel = !!process.env.VERCEL || !!process.env.VERCEL_URL;
-    let executablePath: string;
+    console.log('[PDF Render] Launching browser with @sparticuz/chromium...');
     
-    if (isVercel) {
-      executablePath = await chromium.executablePath();
-      console.log('[PDF Render] Using Vercel Chromium:', executablePath);
-    } else {
-      const localPath = getLocalChromePath();
-      if (!localPath) {
-        throw new Error('Chrome not found. Please install Google Chrome or set CHROME_PATH environment variable.');
-      }
-      executablePath = localPath;
-      console.log('[PDF Render] Using local Chrome:', executablePath);
-    }
+    const browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    });
 
-    let browser;
-    try {
-      browser = await puppeteer.launch({
-        args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-        defaultViewport: chromium.defaultViewport,
-        executablePath,
-        headless: true,
-      });
+    console.log('[PDF Render] Browser launched successfully');
 
-      console.log('[PDF Render] Browser launched successfully');
+    const page = await browser.newPage();
+    await page.setContent(htmlWithWatermark, { waitUntil: "networkidle0" });
+    
+    console.log('[PDF Render] Generating PDF...');
+    const pdf = await page.pdf({ format: "A4", printBackground: true });
+    await browser.close();
+    
+    console.log('[PDF Render] PDF generated successfully, size:', pdf.length, 'bytes');
 
-      const page = await browser.newPage();
-      await page.setContent(htmlWithWatermark, { waitUntil: "networkidle0" });
-      
-      console.log('[PDF Render] Generating PDF...');
-      const pdf = await page.pdf({ format: "A4", printBackground: true });
-      await browser.close();
-      
-      console.log('[PDF Render] PDF generated successfully, size:', pdf.length, 'bytes');
-
-      return new NextResponse(pdf, {
-        headers: {
-          "Content-Type": "application/pdf",
-          "Content-Disposition": 'attachment; filename="clinicalscribe-report.pdf"',
-        },
-      });
-    } catch (launchError: any) {
-      console.error('[PDF Render] Browser launch failed:', launchError.message);
-      if (browser) await browser.close().catch(() => {});
-      throw launchError;
-    }
+    return new NextResponse(pdf, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'attachment; filename="clinicalscribe-report.pdf"',
+      },
+    });
   } catch (error: any) {
     console.error('[PDF ERROR]', error);
     return NextResponse.json(
-      { error: error?.message || 'PDF generation failed' },
+      { error: String(error) },
       { status: 500 }
     );
   }
