@@ -1,7 +1,6 @@
 {
   "functions": {
-    "app/api/pdf/render/route.js": {
-      "runtime": "nodejs20.x",
+    "app/api/pdf/render.func": {
       "maxDuration": 60,
       "memory": 1024
     }
@@ -10,8 +9,5 @@
     "env": {
       "CHROMIUM_PATH": "/var/task/node_modules/@sparticuz/chromium/bin/headless_shell"
     }
-  },
-  "regions": [
-    "iad1"
-  ]
+  }
 }
