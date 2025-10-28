@@ -1,8 +1,9 @@
 {
   "functions": {
-    "app/api/pdf/render.func": {
-      "maxDuration": 60,
-      "memory": 1024
+    "api/pdf/render.js": {
+      "runtime": "vercel-node@20.0.0",
+      "memory": 1024,
+      "maxDuration": 60
     }
   },
   "build": {
