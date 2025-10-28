@@ -329,6 +329,7 @@ export async function POST(req: NextRequest) {
     const executablePath = await chromium.executablePath();
     console.log('🚀 [PDF Render] Launching Chromium from:', executablePath);
     console.log('🔍 Environment: Vercel=', isVercel, ', Node=', process.version);
+    console.log('📦 @sparticuz/chromium args count:', chromium.args.length);
     
     let browser;
     try {
@@ -337,7 +338,6 @@ export async function POST(req: NextRequest) {
         defaultViewport: chromium.defaultViewport,
         executablePath,
         headless: chromium.headless,
-        ignoreHTTPSErrors: true,
       });
       
       // 💡 Debug info: log Chromium version + memory footprint
