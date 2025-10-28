@@ -56,14 +56,23 @@ export async function requireUser() {
           return { ...user, plan: "beta" }
         }
       }
-    } catch (profileError) {
-      console.error("❌ Error fetching user profile:", profileError)
+    } catch (profileError: any) {
+      console.error("❌ Error fetching user profile:", {
+        message: profileError?.message,
+        code: profileError?.code,
+        name: profileError?.name
+      })
     }
 
     // If we get here, user is authenticated but doesn't have active subscription
     return { ...user, plan: null }
-  } catch (err) {
-    console.error("❌ requireUser failed:", err)
+  } catch (err: any) {
+    console.error("❌ requireUser failed:", {
+      message: err?.message,
+      code: err?.code,
+      name: err?.name,
+      stack: err?.stack?.substring(0, 200)
+    })
     
     // Dev override: return mock user when NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS is true
     const devOverride = process.env.NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS === "true"

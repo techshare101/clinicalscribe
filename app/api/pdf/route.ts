@@ -6,7 +6,34 @@ import puppeteer from "puppeteer-core";
 import { adminBucket, adminDb } from "@/lib/firebase-admin";
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { v4 as uuidv4 } from "uuid";
+
+// Environment detection
+const isVercel = !!process.env.VERCEL || !!process.env.VERCEL_URL;
+
+// Helper function to find system Chrome installation
+const getSystemChromePath = (): string => {
+  const possiblePaths = [
+    // Windows paths
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    // macOS paths
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    // Linux paths
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+  ];
+
+  for (const chromePath of possiblePaths) {
+    if (fs.existsSync(chromePath)) {
+      return chromePath;
+    }
+  }
+  
+  return '';
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,13 +43,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // ✅ Launch Puppeteer using sparticuz chromium (serverless safe)
-    const executablePath = await chromium.executablePath();
+    // ✅ Launch Puppeteer using sparticuz chromium (Vercel) or local Chrome (dev)
+    let executablePath: string;
+    let launchArgs: string[];
+    let headlessMode: boolean | 'shell' = true;
+    
+    if (isVercel) {
+      executablePath = await chromium.executablePath();
+      launchArgs = chromium.args;
+      headlessMode = chromium.headless;
+    } else {
+      executablePath = getSystemChromePath();
+      if (!executablePath) {
+        throw new Error('Chrome not found. Please install Google Chrome or Chromium browser.');
+      }
+      launchArgs = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ];
+      headlessMode = true;
+    }
+    
     const browser = await puppeteer.launch({
-      args: chromium.args,
+      args: launchArgs,
       defaultViewport: chromium.defaultViewport,
       executablePath,
-      headless: chromium.headless,
+      headless: headlessMode,
     });
 
     const page = await browser.newPage();
@@ -40,8 +88,8 @@ export async function POST(req: NextRequest) {
     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
     await browser.close();
 
-    // ✅ Save PDF temporarily
-    const tmpPath = path.join("/tmp", `${uuidv4()}.pdf`);
+    // ✅ Save PDF temporarily (use os.tmpdir() for cross-platform compatibility)
+    const tmpPath = path.join(os.tmpdir(), `${uuidv4()}.pdf`);
     fs.writeFileSync(tmpPath, pdfBuffer);
 
     const fileName = `${userId}_${Date.now()}.pdf`;

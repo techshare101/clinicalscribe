@@ -325,40 +325,71 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // 🧱 Puppeteer launch with @sparticuz/chromium
+    // 🧱 Puppeteer launch with @sparticuz/chromium (Vercel) or local Chrome (dev)
     let executablePath: string;
-    try {
-      executablePath = await chromium.executablePath();
-      if (!executablePath || executablePath.includes('/tmp/chromium')) {
-        // Force the correct path if executablePath() returns invalid path
+    let launchArgs: string[];
+    let headlessMode: boolean | 'shell' = true;
+    
+    if (isVercel) {
+      // Production: Use @sparticuz/chromium
+      try {
+        executablePath = await chromium.executablePath();
+        if (!executablePath || executablePath.includes('/tmp/chromium')) {
+          // Force the correct path if executablePath() returns invalid path
+          executablePath = '/var/task/node_modules/@sparticuz/chromium/bin/headless_shell';
+        }
+      } catch (error) {
+        console.warn('⚠️ chromium.executablePath() failed, using fallback');
         executablePath = '/var/task/node_modules/@sparticuz/chromium/bin/headless_shell';
       }
-    } catch (error) {
-      console.warn('⚠️ chromium.executablePath() failed, using fallback');
-      executablePath = '/var/task/node_modules/@sparticuz/chromium/bin/headless_shell';
+      launchArgs = chromium.args;
+      headlessMode = chromium.headless;
+    } else {
+      // Development: Use local Chrome installation
+      executablePath = getSystemChromePath();
+      if (!executablePath) {
+        throw new Error('Chrome not found. Please install Google Chrome or Chromium browser.');
+      }
+      launchArgs = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ];
+      headlessMode = true;
     }
+    
     console.log('🚀 [PDF Render] Launching Chromium from:', executablePath);
     console.log('🔍 Environment: Vercel=', isVercel, ', Node=', process.version);
-    console.log('📦 @sparticuz/chromium args count:', chromium.args.length);
+    console.log('📦 Launch args count:', launchArgs.length);
     
     let browser;
     try {
       browser = await puppeteer.launch({
-        args: chromium.args,
+        args: launchArgs,
         defaultViewport: chromium.defaultViewport,
         executablePath,
-        headless: chromium.headless,
+        headless: headlessMode,
       });
       
-      // 💡 Debug info: log Chromium version + memory footprint
+      // 💡 Debug info: log Chromium version
       const version = await browser.version();
-      const metrics = await browser.target().createCDPSession();
-      const perf = await metrics.send("Performance.getMetrics");
       console.log('🧠 Chromium Version:', version);
-      console.log('📊 Runtime Metrics (MB):', {
-        jsHeapUsed: (perf.metrics.find((m: any) => m.name === "JSHeapUsedSize")?.value ?? 0) / 1_000_000,
-        jsHeapTotal: (perf.metrics.find((m: any) => m.name === "JSHeapTotalSize")?.value ?? 0) / 1_000_000,
-      });
+      
+      // Only get metrics on Vercel (not supported in regular Chrome)
+      if (isVercel) {
+        try {
+          const metrics = await browser.target().createCDPSession();
+          const perf = await metrics.send("Performance.getMetrics");
+          console.log('📊 Runtime Metrics (MB):', {
+            jsHeapUsed: (perf.metrics.find((m: any) => m.name === "JSHeapUsedSize")?.value ?? 0) / 1_000_000,
+            jsHeapTotal: (perf.metrics.find((m: any) => m.name === "JSHeapTotalSize")?.value ?? 0) / 1_000_000,
+          });
+        } catch (metricsError) {
+          console.log('⚠️ Could not get performance metrics (not critical)');
+        }
+      }
+      
       console.log('✅ [PDF Render] Browser launched successfully');
     } catch (launchError: any) {
       console.error('❌ [PDF Render] Browser launch failed:', {
