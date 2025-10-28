@@ -1,16 +1,12 @@
 {
   "functions": {
     "app/api/pdf/render/route.ts": {
-      "runtime": "vercel-node@20.0.0",
-      "memory": 1024,
+      "memory": 3008,
       "maxDuration": 60
-    }
-  },
-  "build": {
-    "env": {
-      "CHROMIUM_PATH": "/var/task/node_modules/@sparticuz/chromium/bin/headless_shell",
-      "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true",
-      "PUPPETEER_EXECUTABLE_PATH": "/var/task/node_modules/@sparticuz/chromium/bin/headless_shell"
+    },
+    "app/api/pdf/route.ts": {
+      "memory": 3008,
+      "maxDuration": 60
     }
   }
 }
