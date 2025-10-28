@@ -412,6 +412,16 @@ export async function POST(req: NextRequest) {
     console.log(`[PDF Render] Environment: Development=${isDevelopment}, Windows=${isWindows}, Vercel=${isVercel}, LocalDev=${isLocalDev}`);
     const { browser: puppeteerInstance, config } = await getPuppeteerConfig();
     
+    // 🔍 Debug: Explicit Chromium path resolution
+    const explicitPath = process.env.CHROMIUM_PATH || await chromium.executablePath();
+    console.log('🔍 Chromium path resolved:', explicitPath);
+    console.log('🔍 CHROMIUM_PATH env:', process.env.CHROMIUM_PATH);
+    
+    // Override config with explicit path
+    if (explicitPath) {
+      config.executablePath = explicitPath;
+    }
+    
     console.log(`[PDF Render] Puppeteer config:`, { 
       hasExecutablePath: !!config.executablePath, 
       executablePath: config.executablePath, 
