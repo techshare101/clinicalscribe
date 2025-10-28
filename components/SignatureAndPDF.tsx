@@ -788,40 +788,31 @@ export default function SignatureAndPDF({
       
       const response = await fetch('/api/pdf/render', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          html: htmlContent,
-          noteId: noteId,
-          patientId: patientName || 'unknown',
-          patientName: patientName || 'Unknown Patient',
-          docLang: docLang || 'en'
-        }),
+        body: htmlContent, // Send HTML directly as text
         signal: controller.signal
       })
       
       clearTimeout(timeoutId)
       
-      const result = await response.json()
-      
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to generate PDF')
+        const errorText = await response.text()
+        throw new Error(errorText || 'Failed to generate PDF')
       }
       
-      if (result.success && result.url) {
-        // Download the PDF directly
-        window.open(result.url, '_blank')
-        
-        toast({
-          title: "Download Started",
-          description: "Your PDF document is being downloaded.",
-          variant: "default"
-        })
-      } else {
-        throw new Error('PDF generation failed - no URL returned')
-      }
+      // Read the PDF as a blob
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `clinicalscribe-report-${noteId}.pdf`
+      link.click()
+      URL.revokeObjectURL(url)
+      
+      toast({
+        title: "Download Started",
+        description: "Your PDF document is being downloaded.",
+        variant: "default"
+      })
       
     } catch (error: any) {
       console.error('[SignatureAndPDF] PDF download error:', error)
