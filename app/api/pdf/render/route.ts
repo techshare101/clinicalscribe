@@ -57,9 +57,24 @@ async function launchBrowser(isLocal: boolean) {
     });
   }
 
+  // Vercel serverless environment
+  // Load fonts for proper PDF rendering
+  await chromium.font(
+    "https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf"
+  );
+
   const executablePath = await chromium.executablePath();
+  
   return puppeteerCore.launch({
-    args: chromium.args,
+    args: [
+      ...chromium.args,
+      "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--disable-setuid-sandbox",
+      "--no-first-run",
+      "--no-zygote",
+      "--single-process",
+    ],
     defaultViewport: chromium.defaultViewport,
     executablePath,
     headless: true,
