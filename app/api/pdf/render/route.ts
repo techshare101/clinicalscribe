@@ -1,5 +1,6 @@
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
+import puppeteerFull from "puppeteer";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs"; // Force Node runtime for Vercel Pro
@@ -43,14 +44,27 @@ export async function POST(req: Request) {
       </body>
     </html>`;
 
-    console.log('[PDF Render] Launching browser with @sparticuz/chromium...');
+    // Use system Chrome locally, Chromium on Vercel
+    const isLocal = !process.env.VERCEL;
     
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-    });
+    if (isLocal) {
+      console.log('[PDF Render] Using local Chrome...');
+    } else {
+      console.log('[PDF Render] Launching browser with @sparticuz/chromium...');
+    }
+    
+    const browser = await (isLocal
+      ? puppeteerFull.launch({
+          headless: true,
+          args: ["--no-sandbox", "--disable-setuid-sandbox"],
+          executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        })
+      : puppeteer.launch({
+          args: chromium.args,
+          defaultViewport: chromium.defaultViewport,
+          executablePath: await chromium.executablePath(),
+          headless: chromium.headless,
+        }));
 
     console.log('[PDF Render] Browser launched successfully');
 
