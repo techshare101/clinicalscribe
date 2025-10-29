@@ -111,7 +111,17 @@ export default function SOAPHistoryPage() {
       }
     };
     
+    // Initial fetch
     fetchSOAPNotes();
+    
+    // Auto-refresh every 5 seconds to catch PDF updates
+    const intervalId = setInterval(() => {
+      console.log('🔄 Auto-refreshing SOAP History...');
+      fetchSOAPNotes();
+    }, 5000);
+    
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
   }, [user, filterPatientId]);
 
   useEffect(() => {

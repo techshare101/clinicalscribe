@@ -652,6 +652,7 @@ export default function SignatureAndPDF({
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
+          ownerId: user.uid,
           html: htmlContent,
           noteId: noteId,
           signature: doctorName,
@@ -789,7 +790,17 @@ export default function SignatureAndPDF({
       
       const response = await fetch('/api/pdf/render', {
         method: 'POST',
-        body: htmlContent, // Send HTML directly as text
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          ownerId: user.uid,
+          noteId: noteId,
+          html: htmlContent,
+          patientName: patientName,
+          docLang: docLang
+        }),
         signal: controller.signal
       })
       
@@ -800,50 +811,29 @@ export default function SignatureAndPDF({
         throw new Error(errorText || 'Failed to generate PDF')
       }
       
-      // Read the PDF as a blob
+      // Get metadata from response headers
+      const pdfUrl = response.headers.get('X-PDF-URL')
+      const pdfPath = response.headers.get('X-PDF-Path')
+      const returnedNoteId = response.headers.get('X-Note-ID') || noteId
+      const pdfSize = response.headers.get('X-PDF-Size')
+      
+      console.log('[PDF Download] PDF generated successfully')
+      console.log('[PDF Download] PDF uploaded to:', pdfPath)
+      console.log('[PDF Download] Download URL:', pdfUrl)
+      console.log('[PDF Download] Size:', pdfSize, 'bytes')
+      
+      // Backend has already uploaded to Firebase Storage and updated Firestore
+      // Now get the PDF blob directly from the response
       const blob = await response.blob()
       console.log('[PDF Download] PDF blob received, size:', blob.size, 'bytes')
       
-      // Upload to Firebase Storage
-      setStatusMessage('☁️ Uploading to cloud storage...')
-      const fileName = `clinicalscribe-report-${noteId}.pdf`
-      const storageRef = ref(storage, `reports/${user.uid}/${fileName}`)
-      
-      try {
-        await uploadBytes(storageRef, blob)
-        console.log('[Upload] PDF uploaded successfully to Firebase Storage')
-        
-        // Get download URL
-        const downloadURL = await getDownloadURL(storageRef)
-        console.log('[Upload] Download URL obtained:', downloadURL)
-        
-        // Update Firestore with PDF URL
-        await setDoc(
-          doc(db, 'soapNotes', noteId),
-          {
-            pdfUrl: downloadURL,
-            pdfPath: `reports/${user.uid}/${fileName}`,
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        )
-        console.log('[SOAP Update] Added PDF URL to Firestore')
-        
-      } catch (uploadError: any) {
-        console.error('[Upload Error]', uploadError)
-        // Continue with download even if upload fails
-        toast({
-          title: "Upload Warning",
-          description: "PDF generated but cloud upload failed. File will still download.",
-          variant: "default"
-        })
-      }
+      setStatusMessage('✅ PDF ready - downloading...')
       
       // Download the PDF locally
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = fileName
+      link.download = `clinicalscribe-report-${returnedNoteId}.pdf`
       link.click()
       URL.revokeObjectURL(url)
       
@@ -939,6 +929,7 @@ export default function SignatureAndPDF({
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
+          ownerId: user.uid,
           html: htmlContent,
           noteId: noteId,
           patientId: patientName || 'unknown',
