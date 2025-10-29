@@ -48,9 +48,13 @@ export async function POST(req: Request) {
     const isLocal = !process.env.VERCEL;
     
     if (isLocal) {
-      console.log('[PDF Render] Using local Chrome...');
+      console.log('[PDF Render] Environment: LOCAL');
+      console.log('[PDF Render] Using local Chrome at: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe');
     } else {
-      console.log('[PDF Render] Launching browser with @sparticuz/chromium...');
+      console.log('[PDF Render] Environment: VERCEL');
+      const execPath = await chromium.executablePath();
+      console.log('[PDF Render] Chromium executable path:', execPath);
+      console.log('[PDF Render] Chromium args:', chromium.args);
     }
     
     const browser = await (isLocal
@@ -63,10 +67,10 @@ export async function POST(req: Request) {
           args: chromium.args,
           defaultViewport: chromium.defaultViewport,
           executablePath: await chromium.executablePath(),
-          headless: chromium.headless,
+          headless: true,
         }));
 
-    console.log('[PDF Render] Browser launched successfully');
+    console.log('[PDF Render] ✅ Browser launched successfully');
 
     const page = await browser.newPage();
     await page.setContent(htmlWithWatermark, { waitUntil: "networkidle0" });
@@ -77,7 +81,7 @@ export async function POST(req: Request) {
     
     console.log('[PDF Render] PDF generated successfully, size:', pdf.length, 'bytes');
 
-    return new NextResponse(pdf, {
+    return new NextResponse(Buffer.from(pdf), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": 'attachment; filename="clinicalscribe-report.pdf"',

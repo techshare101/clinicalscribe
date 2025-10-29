@@ -10,9 +10,10 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { uploadToFirebase } from '@/lib/storage'
-import { auth } from '@/lib/firebase'
+import { auth, storage } from '@/lib/firebase'
 import { db } from '@/lib/firebase'
-import { doc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { FileText, Upload, Download, Signature, CheckCircle, AlertCircle, Trash2, User, Loader2, AlertTriangle } from 'lucide-react'
 import { formatDate } from '@/lib/formatDate'
 
@@ -801,10 +802,48 @@ export default function SignatureAndPDF({
       
       // Read the PDF as a blob
       const blob = await response.blob()
+      console.log('[PDF Download] PDF blob received, size:', blob.size, 'bytes')
+      
+      // Upload to Firebase Storage
+      setStatusMessage('☁️ Uploading to cloud storage...')
+      const fileName = `clinicalscribe-report-${noteId}.pdf`
+      const storageRef = ref(storage, `reports/${user.uid}/${fileName}`)
+      
+      try {
+        await uploadBytes(storageRef, blob)
+        console.log('[Upload] PDF uploaded successfully to Firebase Storage')
+        
+        // Get download URL
+        const downloadURL = await getDownloadURL(storageRef)
+        console.log('[Upload] Download URL obtained:', downloadURL)
+        
+        // Update Firestore with PDF URL
+        await setDoc(
+          doc(db, 'soapNotes', noteId),
+          {
+            pdfUrl: downloadURL,
+            pdfPath: `reports/${user.uid}/${fileName}`,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        )
+        console.log('[SOAP Update] Added PDF URL to Firestore')
+        
+      } catch (uploadError: any) {
+        console.error('[Upload Error]', uploadError)
+        // Continue with download even if upload fails
+        toast({
+          title: "Upload Warning",
+          description: "PDF generated but cloud upload failed. File will still download.",
+          variant: "default"
+        })
+      }
+      
+      // Download the PDF locally
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `clinicalscribe-report-${noteId}.pdf`
+      link.download = fileName
       link.click()
       URL.revokeObjectURL(url)
       
