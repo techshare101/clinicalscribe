@@ -33,6 +33,12 @@ const LOCAL_CHROME_PATHS = [
 
 const ADMIN_ROLES = new Set(["system-admin", "nurse-admin"]);
 
+type RenderMode = "local-chrome" | "vercel-bundled" | "remote-render";
+type BrowserLaunchResult = {
+  browser: Awaited<ReturnType<typeof puppeteerCore.launch>>;
+  renderMode: Exclude<RenderMode, "remote-render">;
+};
+
 function pickLocalChromeExecutable(): string | null {
   for (const candidate of LOCAL_CHROME_PATHS) {
     if (candidate && fs.existsSync(candidate)) {
@@ -42,7 +48,7 @@ function pickLocalChromeExecutable(): string | null {
   return null;
 }
 
-async function launchBrowser(isLocal: boolean) {
+async function launchBrowser(isLocal: boolean): Promise<BrowserLaunchResult> {
   if (isLocal) {
     const executablePath = pickLocalChromeExecutable();
     if (!executablePath) {
@@ -50,11 +56,12 @@ async function launchBrowser(isLocal: boolean) {
         "Local Chrome executable not found. Install Google Chrome or set LOCAL_CHROME_PATH."
       );
     }
-    return fullPuppeteer.launch({
+    const browser = await fullPuppeteer.launch({
       headless: true,
       executablePath,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
+    return { browser, renderMode: "local-chrome" };
   }
 
   // Vercel serverless environment
@@ -64,8 +71,11 @@ async function launchBrowser(isLocal: boolean) {
   );
 
   const executablePath = await chromium.executablePath();
-  
-  return puppeteerCore.launch({
+  if (!executablePath) {
+    throw new Error("Chromium executable path could not be resolved.");
+  }
+
+  const browser = await puppeteerCore.launch({
     args: [
       ...chromium.args,
       "--disable-gpu",
@@ -79,6 +89,66 @@ async function launchBrowser(isLocal: boolean) {
     executablePath,
     headless: true,
   });
+  return { browser, renderMode: "vercel-bundled" };
+}
+
+async function renderPdfWithLocalEngines(
+  html: string,
+  isLocal: boolean
+): Promise<{ pdfBuffer: Buffer; renderMode: RenderMode }> {
+  let launchResult: BrowserLaunchResult | null = null;
+  try {
+    launchResult = await launchBrowser(isLocal);
+    console.log(
+      "[PDF Render] Browser launched successfully using mode:",
+      launchResult.renderMode
+    );
+
+    const page = await launchResult.browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      preferCSSPageSize: true,
+    });
+    return { pdfBuffer, renderMode: launchResult.renderMode };
+  } finally {
+    if (launchResult?.browser) {
+      try {
+        await launchResult.browser.close();
+      } catch (error) {
+        console.error("[PDF Render] Error closing browser", error);
+      }
+    }
+  }
+}
+
+async function renderPdfViaRemote(html: string): Promise<Buffer> {
+  const fallbackUrl = process.env.RENDER_PDF_URL;
+  if (!fallbackUrl) {
+    throw new Error(
+      "RENDER_PDF_URL is not configured; remote PDF rendering is unavailable."
+    );
+  }
+
+  const response = await fetch(fallbackUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ html }),
+  });
+
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => "");
+    throw new Error(
+      `Remote render service responded with ${response.status} ${
+        response.statusText
+      }${bodyText ? `: ${bodyText}` : ""}`
+    );
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  console.log("[PDF Render] Remote render fallback succeeded");
+  return Buffer.from(arrayBuffer);
 }
 
 function buildHtmlTemplate(html: string, watermarkText: string) {
@@ -147,8 +217,6 @@ function coerceOwnerId(
 }
 
 export async function POST(req: NextRequest) {
-  let browser: Awaited<ReturnType<typeof launchBrowser>> | null = null;
-
   try {
     const contentType = req.headers.get("content-type") ?? "";
     let payload: PdfRequestPayload = {};
@@ -195,25 +263,54 @@ export async function POST(req: NextRequest) {
     console.log("[PDF Render] Starting for ownerId:", ownerId);
     const isLocal = !process.env.VERCEL;
     console.log("[PDF Render] Running in:", isLocal ? "Local" : "Vercel");
-    
+
     if (!isLocal) {
       const execPath = await chromium.executablePath();
       console.log("[PDF Render] Executable path:", execPath);
     }
-    
-    browser = await launchBrowser(isLocal);
-    console.log("[PDF Render] Browser launched successfully");
 
-    const page = await browser.newPage();
     const watermarkText = payload.watermark ?? "ClinicalScribe Beta";
     const htmlWithChrome = buildHtmlTemplate(htmlInput, watermarkText);
-    await page.setContent(htmlWithChrome, { waitUntil: "networkidle0" });
 
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      preferCSSPageSize: true,
-    });
+    let pdfBuffer: Buffer | undefined;
+    let renderMode: RenderMode | null = null;
+
+    try {
+      const localResult = await renderPdfWithLocalEngines(
+        htmlWithChrome,
+        isLocal
+      );
+      pdfBuffer = localResult.pdfBuffer;
+      renderMode = localResult.renderMode;
+    } catch (localError) {
+      console.warn(
+        "[PDF Render] Local rendering failed; attempting remote fallback.",
+        localError
+      );
+
+      if (!process.env.RENDER_PDF_URL) {
+        throw localError instanceof Error
+          ? localError
+          : new Error(
+              "Local PDF generation failed and RENDER_PDF_URL is not configured."
+            );
+      }
+
+      try {
+        console.log(
+          "[PDF Render] Using remote render fallback via RENDER_PDF_URL"
+        );
+        pdfBuffer = await renderPdfViaRemote(htmlWithChrome);
+        renderMode = "remote-render";
+      } catch (remoteError) {
+        console.error("[PDF Render] Remote render fallback failed", remoteError);
+        throw new Error("All PDF render strategies failed.");
+      }
+    }
+
+    if (!pdfBuffer || !renderMode) {
+      throw new Error("Failed to produce PDF.");
+    }
 
     const rawNoteId =
       (payload.noteId && payload.noteId.trim()) || `${ownerId}_${Date.now()}`;
@@ -248,10 +345,12 @@ export async function POST(req: NextRequest) {
       noteId: safeNoteId,
       pdfUrl: signedUrl,
       storagePath,
+      renderMode,
       pdf: {
         status: "done",
         path: storagePath,
         url: signedUrl,
+        renderMode,
       },
       updatedAt: now,
     };
@@ -266,8 +365,12 @@ export async function POST(req: NextRequest) {
     }
 
     await noteRef.set(firestoreUpdate, { merge: true });
-    console.log("[PDF Render] Firestore updated successfully for noteId:", safeNoteId);
+    console.log(
+      "[PDF Render] Firestore updated successfully for noteId:",
+      safeNoteId
+    );
     console.log("[PDF Render] PDF URL:", signedUrl);
+    console.log("[PDF Render] Completed using mode:", renderMode);
 
     // Return the PDF blob directly for immediate download
     // Metadata is stored in custom headers
@@ -280,6 +383,7 @@ export async function POST(req: NextRequest) {
         "X-PDF-Path": storagePath,
         "X-Note-ID": safeNoteId,
         "X-PDF-Size": pdfBuffer.length.toString(),
+        "X-Render-Mode": renderMode,
       },
     });
   } catch (error: any) {
@@ -287,13 +391,5 @@ export async function POST(req: NextRequest) {
     const message =
       error?.message || "Unexpected error while generating PDF";
     return NextResponse.json({ error: message }, { status: 500 });
-  } finally {
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (closeError) {
-        console.error("[PDF Render] Error closing browser", closeError);
-      }
-    }
   }
 }
