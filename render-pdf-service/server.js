@@ -1,4 +1,5 @@
 import express from "express";
+import fs from "fs";
 import puppeteer from "puppeteer";
 
 const app = express();
@@ -6,12 +7,35 @@ app.use(express.json({ limit: "10mb" }));
 
 app.get("/", (_, res) => res.send("ClinicalScribe PDF Service Online"));
 
+function resolveExecutablePath(): string | null {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate!)) {
+      return candidate!;
+    }
+  }
+
+  return null;
+}
+
 app.post("/api/pdf/render", async (req, res) => {
   try {
     const { html } = req.body;
 
-    const executablePath =
-      process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium";
+    const executablePath = resolveExecutablePath();
+
+    if (!executablePath) {
+      throw new Error(
+        "Unable to resolve Chromium executable path. Set PUPPETEER_EXECUTABLE_PATH."
+      );
+    }
 
     const browser = await puppeteer.launch({
       headless: true,
@@ -44,4 +68,3 @@ app.post("/api/pdf/render", async (req, res) => {
 
 const port = process.env.PORT || 10000;
 app.listen(port, () => console.log(`PDF service running on port ${port}`));
-
