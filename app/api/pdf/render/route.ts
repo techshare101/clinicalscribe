@@ -101,20 +101,34 @@ async function renderPdfWithLocalEngines(
 ): Promise<{ pdfBuffer: Buffer; renderMode: RenderMode }> {
   let launchResult: BrowserLaunchResult | null = null;
   try {
+    console.log(`[PDF Render] Starting browser launch (isLocal: ${isLocal})...`);
     launchResult = await launchBrowser(isLocal);
     console.log(
       "[PDF Render] Browser launched successfully using mode:",
       launchResult.renderMode
     );
 
+    console.log("[PDF Render] Creating new page...");
     const page = await launchResult.browser.newPage();
+    
+    console.log("[PDF Render] Setting page content...");
     await page.setContent(html, { waitUntil: "networkidle0" });
+    
+    console.log("[PDF Render] Generating PDF...");
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
       preferCSSPageSize: true,
     });
+    
+    console.log(`[PDF Render] PDF generated successfully (${pdfBuffer.length} bytes)`);
     return { pdfBuffer, renderMode: launchResult.renderMode };
+  } catch (error) {
+    console.error("[PDF Render] ❌ renderPdfWithLocalEngines failed:");
+    console.error("[PDF Render] Error name:", error instanceof Error ? error.name : typeof error);
+    console.error("[PDF Render] Error message:", error instanceof Error ? error.message : String(error));
+    console.error("[PDF Render] Error stack:", error instanceof Error ? error.stack : "N/A");
+    throw error;
   } finally {
     if (launchResult?.browser) {
       try {
@@ -128,20 +142,26 @@ async function renderPdfWithLocalEngines(
 
 async function renderPdfViaRemote(html: string): Promise<Buffer> {
   const fallbackUrl = process.env.RENDER_PDF_URL;
+  console.log("[PDF Render] Remote fallback URL:", fallbackUrl ? "configured" : "NOT CONFIGURED");
+  
   if (!fallbackUrl) {
     throw new Error(
       "RENDER_PDF_URL is not configured; remote PDF rendering is unavailable."
     );
   }
 
+  console.log(`[PDF Render] Calling remote service at: ${fallbackUrl}`);
   const response = await fetch(fallbackUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ html }),
   });
 
+  console.log(`[PDF Render] Remote service response status: ${response.status}`);
+  
   if (!response.ok) {
     const bodyText = await response.text().catch(() => "");
+    console.error(`[PDF Render] Remote service error body: ${bodyText}`);
     throw new Error(
       `Remote render service responded with ${response.status} ${
         response.statusText
@@ -150,7 +170,7 @@ async function renderPdfViaRemote(html: string): Promise<Buffer> {
   }
 
   const arrayBuffer = await response.arrayBuffer();
-  console.log("[PDF Render] Remote render fallback succeeded");
+  console.log(`[PDF Render] ✅ Remote render succeeded (${arrayBuffer.byteLength} bytes)`);
   return Buffer.from(arrayBuffer);
 }
 
