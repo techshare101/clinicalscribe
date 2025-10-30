@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { auth } from '@/lib/firebase'
+import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth'
+import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -55,6 +56,7 @@ interface SOAPNote {
 export default function SOAPHistoryPage() {
   const [user, setUser] = useState<FirebaseUser | null>(null)
   const [soapNotes, setSoapNotes] = useState<SOAPNote[]>([])
+  const [pdfHistory, setPdfHistory] = useState<any[]>([])
   const [filter, setFilter] = useState<'all' | 'flagged' | 'non-flagged' | 'pdf-available'>('all')
   const [filterPatientId, setFilterPatientId] = useState<string | null>(null)
   const [patientSearch, setPatientSearch] = useState('')
@@ -69,24 +71,20 @@ export default function SOAPHistoryPage() {
     return () => unsubscribe()
   }, [])
 
+  // Fetch SOAP notes from API (initial load)
   useEffect(() => {
     if (!user) return
 
     const fetchSOAPNotes = async () => {
       try {
-        // Get the current user's ID token (force refresh to ensure it's not expired)
         const token = await user.getIdToken(true);
-        console.log('🔍 SOAP History: Token length:', token?.length || 0);
-        console.log('🔍 SOAP History: Token preview:', token?.substring(0, 50) + (token?.length > 50 ? "..." : ""));
+        console.log('🔍 SOAP History: Fetching notes...');
         
-        // Fetch SOAP notes from the API route
         const res = await fetch("/api/soap-history", {
           headers: {
             "Authorization": `Bearer ${token}`
           }
         });
-        
-        console.log('🔍 SOAP History: API response status:', res.status);
         
         if (!res.ok) {
           const errorText = await res.text();
@@ -95,34 +93,49 @@ export default function SOAPHistoryPage() {
         }
         
         const notesData = await res.json();
-        console.log('Fetched SOAP notes:', notesData); // Debug log
-        
-        // Map to array with IDs
         const notesList = notesData.map((note: any) => ({
           id: note.id,
           ...note
         }));
         
-        console.log('Processed SOAP notes:', notesList); // Debug log
+        console.log('✅ Fetched SOAP notes:', notesList.length);
         setSoapNotes(notesList);
       } catch (err: any) {
         console.error('Error fetching SOAP notes:', err);
-        // Optionally, you could set an error state to display to the user
       }
     };
     
-    // Initial fetch
     fetchSOAPNotes();
-    
-    // Auto-refresh every 5 seconds to catch PDF updates
-    const intervalId = setInterval(() => {
-      console.log('🔄 Auto-refreshing SOAP History...');
-      fetchSOAPNotes();
-    }, 5000);
-    
-    // Cleanup interval on unmount
-    return () => clearInterval(intervalId);
   }, [user, filterPatientId]);
+
+  // Real-time listener for PDF history
+  useEffect(() => {
+    if (!user || !db) return;
+
+    console.log('🔥 Setting up real-time listener for soapHistory...');
+    
+    const q = query(
+      collection(db, 'soapHistory'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const history = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      console.log('🔥 Real-time update: soapHistory entries:', history.length);
+      setPdfHistory(history);
+    }, (error) => {
+      console.error('❌ Firestore listener error:', error);
+    });
+
+    return () => {
+      console.log('🔥 Cleaning up Firestore listener');
+      unsubscribe();
+    };
+  }, [user]);
 
   useEffect(() => {
     // fetch a few patient options for the filter when search changes
@@ -276,6 +289,66 @@ export default function SOAPHistoryPage() {
             </div>
           </div>
         </motion.div>
+        {/* PDF History Panel */}
+        {pdfHistory.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9, duration: 0.6 }}
+            className="mb-8"
+          >
+            <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900">Recent PDF Reports</h3>
+                  <p className="text-gray-600">Generated SOAP note PDFs</p>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                {pdfHistory.slice(0, 5).map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="bg-white/70 p-4 rounded-2xl flex justify-between items-center hover:bg-white transition-colors border border-gray-100"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                        <FileText className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {entry.patientName || 'Unknown Patient'}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            {entry.createdAt?.toDate?.()?.toLocaleString?.() || 'Just now'}
+                          </span>
+                          <Badge className="ml-2 text-xs bg-purple-100 text-purple-800 border-purple-200">
+                            {entry.renderMode === 'remote-render' ? '🛰️ Cloud' : '💻 Local'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <a
+                      href={entry.pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all font-semibold text-sm"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      View PDF
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* SOAP Notes Grid */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

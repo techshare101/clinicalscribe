@@ -35,7 +35,7 @@ const ADMIN_ROLES = new Set(["system-admin", "nurse-admin"]);
 
 type RenderMode = "local-chrome" | "vercel-bundled" | "remote-render";
 type BrowserLaunchResult = {
-  browser: Awaited<ReturnType<typeof puppeteerCore.launch>>;
+  browser: any; // Union type to support both puppeteer and puppeteer-core
   renderMode: Exclude<RenderMode, "remote-render">;
 };
 
@@ -64,31 +64,34 @@ async function launchBrowser(isLocal: boolean): Promise<BrowserLaunchResult> {
     return { browser, renderMode: "local-chrome" };
   }
 
-  // Vercel serverless environment
-  // Load fonts for proper PDF rendering
-  await chromium.font(
-    "https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf"
-  );
+  // Vercel serverless environment - optimized for Lambda
+  console.log("[PDF Render] Launching Chromium for Vercel serverless...");
+  
+  // Load fonts for proper PDF rendering (optional, can skip if causing issues)
+  try {
+    await chromium.font(
+      "https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf"
+    );
+  } catch (fontError) {
+    console.warn("[PDF Render] Font loading failed, continuing without custom fonts:", fontError);
+  }
 
   const executablePath = await chromium.executablePath();
+  console.log("[PDF Render] Chromium executable path:", executablePath);
+  
   if (!executablePath) {
     throw new Error("Chromium executable path could not be resolved.");
   }
 
   const browser = await puppeteerCore.launch({
-    args: [
-      ...chromium.args,
-      "--disable-gpu",
-      "--disable-dev-shm-usage",
-      "--disable-setuid-sandbox",
-      "--no-first-run",
-      "--no-zygote",
-      "--single-process",
-    ],
+    args: chromium.args,
     defaultViewport: chromium.defaultViewport,
     executablePath,
     headless: true,
+    ignoreHTTPSErrors: true,
   });
+  
+  console.log("[PDF Render] Chromium launched successfully");
   return { browser, renderMode: "vercel-bundled" };
 }
 
@@ -276,19 +279,23 @@ export async function POST(req: NextRequest) {
     let renderMode: RenderMode | null = null;
 
     try {
+      console.log("[PDF Render] Attempting PDF generation with local engines...");
       const localResult = await renderPdfWithLocalEngines(
         htmlWithChrome,
         isLocal
       );
       pdfBuffer = localResult.pdfBuffer;
       renderMode = localResult.renderMode;
+      console.log(`[PDF Render] ✅ Success with mode: ${renderMode}`);
     } catch (localError) {
-      console.warn(
-        "[PDF Render] Local rendering failed; attempting remote fallback.",
-        localError
+      console.error(
+        "[PDF Render] ❌ Local rendering failed:",
+        localError instanceof Error ? localError.message : localError
       );
+      console.error("[PDF Render] Full error stack:", localError);
 
       if (!process.env.RENDER_PDF_URL) {
+        console.error("[PDF Render] No RENDER_PDF_URL configured for fallback");
         throw localError instanceof Error
           ? localError
           : new Error(
@@ -298,12 +305,14 @@ export async function POST(req: NextRequest) {
 
       try {
         console.log(
-          "[PDF Render] Using remote render fallback via RENDER_PDF_URL"
+          "[PDF Render] 🔄 Attempting remote render fallback via RENDER_PDF_URL:",
+          process.env.RENDER_PDF_URL
         );
         pdfBuffer = await renderPdfViaRemote(htmlWithChrome);
         renderMode = "remote-render";
+        console.log("[PDF Render] ✅ Remote render succeeded");
       } catch (remoteError) {
-        console.error("[PDF Render] Remote render fallback failed", remoteError);
+        console.error("[PDF Render] ❌ Remote render fallback failed:", remoteError);
         throw new Error("All PDF render strategies failed.");
       }
     }
@@ -371,6 +380,26 @@ export async function POST(req: NextRequest) {
     );
     console.log("[PDF Render] PDF URL:", signedUrl);
     console.log("[PDF Render] Completed using mode:", renderMode);
+
+    // Save to soapHistory collection for live panel updates
+    try {
+      const historyRef = adminDb.collection("soapHistory").doc();
+      await historyRef.set({
+        ownerId,
+        userId: ownerId,
+        noteId: safeNoteId,
+        pdfUrl: signedUrl,
+        storagePath,
+        renderMode,
+        patientId: payload.patientId || null,
+        patientName: payload.patientName || null,
+        createdAt: now,
+      });
+      console.log("[PDF Render] Added to soapHistory collection");
+    } catch (historyError) {
+      console.error("[PDF Render] Failed to save to soapHistory:", historyError);
+      // Don't fail the entire request if history save fails
+    }
 
     // Return the PDF blob directly for immediate download
     // Metadata is stored in custom headers
