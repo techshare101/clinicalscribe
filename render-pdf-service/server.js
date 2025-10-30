@@ -10,6 +10,8 @@ app.get("/", (_, res) => res.send("ClinicalScribe PDF Service Online"));
 function resolveExecutablePath() {
   const candidates = [
     process.env.PUPPETEER_EXECUTABLE_PATH,
+    process.env.CHROMIUM_PATH,
+    process.env.CHROME_BIN,
     "/usr/bin/chromium",
     "/usr/bin/chromium-browser",
     "/usr/bin/google-chrome",
@@ -20,6 +22,21 @@ function resolveExecutablePath() {
     if (candidate && fs.existsSync(candidate)) {
       return candidate;
     }
+  }
+
+  // Fall back to Puppeteer's bundled Chromium if available.
+  try {
+    const bundledPath = puppeteer.executablePath();
+    if (bundledPath && fs.existsSync(bundledPath)) {
+      console.log("[Render Service] Using bundled Chromium at:", bundledPath);
+      return bundledPath;
+    }
+    console.warn(
+      "[Render Service] Bundled Chromium path not found or missing on filesystem:",
+      bundledPath
+    );
+  } catch (err) {
+    console.warn("[Render Service] Unable to resolve puppeteer.executablePath()", err);
   }
 
   return null;
