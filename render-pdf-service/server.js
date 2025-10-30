@@ -7,18 +7,18 @@ app.use(express.json({ limit: "10mb" }));
 
 app.get("/", (_, res) => res.send("ClinicalScribe PDF Service Online"));
 
-function resolveExecutablePath(): string | null {
+function resolveExecutablePath() {
   const candidates = [
     process.env.PUPPETEER_EXECUTABLE_PATH,
     "/usr/bin/chromium",
     "/usr/bin/chromium-browser",
     "/usr/bin/google-chrome",
     "/usr/bin/google-chrome-stable",
-  ].filter(Boolean) as string[];
+  ].filter(Boolean);
 
   for (const candidate of candidates) {
-    if (fs.existsSync(candidate!)) {
-      return candidate!;
+    if (candidate && fs.existsSync(candidate)) {
+      return candidate;
     }
   }
 
