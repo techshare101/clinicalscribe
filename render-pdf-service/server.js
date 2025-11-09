@@ -1,9 +1,11 @@
 import express from "express";
 import fs from "fs";
 import puppeteer from "puppeteer";
+import fetch from "node-fetch";
+import FormData from "form-data";
 
 const app = express();
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "200mb" }));
 
 app.get("/", (_, res) => res.send("ClinicalScribe PDF Service Online"));
 
@@ -83,5 +85,77 @@ app.post("/api/pdf/render", async (req, res) => {
   }
 });
 
+// 🧠 Merge + transcribe chunk URLs from Firebase Storage
+app.post("/api/whisper/merge", async (req, res) => {
+  try {
+    const { chunkUrls = [], patientLang = "auto", docLang = "en" } = req.body;
+    
+    if (!Array.isArray(chunkUrls) || chunkUrls.length === 0) {
+      return res.status(400).json({ error: "No chunk URLs provided" });
+    }
+
+    console.log(`🎧 [Whisper Merge] Received ${chunkUrls.length} audio chunks`);
+
+    let fullTranscript = "";
+
+    for (let i = 0; i < chunkUrls.length; i++) {
+      const url = chunkUrls[i];
+      console.log(`🔹 Processing chunk ${i + 1}/${chunkUrls.length}`);
+
+      // Download audio blob from Firebase Storage
+      const audioRes = await fetch(url);
+      if (!audioRes.ok) {
+        console.error(`Failed to fetch chunk ${i + 1}: ${url}`);
+        continue; // Skip failed chunks
+      }
+
+      const arrayBuffer = await audioRes.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const form = new FormData();
+      form.append("file", buffer, {
+        filename: `chunk${i + 1}.webm`,
+        contentType: "audio/webm",
+      });
+      form.append("model", "whisper-1");
+      form.append("response_format", "json");
+      
+      if (patientLang !== "auto") {
+        form.append("language", patientLang);
+      }
+
+      // 🔥 Whisper transcription call
+      const whisper = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: form,
+      });
+
+      if (!whisper.ok) {
+        const text = await whisper.text();
+        console.error(`Whisper failed on chunk ${i + 1}: ${text}`);
+        continue; // Skip failed chunks
+      }
+
+      const data = await whisper.json();
+      fullTranscript += " " + (data.text || "");
+    }
+
+    console.log(`✅ [Whisper Merge] Transcription complete. Total length: ${fullTranscript.length} chars`);
+    
+    res.json({ 
+      text: fullTranscript.trim(),
+      patientLang,
+      docLang,
+      chunksProcessed: chunkUrls.length
+    });
+  } catch (err) {
+    console.error("[Whisper Merge Error]", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const port = process.env.PORT || 10000;
-app.listen(port, () => console.log(`PDF service running on port ${port}`));
+app.listen(port, () => console.log(`🚀 Render service running on port ${port}`));
