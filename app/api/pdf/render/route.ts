@@ -3,6 +3,9 @@ import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 import admin from "firebase-admin";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 // --- Firebase Admin Init ---
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -26,11 +29,22 @@ export async function POST(req: Request) {
     const { html, ownerId, noteId } = await req.json();
 
     // 🧠 Launch Chromium
+    chromium.setHeadlessMode = true;
+    chromium.setGraphicsMode = false;
     const executablePath = await chromium.executablePath();
     const browser = await puppeteer.launch({
-      args: chromium.args,
+      args: [
+        ...chromium.args,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--single-process',
+      ],
+      defaultViewport: chromium.defaultViewport,
       executablePath,
-      headless: true,
+      headless: chromium.headless,
+      ignoreHTTPSErrors: true,
     });
 
     // 🖨 Generate PDF

@@ -32,9 +32,11 @@ const nextConfig = {
     ];
   },
   webpack: (config) => {
-    config.experiments = { 
-      asyncWebAssembly: true, 
-      layers: true 
+    // Preserve Next's defaults; only enable async WASM explicitly
+    config.experiments = {
+      ...(config.experiments || {}),
+      asyncWebAssembly: true,
+      // Do not force `layers` as it can break Next's CSS pipeline
     };
 
     // Allow loading of .wasm files
