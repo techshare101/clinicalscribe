@@ -84,13 +84,14 @@ export async function renderAndUploadPDF(
 }
 
 /**
- * Download PDF directly as binary blob
- * No client-side Firebase Storage involved
+ * Download PDF directly as binary blob and save metadata to Firestore
+ * This ensures the PDF appears in SOAP history
  */
 export async function downloadPDF(
   html: string,
   uid: string,
-  filename: string = 'document.pdf'
+  filename: string = 'document.pdf',
+  additionalData?: Record<string, any>
 ): Promise<void> {
   try {
     const user = auth.currentUser
@@ -120,11 +121,26 @@ export async function downloadPDF(
       throw new Error(error.error || 'Failed to generate PDF')
     }
     
+    // Get PDF URL from headers if available (Firebase Storage URL)
+    const pdfUrl = response.headers.get('X-PDF-URL')
+    
     // Get PDF as blob
     const blob = await response.blob()
     
     if (blob.size === 0) {
       throw new Error('Generated PDF is empty')
+    }
+    
+    // Save metadata to Firestore if we have a URL
+    if (pdfUrl) {
+      try {
+        const { savePDFMeta } = await import('./savePDFMeta')
+        await savePDFMeta(pdfUrl, noteId, additionalData)
+        console.log('✅ PDF metadata saved to Firestore')
+      } catch (firestoreError) {
+        console.error('⚠️ Failed to save PDF metadata:', firestoreError)
+        // Don't fail the download if Firestore save fails
+      }
     }
     
     // Create download link
