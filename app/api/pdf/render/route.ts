@@ -60,9 +60,8 @@ export async function POST(req: Request) {
       
       browser = await puppeteerCore.launch({
         args: chromium.default.args,
-        defaultViewport: chromium.default.defaultViewport,
         executablePath,
-        headless: chromium.default.headless,
+        headless: true,
       });
     }
 
@@ -112,11 +111,16 @@ export async function POST(req: Request) {
 
     console.log(`[PDF Render] ✅ Success with mode: ${renderMode}`);
     
-    return NextResponse.json({
-      status: "ok",
-      renderMode,
-      pdfUrl: url,
-      noteId,
+    // Return raw PDF binary for immediate download
+    return new Response(Buffer.from(pdfBuffer), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="clinicalscribe-${noteId}.pdf"`,
+        "Cache-Control": "no-store",
+        "X-PDF-URL": url, // Include Firebase URL in header for reference
+        "X-Render-Mode": renderMode,
+      },
     });
   } catch (err: any) {
     console.error("❌ [PDF Render] Error:", err);

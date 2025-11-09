@@ -84,7 +84,7 @@ export async function renderAndUploadPDF(
 }
 
 /**
- * Download PDF directly from signed URL
+ * Download PDF directly as binary blob
  * No client-side Firebase Storage involved
  */
 export async function downloadPDF(
@@ -93,14 +93,51 @@ export async function downloadPDF(
   filename: string = 'document.pdf'
 ): Promise<void> {
   try {
-    const result = await renderAndUploadPDF(html, uid)
-    
-    if (result.success && result.url) {
-      // Open signed URL for download
-      window.open(result.url, '_blank')
-    } else {
-      throw new Error(result.error || 'Failed to generate PDF')
+    const user = auth.currentUser
+    if (!user) {
+      throw new Error('Not authenticated')
     }
+
+    const idToken = await user.getIdToken(true)
+    const noteId = `${uid}_${Date.now()}`
+    
+    // Call server-side PDF render API
+    const response = await fetch('/api/pdf/render', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`
+      },
+      body: JSON.stringify({
+        html,
+        ownerId: uid,
+        noteId,
+      })
+    })
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to generate PDF' }))
+      throw new Error(error.error || 'Failed to generate PDF')
+    }
+    
+    // Get PDF as blob
+    const blob = await response.blob()
+    
+    if (blob.size === 0) {
+      throw new Error('Generated PDF is empty')
+    }
+    
+    // Create download link
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    
+    console.log('✅ PDF downloaded successfully')
   } catch (error: any) {
     console.error('PDF download error:', error)
     throw error
