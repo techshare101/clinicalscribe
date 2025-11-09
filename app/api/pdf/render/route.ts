@@ -43,7 +43,22 @@ function getServerTimestamp() {
 export async function POST(req: Request) {
   let browser;
   try {
-    const { html, ownerId, noteId } = await req.json();
+    // Handle both JSON and plain HTML requests
+    const contentType = req.headers.get("content-type") || "";
+    let html: string;
+    let ownerId: string | undefined;
+    let noteId: string | undefined;
+    
+    if (contentType.includes("application/json")) {
+      const body = await req.json();
+      html = body.html;
+      ownerId = body.ownerId;
+      noteId = body.noteId;
+    } else {
+      // Plain HTML text
+      html = await req.text();
+    }
+    
     const isLocal = !process.env.VERCEL;
     console.log(`[PDF Render] Starting in ${isLocal ? "local" : "vercel"} mode...`);
 
@@ -73,54 +88,74 @@ export async function POST(req: Request) {
     await new Promise((resolve) => setTimeout(resolve, 500));
     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
 
+    console.log(`[PDF Render] Generated PDF: ${pdfBuffer.length} bytes`);
+    
     if (!pdfBuffer?.length) {
       throw new Error("Generated PDF is empty");
     }
 
-    // ☁️ Upload to Firebase
-    const adminApp = getFirebaseAdmin();
-    const bucket = adminApp.storage().bucket();
-    const path = `pdfs/${ownerId}/${noteId}.pdf`;
-
-    const file = bucket.file(path);
-    await file.save(pdfBuffer, {
-      metadata: { contentType: "application/pdf" },
-      resumable: false,
-    });
-    const [url] = await file.getSignedUrl({
-      action: "read",
-      expires: "03-01-2035",
-    });
-
-    // 💾 Firestore update
-    const db = adminApp.firestore();
+    // ☁️ Upload to Firebase (only if noteId provided)
+    let url: string | undefined;
+    let path: string | undefined;
     const renderMode = isLocal ? "local-chrome" : "vercel-bundled";
+    
+    if (ownerId && noteId) {
+      try {
+        const adminApp = getFirebaseAdmin();
+        const bucket = adminApp.storage().bucket();
+        path = `pdfs/${ownerId}/${noteId}.pdf`;
 
-    await db.collection("soapNotes").doc(noteId).set(
-      {
-        userId: ownerId,
-        noteId,
-        pdfUrl: url,
-        storagePath: path,
-        renderMode,
-        status: "done",
-        updatedAt: getServerTimestamp(),
-      },
-      { merge: true }
-    );
+        const file = bucket.file(path);
+        await file.save(pdfBuffer, {
+          metadata: { contentType: "application/pdf" },
+          resumable: false,
+        });
+        const [signedUrl] = await file.getSignedUrl({
+          action: "read",
+          expires: "03-01-2035",
+        });
+        url = signedUrl;
+
+        // 💾 Firestore update
+        const db = adminApp.firestore();
+        await db.collection("soapNotes").doc(noteId).set(
+          {
+            userId: ownerId,
+            noteId,
+            pdfUrl: url,
+            storagePath: path,
+            renderMode,
+            status: "done",
+            updatedAt: getServerTimestamp(),
+          },
+          { merge: true }
+        );
+
+        console.log(`[PDF Render] ✅ Uploaded to Firebase: ${path}`);
+      } catch (firebaseError) {
+        console.error("⚠️ Firebase upload failed:", firebaseError);
+        // Continue without Firebase - still return PDF
+      }
+    }
 
     console.log(`[PDF Render] ✅ Success with mode: ${renderMode}`);
     
     // Return raw PDF binary for immediate download
+    const filename = noteId ? `clinicalscribe-${noteId}.pdf` : "clinicalscribe.pdf";
+    const headers: Record<string, string> = {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "no-store",
+      "X-Render-Mode": renderMode,
+    };
+    
+    if (url) {
+      headers["X-PDF-URL"] = url;
+    }
+    
     return new Response(Buffer.from(pdfBuffer), {
       status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="clinicalscribe-${noteId}.pdf"`,
-        "Cache-Control": "no-store",
-        "X-PDF-URL": url, // Include Firebase URL in header for reference
-        "X-Render-Mode": renderMode,
-      },
+      headers,
     });
   } catch (err: any) {
     console.error("❌ [PDF Render] Error:", err);
