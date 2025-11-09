@@ -11,6 +11,15 @@ export const runtime = 'nodejs';
 // Increase max duration for long transcriptions (Vercel limit)
 export const maxDuration = 60; // 60 seconds for Pro plan, 10 for Hobby
 
+// Increase body size limit for large audio files (100MB)
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '100mb',
+    },
+  },
+};
+
 export async function POST(req: Request) {
   try {
     console.log("Transcribe API called");
