@@ -64,7 +64,15 @@ export async function POST(req: Request) {
     // 🖨 Generate PDF
     const page = await browser.newPage();
     await page.setContent(html || "<h1>Empty PDF</h1>", { waitUntil: "networkidle0" });
+    
+    // Wait for fonts and images to fully render
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
+    
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      throw new Error("Generated PDF is empty");
+    }
 
     // ☁️ Upload to Firebase
     const path = `pdfs/${ownerId}/${noteId}.pdf`;
@@ -78,12 +86,31 @@ export async function POST(req: Request) {
       expires: "03-01-2035",
     });
 
+    // 💾 Sync to Firestore
+    const db = admin.firestore();
     const renderMode = isLocal ? "local-chrome" : "vercel-bundled";
+    
+    await db.collection("soapNotes").doc(noteId).set(
+      {
+        userId: ownerId,
+        noteId,
+        pdfUrl: url,
+        storagePath: path,
+        renderMode,
+        status: "done",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
     console.log(`✅ [PDF Render] Success with mode: ${renderMode}`);
+    console.log(`✅ [PDF Render] Firestore synced: soapNotes/${noteId}`);
+    
     return NextResponse.json({
       status: "ok",
       renderMode,
       pdfUrl: url,
+      noteId,
     });
   } catch (err: any) {
     console.error("❌ [PDF Render] Error:", err);
