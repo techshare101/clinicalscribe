@@ -7,52 +7,63 @@ import admin from "firebase-admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// --- Firebase Admin Init ---
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(
-      JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64!, "base64").toString())
-    ),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  });
-}
-const bucket = admin.storage().bucket();
-
-// --- Vercel config ---
 export const config = {
   maxDuration: 60,
   memory: 1024,
 };
 
-// --- Main handler ---
+// 🧠 Lazy Firebase Admin initialization (runtime only)
+function getFirebaseAdmin() {
+  if (!admin.apps.length) {
+    const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+    if (!serviceAccountBase64) {
+      console.error("❌ Missing FIREBASE_SERVICE_ACCOUNT_BASE64 env var");
+      throw new Error("Missing Firebase service account");
+    }
+
+    const decoded = JSON.parse(
+      Buffer.from(serviceAccountBase64, "base64").toString()
+    );
+
+    admin.initializeApp({
+      credential: admin.credential.cert(decoded),
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    });
+    console.log("🔥 Firebase Admin initialized at runtime");
+  }
+  return admin;
+}
+
+// --- Helper to get Firestore server timestamp safely ---
+function getServerTimestamp() {
+  const adminApp = getFirebaseAdmin();
+  return adminApp.firestore.FieldValue.serverTimestamp();
+}
+
+// 🧑 Main route
 export async function POST(req: Request) {
   let browser;
   try {
     const { html, ownerId, noteId } = await req.json();
     const isLocal = !process.env.VERCEL;
+    console.log(`[PDF Render] Starting in ${isLocal ? "local" : "vercel"} mode...`);
 
-    // 🧠 Launch Chromium
+    // 🚀 Launch correct Chromium flavor
     if (isLocal) {
-      // Local dev: use full puppeteer with bundled Chromium
-      console.log("[PDF] Launching local Chromium...");
       browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
     } else {
-      // Vercel: use puppeteer-core + @sparticuz/chromium
-      console.log("[PDF] Launching Vercel Chromium...");
-      chromium.setHeadlessMode = true;
-      chromium.setGraphicsMode = false;
       const executablePath = await chromium.executablePath();
       browser = await puppeteerCore.launch({
         args: [
           ...chromium.args,
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--single-process',
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+          "--single-process",
         ],
         defaultViewport: chromium.defaultViewport,
         executablePath,
@@ -63,19 +74,21 @@ export async function POST(req: Request) {
 
     // 🖨 Generate PDF
     const page = await browser.newPage();
-    await page.setContent(html || "<h1>Empty PDF</h1>", { waitUntil: "networkidle0" });
-    
-    // Wait for fonts and images to fully render
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    await page.setContent(html || "<h1>Empty PDF</h1>", {
+      waitUntil: "networkidle0",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 500));
     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-    
-    if (!pdfBuffer || pdfBuffer.length === 0) {
+
+    if (!pdfBuffer?.length) {
       throw new Error("Generated PDF is empty");
     }
 
     // ☁️ Upload to Firebase
+    const adminApp = getFirebaseAdmin();
+    const bucket = adminApp.storage().bucket();
     const path = `pdfs/${ownerId}/${noteId}.pdf`;
+
     const file = bucket.file(path);
     await file.save(pdfBuffer, {
       metadata: { contentType: "application/pdf" },
@@ -86,10 +99,10 @@ export async function POST(req: Request) {
       expires: "03-01-2035",
     });
 
-    // 💾 Sync to Firestore
-    const db = admin.firestore();
+    // 💾 Firestore update
+    const db = adminApp.firestore();
     const renderMode = isLocal ? "local-chrome" : "vercel-bundled";
-    
+
     await db.collection("soapNotes").doc(noteId).set(
       {
         userId: ownerId,
@@ -98,13 +111,12 @@ export async function POST(req: Request) {
         storagePath: path,
         renderMode,
         status: "done",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: getServerTimestamp(),
       },
       { merge: true }
     );
 
-    console.log(`✅ [PDF Render] Success with mode: ${renderMode}`);
-    console.log(`✅ [PDF Render] Firestore synced: soapNotes/${noteId}`);
+    console.log(`[PDF Render] ✅ Success with mode: ${renderMode}`);
     
     return NextResponse.json({
       status: "ok",
