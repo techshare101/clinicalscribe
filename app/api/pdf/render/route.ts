@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import puppeteerCore from "puppeteer-core";
 import puppeteer from "puppeteer";
-import chromium from "@sparticuz/chromium";
 import admin from "firebase-admin";
 
 export const runtime = "nodejs";
@@ -55,14 +54,15 @@ export async function POST(req: Request) {
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
     } else {
-      // Vercel: use @sparticuz/chromium v141+
-      const executablePath = await chromium.executablePath("/tmp");
+      // Vercel: use @sparticuz/chromium v141+ with dynamic import
+      const chromium = await import("@sparticuz/chromium");
+      const executablePath = await chromium.default.executablePath();
       
       browser = await puppeteerCore.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
+        args: chromium.default.args,
+        defaultViewport: chromium.default.defaultViewport,
         executablePath,
-        headless: chromium.headless,
+        headless: chromium.default.headless,
       });
     }
 
