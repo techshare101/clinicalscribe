@@ -55,20 +55,14 @@ export async function POST(req: Request) {
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
     } else {
-      const executablePath = await chromium.executablePath();
+      // Vercel: use @sparticuz/chromium v141+
+      const executablePath = await chromium.executablePath("/tmp");
+      
       browser = await puppeteerCore.launch({
-        args: [
-          ...chromium.args,
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-          "--single-process",
-        ],
+        args: chromium.args,
         defaultViewport: chromium.defaultViewport,
         executablePath,
         headless: chromium.headless,
-        ignoreHTTPSErrors: true,
       });
     }
 
