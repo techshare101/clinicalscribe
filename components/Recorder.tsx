@@ -213,8 +213,16 @@ export default function Recorder({
         setRecordingTime(prev => prev + 1);
       }, 1000);
       
-      // Use WebM/Opus format for better compression and longer recording support
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Use WebM/Opus format with optimized settings for Vercel
+      // Lower bitrate = smaller chunks = no 413 errors on long recordings
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 16000, // 16kHz is optimal for speech (Whisper supports down to 8kHz)
+          channelCount: 1, // Mono is sufficient for speech
+          noiseSuppression: true,
+          echoCancellation: true,
+        }
+      });
       streamRef.current = stream; // Store stream for visualization
       
       // Force WebM/Opus format for better compression
@@ -223,7 +231,18 @@ export default function Recorder({
         mimeType = "audio/mp4"; // Fallback for iOS Safari
       }
       
-      const recorder = new MediaRecorder(stream, { mimeType });
+      // Decide bitrate based on environment
+      // Production (Vercel): 32kbps = ~240KB per minute = 15 min ≈ 3.6MB total
+      // Development: 128kbps for higher quality testing
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
+      const bitsPerSecond = isProduction ? 32000 : 128000;
+      
+      console.log(`🎙️ Recording at ${bitsPerSecond / 1000}kbps (${isProduction ? 'production' : 'development'} mode)`);
+      
+      const recorder = new MediaRecorder(stream, { 
+        mimeType,
+        bitsPerSecond 
+      });
       audioChunks.current = [];
 
       recorder.ondataavailable = async (event) => {
