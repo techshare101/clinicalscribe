@@ -226,8 +226,27 @@ export default function Recorder({
       const recorder = new MediaRecorder(stream, { mimeType });
       audioChunks.current = [];
 
-      recorder.ondataavailable = (event) => {
-        audioChunks.current.push(event.data);
+      recorder.ondataavailable = async (event) => {
+        if (event.data.size > 0) {
+          audioChunks.current.push(event.data);
+          
+          // Immediately upload chunk to avoid memory buildup
+          // This prevents 413 errors by keeping request sizes small
+          if (event.data.size > 100000) { // Only upload chunks > 100KB
+            try {
+              const chunkBlob = new Blob([event.data], { type: mimeType });
+              console.log(`📤 Uploading chunk ${audioChunks.current.length} (${(chunkBlob.size / 1024).toFixed(2)} KB)`);
+              
+              // Upload to Firebase Storage immediately
+              if (sessionId) {
+                await uploadAudioFile(chunkBlob, sessionId);
+              }
+            } catch (uploadError) {
+              console.error('Failed to upload chunk:', uploadError);
+              // Continue recording even if upload fails
+            }
+          }
+        }
       };
 
       recorder.onstop = async () => {
@@ -413,7 +432,9 @@ export default function Recorder({
         }
       };
 
-      recorder.start();
+      // Start recording with 30-second chunks to keep under Vercel's 10MB limit
+      // 30 seconds of WebM/Opus audio ≈ 2-4 MB
+      recorder.start(30000); // 30 seconds per chunk
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
       
