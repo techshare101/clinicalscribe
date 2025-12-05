@@ -5,6 +5,16 @@ import { collection, query, orderBy, limit, Timestamp, onSnapshot, where } from 
 import { db } from "@/lib/firebase";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
+
+// Helper: Check if user should see demo mode (only FREE users)
+function shouldUseDemoMode(profile: any): boolean {
+  if (!profile) return true; // No profile = show demo
+  if (profile.betaActive) return false;
+  if (profile.proActive) return false;
+  if (profile.teamActive) return false;
+  return true; // Free user = show demo
+}
 
 // Types for dashboard data
 type Patient = {
@@ -149,18 +159,35 @@ export function DashboardDataProvider({ children }: DashboardDataProviderProps) 
     mode: "demo",
   });
   const { user } = useAuth();
+  const { profile } = useProfile();
 
   useEffect(() => {
-    // Always start with demo data for immediate display
-    const mockData = formatMockData();
-    setData(prev => ({
-      ...prev,
-      ...mockData,
-      loading: false,
-      mode: "demo",
-    }));
+    // Check if user is a paying subscriber
+    const useDemo = shouldUseDemoMode(profile);
 
-    // If no user, stay in demo mode
+    if (useDemo) {
+      // FREE users: Show demo data
+      const mockData = formatMockData();
+      setData(prev => ({
+        ...prev,
+        ...mockData,
+        loading: false,
+        mode: "demo",
+      }));
+    } else {
+      // PAYING users: Start with empty workspace (no demo data)
+      setData(prev => ({
+        ...prev,
+        patients: [],
+        transcriptions: [],
+        analytics: [],
+        auditLogs: [],
+        loading: false,
+        mode: "real",
+      }));
+    }
+
+    // If no user, stay in current mode
     if (!user) {
       return;
     }
@@ -295,9 +322,9 @@ export function DashboardDataProvider({ children }: DashboardDataProviderProps) 
       });
       
       unsubscribes.push(auditLogsUnsub);
-    } catch (error) {
+    } catch (error: any) {
       // Check if it's a permissions error
-      if (error.code === 'permission-denied' || error.message?.includes('Missing or insufficient permissions')) {
+      if (error?.code === 'permission-denied' || error?.message?.includes('Missing or insufficient permissions')) {
         // Suppress permissions errors as we handle them gracefully by staying in demo mode
       } else {
         // Log other errors
@@ -316,7 +343,7 @@ export function DashboardDataProvider({ children }: DashboardDataProviderProps) 
         }
       });
     };
-  }, [user]);
+  }, [user, profile]);
 
   return (
     <DashboardDataContext.Provider value={data}>
