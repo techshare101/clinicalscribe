@@ -13,9 +13,7 @@ function getStripe() {
     console.error("❌ Missing STRIPE_SECRET_KEY in environment");
     return null;
   }
-  return new Stripe(stripeKey, {
-    apiVersion: "2024-11-20" as any,
-  });
+  return new Stripe(stripeKey);
 }
 
 export async function POST(req: Request) {
