@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         stripeCustomerId,
         stripeSubscriptionId,
         stripeSessionId,
-        stripePriceId: process.env.NEXT_PUBLIC_STRIPE_LINK_BETA || "price_test_beta",
+        stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_BETA || "price_test_beta",
         stripeSubscriptionStatus: "active",
         subscriptionStatus: "active",
         updatedAt: new Date().toISOString(),
