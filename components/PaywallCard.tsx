@@ -58,6 +58,11 @@ export default function PaywallCard({
     setError(null);
 
     try {
+      // Check if priceId is configured
+      if (!priceId) {
+        throw new Error("Stripe price not configured. Please contact support.");
+      }
+
       // Comprehensive authentication check
       if (!auth.currentUser) {
         throw new Error("User not authenticated");
