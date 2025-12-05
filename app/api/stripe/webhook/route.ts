@@ -10,17 +10,8 @@ function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY environment variable is required')
   }
-  return new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-07-30.basil',
-  })
+  return new Stripe(process.env.STRIPE_SECRET_KEY)
 }
-
-// Webhook secret for signature verification
-if (!process.env.STRIPE_WEBHOOK_SECRET) {
-  console.warn('⚠️ STRIPE_WEBHOOK_SECRET not set - webhook signature verification disabled')
-}
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
 export async function POST(req: NextRequest) {
   const timestamp = Date.now()
@@ -36,6 +27,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 })
     }
 
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
     if (!webhookSecret) {
       console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured')
       return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 })
