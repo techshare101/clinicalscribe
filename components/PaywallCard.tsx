@@ -21,7 +21,7 @@ export default function PaywallCard({
   title = "Unlock ClinicalScribe Beta",
   description = "Subscribe to unlock beta access and start generating secure SOAP notes with AI-powered transcription.",
   upgradeText = "Upgrade Now",
-  priceId = process.env.NEXT_PUBLIC_STRIPE_LINK_BETA || "price_1RvTL9GYIZIfzvtQNV1hCsX8",
+  priceId = process.env.NEXT_PUBLIC_STRIPE_LINK_BETA || "",
   className = ""
 }: PaywallCardProps) {
   const [loading, setLoading] = useState(false);
