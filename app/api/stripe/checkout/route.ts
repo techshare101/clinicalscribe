@@ -1,21 +1,22 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs"; // ✅ force Node.js runtime
+
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminAuth } from "@/lib/firebase-admin";
 import { getAppUrl } from "@/lib/env";
 
-export const runtime = "nodejs"; // ✅ force Node.js runtime
-
-// Validate critical environment variables at startup
-const stripeKey = process.env.STRIPE_SECRET_KEY;
-
-if (!stripeKey) {
-  console.error("❌ Missing STRIPE_SECRET_KEY in environment");
+// Lazy Stripe initialization to read env at runtime, not build time
+function getStripe() {
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) {
+    console.error("❌ Missing STRIPE_SECRET_KEY in environment");
+    return null;
+  }
+  return new Stripe(stripeKey, {
+    apiVersion: "2024-11-20" as any,
+  });
 }
-
-// Initialize Stripe with validation
-const stripe = new Stripe(stripeKey || "sk_missing", {
-  // Let Stripe SDK use its default compatible API version
-});
 
 export async function POST(req: Request) {
   console.log('🔄 Stripe Checkout: Request received at', new Date().toISOString());
@@ -62,7 +63,8 @@ export async function POST(req: Request) {
     }
 
     // Check if Stripe is properly configured
-    if (!stripeKey || stripeKey.startsWith("sk_missing")) {
+    const stripe = getStripe();
+    if (!stripe) {
       console.error('❌ Stripe Checkout: STRIPE_SECRET_KEY is not configured');
       return NextResponse.json(
         { error: "Server misconfigured: STRIPE_SECRET_KEY is missing" },
