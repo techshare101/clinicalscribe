@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import admin from "firebase-admin";
@@ -33,7 +35,7 @@ export async function GET() {
     }
     
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2024-06-20",
+      apiVersion: "2024-11-20" as any,
     });
     await stripe.balance.retrieve();
     results.stripe = "ok";

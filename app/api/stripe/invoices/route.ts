@@ -1,14 +1,18 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("Missing STRIPE_SECRET_KEY environment variable");
+// Lazy initialization to avoid build-time errors when env var is missing
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error("Missing STRIPE_SECRET_KEY environment variable");
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2024-11-20" as any,
+  });
 }
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16", // Using stable API version
-});
 
 export async function GET(req: NextRequest) {
   try {
@@ -46,6 +50,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch the customer's invoices
+    const stripe = getStripe();
     const invoices = await stripe.invoices.list({
       customer: stripeCustomerId,
       limit: 10,

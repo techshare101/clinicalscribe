@@ -1,0 +1,67 @@
+[debug] [2025-11-09T15:59:35.804Z] ----------------------------------------------------------------------
+[debug] [2025-11-09T15:59:35.807Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\valen\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:indexes --project clinicalscribe-511e7
+[debug] [2025-11-09T15:59:35.808Z] CLI Version:   14.12.1
+[debug] [2025-11-09T15:59:35.808Z] Platform:      win32
+[debug] [2025-11-09T15:59:35.808Z] Node Version:  v22.16.0
+[debug] [2025-11-09T15:59:35.808Z] Time:          Sun Nov 09 2025 09:59:35 GMT-0600 (Central Standard Time)
+[debug] [2025-11-09T15:59:35.808Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-11-09T15:59:36.012Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-11-09T15:59:36.013Z] > authorizing via signed-in user (valentin2v2000@gmail.com)
+[debug] [2025-11-09T15:59:36.013Z] [iam] checking project clinicalscribe-511e7 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2025-11-09T15:59:36.014Z] Checked if tokens are valid: false, expires at: 1762680229030
+[debug] [2025-11-09T15:59:36.014Z] Checked if tokens are valid: false, expires at: 1762680229030
+[debug] [2025-11-09T15:59:36.014Z] > refreshing access token with scopes: []
+[debug] [2025-11-09T15:59:36.016Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-11-09T15:59:36.016Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-11-09T15:59:36.208Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-11-09T15:59:36.209Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-11-09T15:59:36.217Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/clinicalscribe-511e7:testIamPermissions [none]
+[debug] [2025-11-09T15:59:36.218Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/clinicalscribe-511e7:testIamPermissions x-goog-quota-user=projects/clinicalscribe-511e7
+[debug] [2025-11-09T15:59:36.218Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/clinicalscribe-511e7:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-11-09T15:59:36.440Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/clinicalscribe-511e7:testIamPermissions 200
+[debug] [2025-11-09T15:59:36.440Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/clinicalscribe-511e7:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'clinicalscribe-511e7'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2025-11-09T15:59:36.445Z] Checked if tokens are valid: true, expires at: 1762707575209
+[debug] [2025-11-09T15:59:36.445Z] Checked if tokens are valid: true, expires at: 1762707575209
+[debug] [2025-11-09T15:59:36.446Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/clinicalscribe-511e7:test [none]
+[debug] [2025-11-09T15:59:36.446Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/clinicalscribe-511e7:test [omitted]
+[debug] [2025-11-09T15:59:36.635Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/clinicalscribe-511e7:test 200
+[debug] [2025-11-09T15:59:36.636Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/clinicalscribe-511e7:test {"issues":[{"sourcePosition":{"fileName":"firestore.rules","line":5,"column":36,"currentOffset":148,"endOffset":154},"description":"Invalid variable name: request.","severity":"WARNING"},{"sourcePosition":{"fileName":"firestore.rules","line":6,"column":14,"currentOffset":185,"endOffset":191},"description":"Unused function: isAdmin.","severity":"WARNING"},{"sourcePosition":{"fileName":"firestore.rules","line":8,"column":8,"currentOffset":235,"endOffset":241},"description":"Invalid variable name: request.","severity":"WARNING"},{"sourcePosition":{"fileName":"firestore.rules","line":9,"column":8,"currentOffset":280,"endOffset":286},"description":"Invalid variable name: request.","severity":"WARNING"},{"sourcePosition":{"fileName":"firestore.rules","line":10,"column":8,"currentOffset":333,"endOffset":339},"description":"Invalid variable name: request.","severity":"WARNING"}]}
+[warn] !  [W] 5:36 - Invalid variable name: request. 
+[warn] !  [W] 6:14 - Unused function: isAdmin. 
+[warn] !  [W] 8:8 - Invalid variable name: request. 
+[warn] !  [W] 9:8 - Invalid variable name: request. 
+[warn] !  [W] 10:8 - Invalid variable name: request. 
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2025-11-09T15:59:36.691Z] Checked if tokens are valid: true, expires at: 1762707575209
+[debug] [2025-11-09T15:59:36.691Z] Checked if tokens are valid: true, expires at: 1762707575209
+[debug] [2025-11-09T15:59:36.691Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/clinicalscribe-511e7/databases/(default) [none]
+[debug] [2025-11-09T15:59:36.952Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/clinicalscribe-511e7/databases/(default) 200
+[debug] [2025-11-09T15:59:36.953Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/clinicalscribe-511e7/databases/(default) {"name":"projects/clinicalscribe-511e7/databases/(default)","uid":"011ee49b-cec8-469e-b5ee-19a3da2ade6a","createTime":"2025-08-19T05:32:51.475555Z","updateTime":"2025-08-19T05:32:51.475555Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2025-11-09T14:59:36.833217Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IPi8iIO45ZADMPShuv+alo8D"}
+[info] i  firestore: deploying indexes... 
+[debug] [2025-11-09T15:59:36.955Z] Checked if tokens are valid: true, expires at: 1762707575209
+[debug] [2025-11-09T15:59:36.955Z] Checked if tokens are valid: true, expires at: 1762707575209
+[debug] [2025-11-09T15:59:36.955Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/clinicalscribe-511e7/databases/(default)/collectionGroups/-/indexes [none]
+[debug] [2025-11-09T15:59:37.033Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/clinicalscribe-511e7/databases/(default)/collectionGroups/-/indexes 200
+[debug] [2025-11-09T15:59:37.033Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/clinicalscribe-511e7/databases/(default)/collectionGroups/-/indexes {"indexes":[{"name":"projects/clinicalscribe-511e7/databases/(default)/collectionGroups/audit_logs/indexes/CICAgNi4-ZIJ","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"timestamp","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/clinicalscribe-511e7/databases/(default)/collectionGroups/soapNotes/indexes/CICAgJim14AK","queryScope":"COLLECTION","fields":[{"fieldPath":"patientId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/clinicalscribe-511e7/databases/(default)/collectionGroups/soapNotes/indexes/CICAgJj7z4EK","queryScope":"COLLECTION","fields":[{"fieldPath":"uid","order":"ASCENDING"},{"fieldPath":"patientId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/clinicalscribe-511e7/databases/(default)/collectionGroups/soapNotes/indexes/CICAgJjF9oIK","queryScope":"COLLECTION","fields":[{"fieldPath":"uid","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/clinicalscribe-511e7/databases/(default)/collectionGroups/soapNotes/indexes/CICAgJiUpoMK","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/clinicalscribe-511e7/databases/(default)/collectionGroups/patientSessions/indexes/CICAgNi47oMK","queryScope":"COLLECTION","fields":[{"fieldPath":"patientId","order":"ASCENDING"},{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"__name__","order":"ASCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/clinicalscribe-511e7/databases/(default)/collectionGroups/transcriptions/indexes/CICAgNi4o4sK","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"timestamp","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/clinicalscribe-511e7/databases/(default)/collectionGroups/patients/indexes/CICAgNi4-ZIK","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"timestamp","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/clinicalscribe-511e7/databases/(default)/collectionGroups/patientSessions/indexes/CICAgJjFqZMK","queryScope":"COLLECTION","fields":[{"fieldPath":"patientId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"}]}
+[debug] [2025-11-09T15:59:37.033Z] Checked if tokens are valid: true, expires at: 1762707575209
+[debug] [2025-11-09T15:59:37.033Z] Checked if tokens are valid: true, expires at: 1762707575209
+[debug] [2025-11-09T15:59:37.034Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/clinicalscribe-511e7/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* [none]
+[debug] [2025-11-09T15:59:37.101Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/clinicalscribe-511e7/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* 200
+[debug] [2025-11-09T15:59:37.101Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/clinicalscribe-511e7/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* {"fields":[{"name":"projects/clinicalscribe-511e7/databases/(default)/collectionGroups/__default__/fields/*","indexConfig":{"indexes":[{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","order":"ASCENDING"}],"state":"READY"},{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","order":"DESCENDING"}],"state":"READY"},{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","arrayConfig":"CONTAINS"}],"state":"READY"}]}}]}
+[info] i  firestore: The following indexes are defined in your project but are not present in your firestore indexes file:
+	(audit_logs) -- (userId,ASCENDING) (timestamp,DESCENDING) 
+	(soapNotes) -- (patientId,ASCENDING) (createdAt,DESCENDING) 
+	(soapNotes) -- (uid,ASCENDING) (patientId,ASCENDING) (createdAt,DESCENDING) 
+	(soapNotes) -- (uid,ASCENDING) (createdAt,DESCENDING) 
+	(soapNotes) -- (userId,ASCENDING) (createdAt,DESCENDING) 
+	(patientSessions) -- (patientId,ASCENDING) (isActive,ASCENDING) 
+	(transcriptions) -- (userId,ASCENDING) (timestamp,DESCENDING) 
+	(patients) -- (userId,ASCENDING) (timestamp,DESCENDING) 
+	(patientSessions) -- (patientId,ASCENDING) (createdAt,DESCENDING)  

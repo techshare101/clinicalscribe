@@ -1,11 +1,17 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { getStorage } from "firebase-admin/storage";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20" as any,
-});
+// Lazy initialization to avoid build-time errors when env var is missing
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2024-11-20" as any,
+  });
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -79,7 +85,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 4️⃣ Delete Stripe test invoices if customer exists
-    if (stripeCustomerId && process.env.STRIPE_SECRET_KEY?.includes('sk_test')) {
+    const stripe = getStripe();
+    if (stripe && stripeCustomerId && process.env.STRIPE_SECRET_KEY?.includes('sk_test')) {
       try {
         const invoices = await stripe.invoices.list({ 
           customer: stripeCustomerId, 

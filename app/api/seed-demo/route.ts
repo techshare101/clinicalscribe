@@ -1,10 +1,16 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20" as any,
-});
+// Lazy initialization to avoid build-time errors when env var is missing
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2024-11-20" as any,
+  });
+}
 
 function randomId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).substring(2, 10)}`;
@@ -67,9 +73,10 @@ export async function POST(req: NextRequest) {
 
     // --- Stripe test invoice (optional) ---
     let invoice;
+    const stripe = getStripe();
     try {
       // Only create invoice if using test mode
-      if (process.env.STRIPE_SECRET_KEY?.includes('sk_test')) {
+      if (stripe && process.env.STRIPE_SECRET_KEY?.includes('sk_test')) {
         // First, ensure customer exists in Stripe
         try {
           await stripe.customers.create({

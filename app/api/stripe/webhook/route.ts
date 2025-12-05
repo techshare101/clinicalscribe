@@ -1,17 +1,19 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs"; // ✅ force Node.js runtime
+
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { adminDb } from "@/lib/firebase-admin"
 
-export const runtime = "nodejs"; // ✅ force Node.js runtime
-
-// Initialize Stripe with secret key
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY environment variable is required')
+// Lazy initialization to avoid build-time errors when env var is missing
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY environment variable is required')
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-07-30.basil',
+  })
 }
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-07-30.basil',
-})
 
 // Webhook secret for signature verification
 if (!process.env.STRIPE_WEBHOOK_SECRET) {
@@ -40,6 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     let event: Stripe.Event
+    const stripe = getStripe()
 
     try {
       // Verify webhook signature
@@ -217,6 +220,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   if (subscriptionId) {
     try {
       // Retrieve subscription to get user metadata
+      const stripe = getStripe()
       const subscription = await stripe.subscriptions.retrieve(subscriptionId)
       const uid = subscription.metadata?.uid || subscription.metadata?.userId
       
@@ -238,6 +242,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
   if (subscriptionId) {
     try {
       // Retrieve subscription to get user metadata
+      const stripe = getStripe()
       const subscription = await stripe.subscriptions.retrieve(subscriptionId)
       const uid = subscription.metadata?.uid || subscription.metadata?.userId
       
