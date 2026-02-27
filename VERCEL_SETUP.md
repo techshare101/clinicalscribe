@@ -68,8 +68,11 @@ STRIPE_WEBHOOK_SECRET=your-stripe-webhook-secret
 ```
 NEXT_PUBLIC_SMART_CLIENT_ID=your-smart-client-id
 SMART_CLIENT_SECRET=your-smart-client-secret
-SMART_REDIRECT_PATH=https://your-vercel-app.vercel.app/api/smart/callback
-SMART_SCOPES=openid fhirUser offline_access patient/.read patient/.write DocumentReference.Create
+NEXT_PUBLIC_BASE_URL=https://your-vercel-app.vercel.app
+SMART_REDIRECT_PATH=/api/smart/callback
+SMART_AUTH_URL=https://fhir.epic.com/interconnect-fhir-oauth/oauth2/authorize
+SMART_TOKEN_URL=https://fhir.epic.com/interconnect-fhir-oauth/oauth2/token
+SMART_SCOPES=openid fhirUser offline_access patient/*.read patient/*.write DocumentReference.Create
 SMART_ISSUER=https://fhir.epic.com/interconnect-fhir-oauth/oauth2
 SMART_FHIR_BASE=https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4
 ```

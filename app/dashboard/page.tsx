@@ -387,8 +387,8 @@ export default function DashboardPage() {
   // Dev override: always show dashboard
   const devOverride = process.env.NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS === "true"
 
-  // Show loading state until hydrated
-  if (!hydrated) {
+  // Show loading state until hydrated AND profile is resolved
+  if (!hydrated || isLoading) {
     return (
       <div className="flex justify-center py-12">
         <div className="relative">
@@ -401,7 +401,7 @@ export default function DashboardPage() {
   }
 
   // Show paywall if user doesn't have active subscription AND no dev override
-  if (!devOverride && !isLoading && profile && !profile.betaActive) {
+  if (!devOverride && profile && !profile.betaActive) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
         <div className="container mx-auto px-4 py-8 max-w-4xl">

@@ -154,7 +154,7 @@ export function DashboardDataProvider({ children }: DashboardDataProviderProps) 
     transcriptions: [],
     analytics: [],
     auditLogs: [],
-    loading: false,
+    loading: true,
     error: null,
     mode: "demo",
   });

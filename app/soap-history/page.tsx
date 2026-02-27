@@ -32,7 +32,8 @@ import {
   Sparkles,
   Heart,
   TrendingUp,
-  Eye
+  Eye,
+  Share2
 } from 'lucide-react'
 import { formatDate } from '@/lib/formatDate'
 import { formatRelativeTime } from '@/lib/formatRelativeTime'
@@ -51,6 +52,97 @@ interface SOAPNote {
   patientId?: string
   patientName?: string
   fhirExport?: { status?: 'none' | 'exported' | 'failed' }
+}
+
+// Inline quick-export button shown on each SOAP note card
+function ExportToEHRInline({ note }: { note: SOAPNote }) {
+  const [loading, setLoading] = useState(false)
+  const [exported, setExported] = useState(note.fhirExport?.status === 'exported')
+
+  async function handleQuickExport(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (loading || exported) return
+    setLoading(true)
+    try {
+      // 1) Build FHIR DocumentReference
+      const buildRes = await fetch('/api/fhir/document-reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          soap: {
+            subjective: note.subjective,
+            objective: note.objective,
+            assessment: note.assessment,
+            plan: note.plan,
+            patientName: note.patientName,
+            timestamp: note.createdAt?.seconds
+              ? new Date(note.createdAt.seconds * 1000).toISOString()
+              : new Date().toISOString(),
+          },
+        }),
+      })
+      if (!buildRes.ok) throw new Error('Failed to build FHIR resource')
+      const docRef = await buildRes.json()
+
+      // 2) Post to Epic via server proxy
+      const postRes = await fetch('/api/smart/post-document-reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(docRef),
+      })
+      const postData = await postRes.json().catch(() => ({}))
+      const posted = postRes.ok && postData.posted
+
+      // 3) Persist status
+      await fetch('/api/notes/fhir-export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          noteId: note.id,
+          status: posted ? 'exported' : 'failed',
+          docRef,
+          posted,
+          remote: posted ? { server: postData.server, resourceId: postData.resourceId } : null,
+        }),
+      })
+
+      if (posted) setExported(true)
+    } catch {
+      // silent — badge will show 'failed' on next load
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (exported) {
+    return (
+      <Button size="sm" disabled className="bg-teal-500/80 text-white rounded-xl cursor-default">
+        <Share2 className="h-4 w-4 mr-1" />
+        Exported
+      </Button>
+    )
+  }
+
+  return (
+    <Button
+      size="sm"
+      onClick={handleQuickExport}
+      disabled={loading}
+      className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl"
+    >
+      {loading ? (
+        <span className="flex items-center gap-1">
+          <span className="h-3 w-3 border-2 border-t-transparent border-white rounded-full animate-spin" />
+          Exporting
+        </span>
+      ) : (
+        <>
+          <Share2 className="h-4 w-4 mr-1" />
+          Export
+        </>
+      )}
+    </Button>
+  )
 }
 
 export default function SOAPHistoryPage() {
@@ -439,6 +531,7 @@ export default function SOAPHistoryPage() {
                         
                         {/* Quick Actions */}
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <ExportToEHRInline note={note} />
                           {((note as any).storagePath || (note as any).pdf?.status === 'generated') && (
                             <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl">
                               <Download className="h-4 w-4" />
