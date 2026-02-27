@@ -79,6 +79,21 @@ export async function GET(req: NextRequest) {
       ...cookieOpts, 
       maxAge: token.expires_in || 3600 
     })
+
+    // Store EHR Launch context (patient, practitioner, encounter) if present
+    const contextMaxAge = token.expires_in || 3600
+    if (token.patient) {
+      res.cookies.set('smart_patient', token.patient, { ...cookieOpts, maxAge: contextMaxAge })
+    }
+    if ((token as any).practitioner) {
+      res.cookies.set('smart_practitioner', (token as any).practitioner, { ...cookieOpts, maxAge: contextMaxAge })
+    }
+    if (token.encounter) {
+      res.cookies.set('smart_encounter', token.encounter, { ...cookieOpts, maxAge: contextMaxAge })
+    }
+    if ((token as any).fhirUser) {
+      res.cookies.set('smart_fhir_user', (token as any).fhirUser, { ...cookieOpts, maxAge: contextMaxAge })
+    }
     
     // Clear temporary cookies
     res.cookies.set('smart_state', '', { ...cookieOpts, maxAge: 0 })

@@ -99,11 +99,18 @@ export async function GET(req: NextRequest) {
     .split(/\s+/)
     .filter(Boolean)
 
-  // If no launch param provided, drop any launch/* scopes for Standalone flow
+  // EHR Launch vs Standalone: adjust scopes accordingly
   const launchParam = searchParams.get('launch')
-  const effectiveScopes = launchParam
-    ? requestedScopes
-    : requestedScopes.filter((s) => !s.startsWith('launch/'))
+  let effectiveScopes: string[]
+  if (launchParam) {
+    // EHR Launch: ensure 'launch' scope is present (required by SMART spec)
+    effectiveScopes = requestedScopes.includes('launch')
+      ? requestedScopes
+      : ['launch', ...requestedScopes]
+  } else {
+    // Standalone: drop any launch/* scopes
+    effectiveScopes = requestedScopes.filter((s) => !s.startsWith('launch'))
+  }
 
   authorizeUrl.searchParams.set('response_type', 'code')
   authorizeUrl.searchParams.set('client_id', clientId)

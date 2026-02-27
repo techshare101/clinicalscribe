@@ -65,50 +65,42 @@ export default function ConnectToEHRButton() {
       return;
     }
     
-    // Normal Epic authorization flow - use the existing app launch flow
+    // EHR Launch flow — clinician apps are launched from inside the EHR.
+    // For sandbox testing, open Epic's launchpad so the user can initiate
+    // the launch from there (mimics real Hyperspace launch).
     try {
-      // This launches the correct SMART authorization flow used in the app
       toast({
-        title: "Connecting to EHR",
-        description: "You will be redirected to Epic's login page.",
+        title: "EHR Launch Required",
+        description: "Opening Epic's sandbox launchpad. Launch ClinicalScribe from there.",
       });
-      
-      // Add a small delay to ensure the toast is shown before redirect
+
       setTimeout(() => {
         try {
-          // Use window.open instead of direct location change to avoid losing the current page state
-          const authWindow = window.open('/smart/launch/default', '_blank');
-          
-          // If popup was blocked, fall back to direct navigation
-          if (!authWindow) {
-            console.log('Popup blocked, using direct navigation');
-            window.location.href = '/smart/launch/default';
+          // Open Epic launchpad for EHR launch testing
+          const launchpadUrl = 'https://fhir.epic.com/Documentation?docId=testpatients'
+          const launchWindow = window.open(launchpadUrl, '_blank')
+          if (!launchWindow) {
+            // Popup blocked — copy link to clipboard and show toast
+            navigator.clipboard?.writeText(launchpadUrl)
+            toast({
+              title: "Popup Blocked",
+              description: "Epic launchpad URL copied to clipboard. Open it manually.",
+              variant: "destructive",
+            })
           }
         } catch (redirectError) {
-          console.error('Error during redirect:', redirectError);
-          // Fallback to direct navigation if window.open fails
-          window.location.href = '/smart/launch/default';
+          console.error('Error opening launchpad:', redirectError)
         }
-      }, 500);
+        setIsConnecting(false)
+      }, 500)
     } catch (error) {
-      console.error('Error starting Epic authorization:', error);
-      
-      // Show error toast
+      console.error('Error starting EHR launch:', error);
       toast({
         title: "Connection Error",
-        description: "Failed to connect to EHR. Trying fallback method.",
+        description: "Failed to open Epic launchpad.",
         variant: "destructive",
       });
-      
       setIsConnecting(false);
-      
-      // Fallback to mock mode if authorization fails
-      if (connectionAttempts >= 2) {
-        // After 2 failed attempts, try mock mode
-        setTimeout(() => {
-          window.location.href = `${window.location.origin}/api/smart/callback?code=mock-auth-code-${Date.now()}&state=mock-state&mock=true&error=true`;
-        }, 1000);
-      }
     }
   };
 
