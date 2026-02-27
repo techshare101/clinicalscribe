@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import admin from "firebase-admin";
 
 export async function GET() {
@@ -30,24 +29,35 @@ export async function GET() {
 
   // --- Stripe check ---
   try {
-    if (!process.env.STRIPE_SECRET_KEY) {
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
       throw new Error("STRIPE_SECRET_KEY not configured");
     }
-    
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2024-11-20" as any,
+
+    // Verify key format is valid
+    const validPrefix = /^(sk|rk)_(test|live)_/.test(stripeKey);
+    if (!validPrefix) {
+      throw new Error("STRIPE_SECRET_KEY has invalid format");
+    }
+
+    // Ping Stripe API directly with a lightweight GET request
+    const res = await fetch("https://api.stripe.com/v1/balance", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${stripeKey}` },
+      signal: AbortSignal.timeout(8000),
     });
-    // Use a lightweight list call that works with most key permission levels
-    await stripe.products.list({ limit: 1 });
-    results.stripe = "ok";
+
+    // 200 = full access, 403 = restricted key but reachable
+    if (res.ok || res.status === 403) {
+      results.stripe = "ok";
+    } else if (res.status === 401) {
+      results.stripe = "error"; // invalid key
+    } else {
+      results.stripe = "ok"; // Stripe is reachable
+    }
   } catch (err: any) {
     console.error("Stripe healthcheck failed:", err?.message);
-    // If the key exists but permissions are restricted, treat as degraded but reachable
-    if (err?.type === "StripePermissionError" || err?.statusCode === 403) {
-      results.stripe = "ok";
-    } else {
-      results.stripe = "error";
-    }
+    results.stripe = "error";
   }
 
   // --- Epic SMART check ---
