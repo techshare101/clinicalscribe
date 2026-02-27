@@ -65,39 +65,27 @@ export default function ConnectToEHRButton() {
       return;
     }
     
-    // EHR Launch flow — clinician apps are launched from inside the EHR.
-    // For sandbox testing, open Epic's launchpad so the user can initiate
-    // the launch from there (mimics real Hyperspace launch).
+    // Standalone clinician launch — redirects to Epic's OAuth authorize page
+    // where the clinician logs in with their credentials (e.g. FHIRTWO / EpicFhir11!)
     try {
       toast({
-        title: "EHR Launch Required",
-        description: "Opening Epic's sandbox launchpad. Launch ClinicalScribe from there.",
+        title: "Connecting to EHR",
+        description: "You will be redirected to Epic's login page.",
       });
 
       setTimeout(() => {
         try {
-          // Open Epic launchpad for EHR launch testing
-          const launchpadUrl = 'https://fhir.epic.com/Documentation?docId=testpatients'
-          const launchWindow = window.open(launchpadUrl, '_blank')
-          if (!launchWindow) {
-            // Popup blocked — copy link to clipboard and show toast
-            navigator.clipboard?.writeText(launchpadUrl)
-            toast({
-              title: "Popup Blocked",
-              description: "Epic launchpad URL copied to clipboard. Open it manually.",
-              variant: "destructive",
-            })
-          }
+          window.location.href = '/smart/launch/default';
         } catch (redirectError) {
-          console.error('Error opening launchpad:', redirectError)
+          console.error('Error during redirect:', redirectError);
+          window.location.href = '/smart/launch/default';
         }
-        setIsConnecting(false)
-      }, 500)
+      }, 500);
     } catch (error) {
-      console.error('Error starting EHR launch:', error);
+      console.error('Error starting Epic authorization:', error);
       toast({
         title: "Connection Error",
-        description: "Failed to open Epic launchpad.",
+        description: "Failed to connect to EHR.",
         variant: "destructive",
       });
       setIsConnecting(false);
