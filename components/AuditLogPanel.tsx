@@ -32,6 +32,7 @@ const actionConfig: Record<string, { label: string; icon: any; color: string }> 
   role_changed: { label: "Role Changed", icon: ShieldAlert, color: "text-indigo-600 bg-indigo-50" },
   invite_created: { label: "Invite Sent", icon: UserPlus, color: "text-blue-600 bg-blue-50" },
   invite_revoked: { label: "Invite Revoked", icon: UserMinus, color: "text-amber-600 bg-amber-50" },
+  user_removed: { label: "User Removed", icon: UserMinus, color: "text-red-600 bg-red-50" },
 };
 
 const defaultAction = { label: "System Event", icon: Shield, color: "text-gray-600 bg-gray-50" };

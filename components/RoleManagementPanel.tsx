@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Shield, ShieldAlert, ShieldCheck, Loader2, RefreshCw, ChevronDown } from "lucide-react";
+import { Shield, ShieldAlert, ShieldCheck, Loader2, RefreshCw, ChevronDown, Trash2 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import BetaAccessToggle from "@/components/BetaAccessToggle";
 
@@ -56,6 +56,12 @@ export default function RoleManagementPanel() {
     email: string;
     currentRole: string;
     newRole: string;
+  } | null>(null);
+  const [removeModal, setRemoveModal] = useState<{
+    open: boolean;
+    uid: string;
+    email: string;
+    role: string;
   } | null>(null);
 
   async function load() {
@@ -120,6 +126,41 @@ export default function RoleManagementPanel() {
     } finally {
       setBusyUid(null);
       setConfirmModal(null);
+    }
+  }
+
+  async function removeUser(uid: string) {
+    setBusyUid(uid);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        toast.error("Authentication required");
+        return;
+      }
+
+      const res = await fetch("/api/admin/remove-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ uid }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to remove user");
+      }
+
+      const result = await res.json();
+      toast.success(result.message || "User removed successfully");
+      await load();
+    } catch (err) {
+      console.error("Error removing user:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to remove user");
+    } finally {
+      setBusyUid(null);
+      setRemoveModal(null);
     }
   }
 
@@ -225,37 +266,53 @@ export default function RoleManagementPanel() {
                             <span className="text-sm">Updating...</span>
                           </div>
                         ) : (
-                          <div className="relative group/menu">
-                            <button className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
-                              Change Role
-                              <ChevronDown className="h-3 w-3" />
-                            </button>
-                            <div className="absolute right-0 mt-1 w-48 bg-white border rounded-lg shadow-lg opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-10">
-                              {Object.entries(roleConfig).map(([roleKey, config]) => (
-                                <button
-                                  key={roleKey}
-                                  onClick={() => setConfirmModal({
-                                    open: true,
-                                    uid: user.uid,
-                                    email: user.email,
-                                    currentRole: user.role,
-                                    newRole: roleKey
-                                  })}
-                                  disabled={user.role === roleKey}
-                                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed first:rounded-t-lg last:rounded-b-lg"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <config.icon className="h-4 w-4" />
-                                    <span className={user.role === roleKey ? "font-medium" : ""}>
-                                      {config.label}
-                                    </span>
-                                    {user.role === roleKey && (
-                                      <span className="ml-auto text-xs text-gray-500">(current)</span>
-                                    )}
-                                  </div>
-                                </button>
-                              ))}
+                          <div className="flex items-center gap-2">
+                            <div className="relative group/menu">
+                              <button className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
+                                Change Role
+                                <ChevronDown className="h-3 w-3" />
+                              </button>
+                              <div className="absolute right-0 mt-1 w-48 bg-white border rounded-lg shadow-lg opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-10">
+                                {Object.entries(roleConfig).map(([roleKey, config]) => (
+                                  <button
+                                    key={roleKey}
+                                    onClick={() => setConfirmModal({
+                                      open: true,
+                                      uid: user.uid,
+                                      email: user.email,
+                                      currentRole: user.role,
+                                      newRole: roleKey
+                                    })}
+                                    disabled={user.role === roleKey}
+                                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed first:rounded-t-lg last:rounded-b-lg"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <config.icon className="h-4 w-4" />
+                                      <span className={user.role === roleKey ? "font-medium" : ""}>
+                                        {config.label}
+                                      </span>
+                                      {user.role === roleKey && (
+                                        <span className="ml-auto text-xs text-gray-500">(current)</span>
+                                      )}
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
                             </div>
+                            {user.role !== "system-admin" && (
+                              <button
+                                onClick={() => setRemoveModal({
+                                  open: true,
+                                  uid: user.uid,
+                                  email: user.email,
+                                  role: user.role,
+                                })}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Remove user"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>
@@ -268,7 +325,7 @@ export default function RoleManagementPanel() {
         </div>
       )}
 
-      {/* Confirmation Modal */}
+      {/* Role Change Confirmation Modal */}
       {confirmModal && (
         <ConfirmModal
           open={confirmModal.open}
@@ -285,6 +342,28 @@ This will ${confirmModal.newRole === "system-admin"
           variant={confirmModal.newRole === "system-admin" ? "danger" : "warning"}
           onConfirm={() => updateRole(confirmModal.uid, confirmModal.newRole)}
           onCancel={() => setConfirmModal(null)}
+        />
+      )}
+
+      {/* Remove User Confirmation Modal */}
+      {removeModal && (
+        <ConfirmModal
+          open={removeModal.open}
+          title="Remove User"
+          description={`Are you sure you want to permanently remove ${removeModal.email}?
+
+This will:
+\u2022 Delete their account and login credentials
+\u2022 Remove all their SOAP notes and data
+\u2022 Revoke all access to ClinicalScribe
+
+This action cannot be undone.`}
+          confirmText="Remove User"
+          cancelText="Cancel"
+          variant="danger"
+          onConfirm={() => removeUser(removeModal.uid)}
+          onCancel={() => setRemoveModal(null)}
+          loading={busyUid === removeModal.uid}
         />
       )}
     </div>
