@@ -28,6 +28,7 @@ interface RecorderProps {
   patientLanguage?: string;
   docLanguage?: string;
   sessionId?: string; // Add session ID for backend storage
+  resetSignal?: number; // Increment to trigger full reset from parent
 }
 
 // Define the recording chunk interface
@@ -54,7 +55,8 @@ export default function Recorder({
   onTranscriptGenerated, 
   patientLanguage = "auto", 
   docLanguage = "en",
-  sessionId
+  sessionId,
+  resetSignal = 0,
 }: RecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -122,6 +124,23 @@ export default function Recorder({
       }
     };
   }, []);
+
+  // Reset all state when parent triggers a clear
+  useEffect(() => {
+    if (resetSignal > 0) {
+      setTranscript('');
+      setRawTranscript('');
+      setRecordings([]);
+      setTranscriptChunks([]);
+      setCurrentChunk(1);
+      setTotalChunks(0);
+      setIsChunkCompleted(false);
+      setShowNextChunkPrompt(false);
+      setProgressMessage('');
+      setError(null);
+      setRecordingTime(0);
+    }
+  }, [resetSignal]);
 
   // Auto-stop recording after 15 minutes (900 seconds) or when chunk is completed
   useEffect(() => {

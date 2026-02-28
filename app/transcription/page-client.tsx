@@ -97,6 +97,7 @@ function TranscriptionPageClient() {
   const [patientLanguage, setPatientLanguage] = useState("auto")
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null)
   const [docLanguage, setDocLanguage] = useState("en")
+  const [recorderResetSignal, setRecorderResetSignal] = useState(0)
 
   // Update language preferences when profile loads
   useEffect(() => {
@@ -352,6 +353,7 @@ function TranscriptionPageClient() {
                 sessionId={patientId || undefined}
                 patientLanguage={patientLanguage}
                 docLanguage={docLanguage}
+                resetSignal={recorderResetSignal}
               />
             </div>
           </div>
@@ -363,7 +365,14 @@ function TranscriptionPageClient() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
         >
-          <SOAPGenerator initialTranscript={transcription} />
+          <SOAPGenerator
+            initialTranscript={transcription}
+            onClearAll={() => {
+              setTranscription("")
+              setDetectedLanguage(null)
+              setRecorderResetSignal(prev => prev + 1)
+            }}
+          />
         </motion.div>
       </div>
     </div>

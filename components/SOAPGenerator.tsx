@@ -50,6 +50,7 @@ interface SOAPGeneratorProps {
   encounterType?: string;
   patientLang?: string;
   docLang?: string;
+  onClearAll?: () => void;
 }
 
 export function SOAPGenerator({ 
@@ -58,7 +59,8 @@ export function SOAPGenerator({
   patientName = '',
   encounterType = 'General Consultation',
   patientLang = 'en',
-  docLang = 'en'
+  docLang = 'en',
+  onClearAll,
 }: SOAPGeneratorProps) {
   const [transcript, setTranscript] = useState(initialTranscript);
   const [rawTranscript, setRawTranscript] = useState(initialRawTranscript);
@@ -290,6 +292,7 @@ ${soapNote.plan}`;
     setRestored(false);
     localStorage.removeItem("currentSOAPNote");
     localStorage.removeItem("currentTranscript");
+    onClearAll?.();
   };
 
   return (
