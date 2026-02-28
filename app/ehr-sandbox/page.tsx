@@ -2,6 +2,7 @@
 'use client'
 
 import React, { useMemo, useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -65,7 +66,27 @@ export default function EHRExportSandboxPage() {
 
   const smartStatus = useSmartStatus()
   const { toast } = useToast()
+  const searchParams = useSearchParams()
   const [previousConnectionStatus, setPreviousConnectionStatus] = useState<boolean | null>(null)
+
+  // Show toast for OAuth callback results
+  useEffect(() => {
+    const smartParam = searchParams?.get('smart')
+    const reason = searchParams?.get('reason')
+    if (smartParam === 'error') {
+      const msg = reason ? decodeURIComponent(reason) : 'Authentication failed. Please try again.'
+      toast({
+        title: "EHR Connection Failed",
+        description: msg,
+        variant: "destructive",
+      })
+    } else if (smartParam === 'connected') {
+      toast({
+        title: "EHR Connected",
+        description: "Successfully connected to Epic SMART on FHIR.",
+      })
+    }
+  }, [searchParams, toast])
 
   useEffect(() => {
     if (previousConnectionStatus !== null && previousConnectionStatus !== smartStatus.connected) {

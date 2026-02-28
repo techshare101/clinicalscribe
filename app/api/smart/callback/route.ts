@@ -12,8 +12,15 @@ export async function GET(req: NextRequest) {
   const debug = searchParams.get('debug') === '1'
   const useMock = searchParams.get('mock') === 'true'
 
-  if (!code) {
-    const url = new URL('/?smart=error', req.nextUrl.origin)
+  // Handle Epic error responses (e.g., invalid credentials, lockout)
+  const epicError = searchParams.get('error') || ''
+  const epicErrorDesc = searchParams.get('error_description') || ''
+  if (epicError || !code) {
+    console.error('SMART callback error from Epic:', { error: epicError, description: epicErrorDesc })
+    const errorParam = epicErrorDesc
+      ? encodeURIComponent(epicErrorDesc.slice(0, 200))
+      : 'auth_failed'
+    const url = new URL(`/ehr-sandbox?smart=error&reason=${errorParam}`, req.nextUrl.origin)
     return NextResponse.redirect(url)
   }
   
