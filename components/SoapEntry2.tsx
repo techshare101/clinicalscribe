@@ -308,18 +308,25 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
         }
       }
 
-      const soapNote: SOAPNote = {
+      const soapNote: Record<string, any> = {
         subjective: subjective.trim(),
         objective: objective.trim(),
         assessment: assessment.trim(),
         plan: plan.trim(),
         painLevel: painLevel.trim(),
-        encounterType: encounterType.trim() || undefined,
         uid: user.uid,
         createdAt: serverTimestamp(),
-        patientName: trimmedName || undefined,
-        patientId: resolvedPatientId,
         fhirExport: { status: 'none' },
+      }
+      if (encounterType.trim()) soapNote.encounterType = encounterType.trim()
+      if (trimmedName) soapNote.patientName = trimmedName
+      if (resolvedPatientId) soapNote.patientId = resolvedPatientId
+      if (gptAnalysis) {
+        soapNote.aiAnalysis = {
+          flagged: gptAnalysis.flagged,
+          feedback: gptAnalysis.feedback,
+          recommendation: gptAnalysis.recommendation || '',
+        }
       }
 
       const docRef = await addDoc(collection(db, 'soapNotes'), soapNote)
@@ -327,6 +334,12 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
       // Render and upload PDF
       try {
         await updateDoc(doc(db, 'soapNotes', docRef.id), { pdf: { status: 'pending' } })
+        const analysisHtml = gptAnalysis ? `
+          <h2 style="color: ${gptAnalysis.flagged ? '#dc2626' : '#16a34a'};">AI Clinical Analysis</h2>
+          <p><strong>Status:</strong> ${gptAnalysis.flagged ? '⚠ Clinical Alert Detected' : '✓ No Critical Issues Found'}</p>
+          <p>${gptAnalysis.feedback}</p>
+          ${gptAnalysis.recommendation ? `<p><strong>Recommendation:</strong> ${gptAnalysis.recommendation}</p>` : ''}
+        ` : ''
         const html = `
           <h1>SOAP Note</h1>
           <p><strong>Date:</strong> ${formatDate(new Date())}</p>
@@ -337,6 +350,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
           <h2>Objective</h2><div>${objective.replace(/\n/g, '<br/>')}</div>
           <h2>Assessment</h2><div>${assessment.replace(/\n/g, '<br/>')}</div>
           <h2>Plan</h2><div>${plan.replace(/\n/g, '<br/>')}</div>
+          ${analysisHtml}
         `
         const { path } = await renderAndUploadPDF(html, user.uid, docRef.id, 'ClinicalScribe Beta')
         await updateDoc(doc(db, 'soapNotes', docRef.id), { storagePath: path, pdf: { status: 'done', path } })
@@ -372,7 +386,13 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
   }
 
   const exportSOAP = () => {
-    const fullSOAP = `SOAP NOTE\nDate: ${formatDate(new Date())}\nClient: ${patientName || 'N/A'}\nSession: ${encounterType || 'N/A'}\nPain Level: ${painLevel || 'Not recorded'}\n\nSUBJECTIVE:\n${subjective}\n\nOBJECTIVE:\n${objective}\n\nASSESSMENT:\n${assessment}\n\nPLAN:\n${plan}`
+    let fullSOAP = `SOAP NOTE\nDate: ${formatDate(new Date())}\nClient: ${patientName || 'N/A'}\nSession: ${encounterType || 'N/A'}\nPain Level: ${painLevel || 'Not recorded'}\n\nSUBJECTIVE:\n${subjective}\n\nOBJECTIVE:\n${objective}\n\nASSESSMENT:\n${assessment}\n\nPLAN:\n${plan}`
+    if (gptAnalysis) {
+      fullSOAP += `\n\n--- AI CLINICAL ANALYSIS ---\nStatus: ${gptAnalysis.flagged ? 'CLINICAL ALERT DETECTED' : 'No Critical Issues Found'}\nFeedback: ${gptAnalysis.feedback}`
+      if (gptAnalysis.recommendation) {
+        fullSOAP += `\nRecommendation: ${gptAnalysis.recommendation}`
+      }
+    }
     const blob = new Blob([fullSOAP], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
