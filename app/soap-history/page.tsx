@@ -36,6 +36,9 @@ import {
   Stethoscope,
   X,
   Loader2,
+  Archive,
+  Shield,
+  ArchiveRestore,
 } from 'lucide-react'
 import { formatDate } from '@/lib/formatDate'
 import { formatRelativeTime } from '@/lib/formatRelativeTime'
@@ -134,11 +137,14 @@ export default function SOAPHistoryPage() {
   const [user, setUser] = useState<FirebaseUser | null>(null)
   const [soapNotes, setSoapNotes] = useState<SOAPNote[]>([])
   const [pdfHistory, setPdfHistory] = useState<any[]>([])
-  const [filter, setFilter] = useState<'all' | 'flagged' | 'non-flagged' | 'pdf-available'>('all')
+  const [filter, setFilter] = useState<'all' | 'flagged' | 'non-flagged' | 'pdf-available' | 'archived'>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedNote, setSelectedNote] = useState<SOAPNote | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [bulkAction, setBulkAction] = useState<'idle' | 'confirm-archive' | 'confirm-delete' | 'processing'>('idle')
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -155,8 +161,11 @@ export default function SOAPHistoryPage() {
         headers: { "Authorization": `Bearer ${token}` }
       })
       if (!res.ok) throw new Error('Failed to fetch')
-      const notesData = await res.json()
-      setSoapNotes(notesData.map((note: any) => ({ id: note.id, ...note })))
+      const data = await res.json()
+      // API now returns { notes, isAdmin }
+      const notesArray = Array.isArray(data) ? data : data.notes || []
+      setSoapNotes(notesArray.map((note: any) => ({ id: note.id, ...note })))
+      if (data.isAdmin !== undefined) setIsAdmin(data.isAdmin)
     } catch (err) {
       console.error('Error fetching SOAP notes:', err)
     }
@@ -184,6 +193,28 @@ export default function SOAPHistoryPage() {
     return typeof redFlag === 'boolean' ? redFlag : redFlag === 'true'
   }
 
+  const handleArchive = async (noteId: string, archive: boolean) => {
+    if (!user) return
+    setArchivingId(noteId)
+    try {
+      const token = await user.getIdToken(true)
+      const res = await fetch(`/api/soap-history/${noteId}`, {
+        method: 'PATCH',
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: archive })
+      })
+      if (res.ok) {
+        setSoapNotes(prev => prev.map(n =>
+          n.id === noteId ? { ...n, archived: archive } as any : n
+        ))
+      }
+    } catch (err) {
+      console.error('Archive error:', err)
+    } finally {
+      setArchivingId(null)
+    }
+  }
+
   const handleDelete = async (noteId: string) => {
     if (!user) return
     setDeletingId(noteId)
@@ -204,8 +235,37 @@ export default function SOAPHistoryPage() {
     }
   }
 
+  const handleBulkAction = async (action: 'archive' | 'delete') => {
+    if (!user) return
+    setBulkAction('processing')
+    try {
+      const token = await user.getIdToken(true)
+      const activeNoteIds = soapNotes.filter((n: any) => !n.archived).map(n => n.id)
+      const res = await fetch('/api/soap-history/bulk', {
+        method: 'POST',
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action, noteIds: activeNoteIds })
+      })
+      if (res.ok) {
+        if (action === 'delete') {
+          setSoapNotes(prev => prev.filter((n: any) => n.archived))
+        } else {
+          setSoapNotes(prev => prev.map(n => ({ ...n, archived: true } as any)))
+        }
+      }
+    } catch (err) {
+      console.error('Bulk action error:', err)
+    } finally {
+      setBulkAction('idle')
+    }
+  }
+
   // Client-side filtering: status filter + patient name search
   const filteredNotes = soapNotes.filter(note => {
+    // Archived filter (admin only)
+    if (filter === 'archived') return (note as any).archived === true
+    // Hide archived notes when viewing any other filter
+    if ((note as any).archived) return false
     // Status filter
     if (filter === 'flagged' && !isRedFlag(note.redFlag)) return false
     if (filter === 'non-flagged' && isRedFlag(note.redFlag)) return false
@@ -220,6 +280,9 @@ export default function SOAPHistoryPage() {
     }
     return true
   })
+
+  const activeCount = soapNotes.filter((n: any) => !n.archived).length
+  const archivedCount = soapNotes.filter((n: any) => n.archived).length
 
   const soapSections = [
     { key: 'subjective', label: 'Subjective', letter: 'S', color: 'blue' },
@@ -252,8 +315,13 @@ export default function SOAPHistoryPage() {
               </div>
               <div className="flex items-center gap-3">
                 <EhrStatusBadge />
+                {isAdmin && (
+                  <Badge className="bg-amber-400/30 text-amber-100 border-amber-400/40 text-[10px]">
+                    <Shield className="h-3 w-3 mr-1" /> Admin
+                  </Badge>
+                )}
                 <Badge className="bg-white/20 text-white border-white/30 text-xs">
-                  {soapNotes.length} Notes
+                  {activeCount} Active{archivedCount > 0 ? ` · ${archivedCount} Archived` : ''}
                 </Badge>
               </div>
             </div>
@@ -276,6 +344,7 @@ export default function SOAPHistoryPage() {
                   { key: 'flagged', label: 'Flagged', icon: AlertTriangle },
                   { key: 'non-flagged', label: 'Standard', icon: Sparkles },
                   { key: 'pdf-available', label: 'PDF Ready', icon: Download },
+                  ...(isAdmin && archivedCount > 0 ? [{ key: 'archived', label: `Archived (${archivedCount})`, icon: Archive }] : []),
                 ].map((btn) => (
                   <Button
                     key={btn.key}
@@ -284,7 +353,7 @@ export default function SOAPHistoryPage() {
                     onClick={() => setFilter(btn.key as any)}
                     className={`text-xs h-8 rounded-lg ${
                       filter === btn.key
-                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
+                        ? btn.key === 'archived' ? 'bg-gray-700 hover:bg-gray-800 text-white shadow-sm' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
                         : 'text-gray-600 hover:text-gray-900 border-gray-200'
                     }`}
                   >
@@ -313,6 +382,61 @@ export default function SOAPHistoryPage() {
                 )}
               </div>
             </div>
+
+            {/* Admin Bulk Actions */}
+            {isAdmin && activeCount > 0 && (
+              <div className="flex items-center gap-2 pt-3 mt-3 border-t border-gray-100">
+                <Shield className="h-3.5 w-3.5 text-amber-600" />
+                <span className="text-[11px] font-medium text-gray-500">Admin:</span>
+                {bulkAction === 'idle' && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBulkAction('confirm-archive')}
+                      className="h-7 text-[10px] px-2.5 rounded-lg border-amber-200 text-amber-700 hover:bg-amber-50"
+                    >
+                      <Archive className="h-3 w-3 mr-1" /> Archive All ({activeCount})
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBulkAction('confirm-delete')}
+                      className="h-7 text-[10px] px-2.5 rounded-lg border-red-200 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" /> Delete All ({activeCount})
+                    </Button>
+                  </>
+                )}
+                {bulkAction === 'confirm-archive' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-amber-700 font-medium">Archive {activeCount} notes?</span>
+                    <Button size="sm" onClick={() => handleBulkAction('archive')} className="h-7 text-[10px] px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white">
+                      Confirm Archive
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setBulkAction('idle')} className="h-7 text-[10px] px-2.5 rounded-lg">
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+                {bulkAction === 'confirm-delete' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-red-700 font-medium">Permanently delete {activeCount} notes?</span>
+                    <Button variant="destructive" size="sm" onClick={() => handleBulkAction('delete')} className="h-7 text-[10px] px-2.5 rounded-lg">
+                      Confirm Delete
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setBulkAction('idle')} className="h-7 text-[10px] px-2.5 rounded-lg">
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+                {bulkAction === 'processing' && (
+                  <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Processing...
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -540,35 +664,59 @@ export default function SOAPHistoryPage() {
                             </DialogContent>
                           </Dialog>
 
-                          {/* Delete button */}
-                          {confirmDeleteId === note.id ? (
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleDelete(note.id)}
-                                disabled={deletingId === note.id}
-                                className="h-7 text-[10px] px-2 rounded-lg"
-                              >
-                                {deletingId === note.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm'}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setConfirmDeleteId(null)}
-                                className="h-7 text-[10px] px-2 rounded-lg border-gray-200"
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setConfirmDeleteId(note.id)}
-                              className="text-gray-400 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100"
-                              title="Delete note"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                          {/* Admin-only: Archive / Delete / Unarchive */}
+                          {isAdmin && (
+                            <>
+                              {(note as any).archived ? (
+                                <button
+                                  onClick={() => handleArchive(note.id, false)}
+                                  disabled={archivingId === note.id}
+                                  className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 hover:text-amber-900 transition-colors disabled:opacity-50"
+                                  title="Unarchive note"
+                                >
+                                  {archivingId === note.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArchiveRestore className="h-3 w-3" />}
+                                  Restore
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleArchive(note.id, true)}
+                                  disabled={archivingId === note.id}
+                                  className="text-gray-400 hover:text-amber-600 transition-colors p-1 opacity-0 group-hover:opacity-100"
+                                  title="Archive note"
+                                >
+                                  {archivingId === note.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Archive className="h-3.5 w-3.5" />}
+                                </button>
+                              )}
+                              {confirmDeleteId === note.id ? (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleDelete(note.id)}
+                                    disabled={deletingId === note.id}
+                                    className="h-7 text-[10px] px-2 rounded-lg"
+                                  >
+                                    {deletingId === note.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Delete'}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    className="h-7 text-[10px] px-2 rounded-lg border-gray-200"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setConfirmDeleteId(note.id)}
+                                  className="text-gray-400 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100"
+                                  title="Permanently delete"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
