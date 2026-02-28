@@ -1,15 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Progress } from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
 import Recorder from "@/components/Recorder"
 import { SOAPGenerator } from "@/components/SOAPGenerator"
 import { createPatientSession } from "@/lib/createPatientSession"
@@ -17,7 +12,15 @@ import { useAuth } from "@/hooks/useAuth"
 import { useProfile } from "@/hooks/useProfile"
 import { doc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { Globe, Languages } from "lucide-react"
+import {
+  Globe,
+  Languages,
+  Mic,
+  Sparkles,
+  Zap,
+  FileText,
+  CheckCircle,
+} from "lucide-react"
 
 // Add hydration state to prevent SSR mismatch
 function useHydration() {
@@ -30,215 +33,235 @@ function useHydration() {
 
 // Language configurations for patient language (Whisper-supported languages)
 const patientLanguages = [
-  { code: "auto", name: "Auto Detect", flag: "🌐" },
-  // Whisper-supported languages (100+)
-  { code: "en", name: "English", flag: "🇺🇸" },
-  { code: "zh", name: "Chinese", flag: "🇨🇳" },
-  { code: "es", name: "Spanish", flag: "🇪🇸" },
-  { code: "hi", name: "Hindi", flag: "🇮🇳" },
-  { code: "ar", name: "Arabic", flag: "🇸🇦" },
-  { code: "bn", name: "Bengali", flag: "🇧🇩" },
-  { code: "pt", name: "Portuguese", flag: "🇵🇹" },
-  { code: "ru", name: "Russian", flag: "🇷🇺" },
-  { code: "ja", name: "Japanese", flag: "🇯🇵" },
-  { code: "de", name: "German", flag: "🇩🇪" },
-  { code: "ko", name: "Korean", flag: "🇰🇷" },
-  { code: "fr", name: "French", flag: "🇫🇷" },
-  { code: "it", name: "Italian", flag: "🇮🇹" },
-  { code: "tr", name: "Turkish", flag: "🇹🇷" },
-  { code: "nl", name: "Dutch", flag: "🇳🇱" },
-  { code: "pl", name: "Polish", flag: "🇵🇱" },
-  { code: "sv", name: "Swedish", flag: "🇸🇪" },
-  { code: "vi", name: "Vietnamese", flag: "🇻🇳" },
-  { code: "th", name: "Thai", flag: "🇹🇭" },
-  { code: "fa", name: "Persian", flag: "🇮🇷" },
-  { code: "uk", name: "Ukrainian", flag: "🇺🇦" },
-  { code: "ro", name: "Romanian", flag: "🇷🇴" },
-  { code: "cs", name: "Czech", flag: "🇨🇿" },
-  { code: "hu", name: "Hungarian", flag: "🇭🇺" },
-  { code: "el", name: "Greek", flag: "🇬🇷" },
-  { code: "he", name: "Hebrew", flag: "🇮🇱" },
-  { code: "so", name: "Somali", flag: "🇸🇴" },
-  { code: "hmn", name: "Hmong", flag: "🇱🇦" },
-  { code: "sw", name: "Swahili", flag: "🇰🇪" },
-  { code: "tl", name: "Tagalog", flag: "🇵🇭" },
-  { code: "am", name: "Amharic", flag: "🇪🇹" },
-  // Add more languages as needed
-];
+  { code: "auto", name: "Auto Detect", flag: "\u{1F310}" },
+  { code: "en", name: "English", flag: "\u{1F1FA}\u{1F1F8}" },
+  { code: "zh", name: "Chinese", flag: "\u{1F1E8}\u{1F1F3}" },
+  { code: "es", name: "Spanish", flag: "\u{1F1EA}\u{1F1F8}" },
+  { code: "hi", name: "Hindi", flag: "\u{1F1EE}\u{1F1F3}" },
+  { code: "ar", name: "Arabic", flag: "\u{1F1F8}\u{1F1E6}" },
+  { code: "bn", name: "Bengali", flag: "\u{1F1E7}\u{1F1E9}" },
+  { code: "pt", name: "Portuguese", flag: "\u{1F1F5}\u{1F1F9}" },
+  { code: "ru", name: "Russian", flag: "\u{1F1F7}\u{1F1FA}" },
+  { code: "ja", name: "Japanese", flag: "\u{1F1EF}\u{1F1F5}" },
+  { code: "de", name: "German", flag: "\u{1F1E9}\u{1F1EA}" },
+  { code: "ko", name: "Korean", flag: "\u{1F1F0}\u{1F1F7}" },
+  { code: "fr", name: "French", flag: "\u{1F1EB}\u{1F1F7}" },
+  { code: "it", name: "Italian", flag: "\u{1F1EE}\u{1F1F9}" },
+  { code: "tr", name: "Turkish", flag: "\u{1F1F9}\u{1F1F7}" },
+  { code: "nl", name: "Dutch", flag: "\u{1F1F3}\u{1F1F1}" },
+  { code: "pl", name: "Polish", flag: "\u{1F1F5}\u{1F1F1}" },
+  { code: "sv", name: "Swedish", flag: "\u{1F1F8}\u{1F1EA}" },
+  { code: "vi", name: "Vietnamese", flag: "\u{1F1FB}\u{1F1F3}" },
+  { code: "th", name: "Thai", flag: "\u{1F1F9}\u{1F1ED}" },
+  { code: "fa", name: "Persian", flag: "\u{1F1EE}\u{1F1F7}" },
+  { code: "uk", name: "Ukrainian", flag: "\u{1F1FA}\u{1F1E6}" },
+  { code: "ro", name: "Romanian", flag: "\u{1F1F7}\u{1F1F4}" },
+  { code: "cs", name: "Czech", flag: "\u{1F1E8}\u{1F1FF}" },
+  { code: "hu", name: "Hungarian", flag: "\u{1F1ED}\u{1F1FA}" },
+  { code: "el", name: "Greek", flag: "\u{1F1EC}\u{1F1F7}" },
+  { code: "he", name: "Hebrew", flag: "\u{1F1EE}\u{1F1F1}" },
+  { code: "so", name: "Somali", flag: "\u{1F1F8}\u{1F1F4}" },
+  { code: "hmn", name: "Hmong", flag: "\u{1F1F1}\u{1F1E6}" },
+  { code: "sw", name: "Swahili", flag: "\u{1F1F0}\u{1F1EA}" },
+  { code: "tl", name: "Tagalog", flag: "\u{1F1F5}\u{1F1ED}" },
+  { code: "am", name: "Amharic", flag: "\u{1F1EA}\u{1F1F9}" },
+]
 
 // Language configurations for documentation language (Fixed 15 languages)
 const docLanguages = [
-  { code: "en", name: "English", flag: "🇺🇸" },
-  { code: "es", name: "Spanish", flag: "🇪🇸" },
-  { code: "so", name: "Somali", flag: "🇸🇴" },
-  { code: "hmn", name: "Hmong", flag: "🇱🇦" },
-  { code: "sw", name: "Swahili", flag: "🇰🇪" },
-  { code: "fr", name: "French", flag: "🇫🇷" },
-  { code: "ar", name: "Arabic", flag: "🇸🇦" },
-  { code: "zh", name: "Chinese (Mandarin)", flag: "🇨🇳" },
-  { code: "vi", name: "Vietnamese", flag: "🇻🇳" },
-  { code: "tl", name: "Tagalog", flag: "🇵🇭" },
-  { code: "pt", name: "Portuguese", flag: "🇵🇹" },
-  { code: "hi", name: "Hindi", flag: "🇮🇳" },
-  { code: "ru", name: "Russian", flag: "🇷🇺" },
-  { code: "am", name: "Amharic", flag: "🇪🇹" },
-  { code: "ko", name: "Korean", flag: "🇰🇷" },
-];
-
-// Mock transcription data
-const mockTranscriptions = {
-  en: "Patient reports experiencing chest pain for the past 2 hours. Pain is described as sharp and radiating to the left arm. No shortness of breath reported. Patient has a history of hypertension and takes medication regularly. Physical examination reveals blood pressure 150/90, heart rate 88 bpm, temperature 98.6°F. Heart sounds are regular with no murmurs. Lungs are clear to auscultation bilaterally. No peripheral edema noted.",
-  es: "El paciente reporta dolor en el pecho durante las últimas 2 horas. El dolor se describe como agudo e irradiándose al brazo izquierdo. No se reporta dificultad para respirar. El paciente tiene antecedentes de hipertensión y toma medicamentos regularmente. El examen físico revela presión arterial 150/90, frecuencia cardíaca 88 lpm, temperatura 98.6°F.",
-  fr: "Le patient signale une douleur thoracique depuis 2 heures. La douleur est décrite comme aiguë et irradiant vers le bras gauche. Aucun essoufflement signalé. Le patient a des antécédents d'hypertension et prend des médicaments régulièrement. L'examen physique révèle une pression artérielle de 150/90, une fréquence cardiaque de 88 bpm.",
-  so: "Waxaan dareemayaa madax wareer oo aan la socday 2 saacadood. Dardii waa la sharaxay sidii adag oo u socota gacanta bidix. Koj tsis muaj mob ntshav tes. Kuv muaj keeb kwm txhais mob los tas tshuaj zoo liab los tas. Kev tshuaj saib yog tshaj 150/90, lub plam 88, kub 98.6°F.",
-  hmn: "Kuv mob taub hau los yog 2 teev dhau tshuaj. Kuv mob yog qhov tshaaj tsis muaj nrog rauv tes txaj. Koj tsis muaj mob ntshav tes. Kuv muaj keeb kwm txhais mob los tas tshuaj zoo liab los tas. Kev tshuaj saib yog tshaj 150/90, lub plam 88, kub 98.6°F.",
-  sw: "Mgonjwa anasema naumwa kichwa tangu muda saa mbili zilizopita. Maumwa yamelezwa kama mkali na unaenea mkono wa kushoto. Hakuna shida ya kupumua iliyoripotiwa. Mgonjwa ana historia ya shinikizo la damu na hutumia dawa kila siku. Ukayati wa kimwili unaonyesha shinikizo la damu 150/90, mapigo ya moyo 88 kwa dakika, joto 98.6°F."
-}
-
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 }
-}
+  { code: "en", name: "English", flag: "\u{1F1FA}\u{1F1F8}" },
+  { code: "es", name: "Spanish", flag: "\u{1F1EA}\u{1F1F8}" },
+  { code: "so", name: "Somali", flag: "\u{1F1F8}\u{1F1F4}" },
+  { code: "hmn", name: "Hmong", flag: "\u{1F1F1}\u{1F1E6}" },
+  { code: "sw", name: "Swahili", flag: "\u{1F1F0}\u{1F1EA}" },
+  { code: "fr", name: "French", flag: "\u{1F1EB}\u{1F1F7}" },
+  { code: "ar", name: "Arabic", flag: "\u{1F1F8}\u{1F1E6}" },
+  { code: "zh", name: "Chinese (Mandarin)", flag: "\u{1F1E8}\u{1F1F3}" },
+  { code: "vi", name: "Vietnamese", flag: "\u{1F1FB}\u{1F1F3}" },
+  { code: "tl", name: "Tagalog", flag: "\u{1F1F5}\u{1F1ED}" },
+  { code: "pt", name: "Portuguese", flag: "\u{1F1F5}\u{1F1F9}" },
+  { code: "hi", name: "Hindi", flag: "\u{1F1EE}\u{1F1F3}" },
+  { code: "ru", name: "Russian", flag: "\u{1F1F7}\u{1F1FA}" },
+  { code: "am", name: "Amharic", flag: "\u{1F1EA}\u{1F1F9}" },
+  { code: "ko", name: "Korean", flag: "\u{1F1F0}\u{1F1F7}" },
+]
 
 function TranscriptionPageClient() {
-  const hydrated = useHydration();
-  const { user } = useAuth();
-  const { profile } = useProfile();
-  const router = useRouter();
+  const hydrated = useHydration()
+  const { user } = useAuth()
+  const { profile } = useProfile()
+  const router = useRouter()
 
-  const [transcription, setTranscription] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [patientId, setPatientId] = useState<string | null>(null);
-  const [patientLanguage, setPatientLanguage] = useState("auto");
-  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
-  const [docLanguage, setDocLanguage] = useState("en");
+  const [transcription, setTranscription] = useState("")
+  const [patientId, setPatientId] = useState<string | null>(null)
+  const [patientLanguage, setPatientLanguage] = useState("auto")
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null)
+  const [docLanguage, setDocLanguage] = useState("en")
 
   // Update language preferences when profile loads
   useEffect(() => {
     if (profile) {
-      setPatientLanguage(profile.languagePref || "auto");
-      setDocLanguage(profile.docLanguage || "en");
+      setPatientLanguage(profile.languagePref || "auto")
+      setDocLanguage(profile.docLanguage || "en")
     }
-  }, [profile]);
+  }, [profile])
 
   // Update profile when language preferences change
   useEffect(() => {
     if (profile && (profile.languagePref !== patientLanguage || profile.docLanguage !== docLanguage)) {
-      updateLanguagePreferences(patientLanguage, docLanguage);
+      updateLanguagePreferences(patientLanguage, docLanguage)
     }
-  }, [patientLanguage, docLanguage, profile]);
+  }, [patientLanguage, docLanguage, profile])
 
-  // This will be passed to the Recorder component
   const handleNewPatientSession = async () => {
-    if (!user) {
-      // Redirect to login or show an error
-      router.push("/auth/login");
-      return;
-    }
+    if (!user) { router.push("/auth/login"); return }
     try {
-      const newPatientId = await createPatientSession(user.uid);
-      setPatientId(newPatientId);
+      const newPatientId = await createPatientSession(user.uid)
+      setPatientId(newPatientId)
     } catch (error) {
-      console.error("Error creating patient session:", error);
-      // Handle error appropriately
+      console.error("Error creating patient session:", error)
     }
-  };
+  }
 
-  // Update user's language preferences in Firestore
   const updateLanguagePreferences = async (patientLang: string, docLang: string) => {
-    if (!user) return;
-    
+    if (!user) return
     try {
-      const profileRef = doc(db, "profiles", user.uid);
+      const profileRef = doc(db, "profiles", user.uid)
       await updateDoc(profileRef, {
         languagePref: patientLang,
         docLanguage: docLang,
         updatedAt: new Date()
-      });
+      })
     } catch (error) {
-      console.error("Error updating language preferences:", error);
+      console.error("Error updating language preferences:", error)
     }
-  };
-
-  // Handle language selection changes
-  const handlePatientLanguageChange = (value: string) => {
-    setPatientLanguage(value);
-    updateLanguagePreferences(value, docLanguage);
-  };
-
-  const handleDocLanguageChange = (value: string) => {
-    setDocLanguage(value);
-    updateLanguagePreferences(patientLanguage, value);
-  };
-
-  if (!hydrated) {
-    return null; // or a loading spinner
   }
 
+  const handlePatientLanguageChange = (value: string) => {
+    setPatientLanguage(value)
+    updateLanguagePreferences(value, docLanguage)
+  }
+
+  const handleDocLanguageChange = (value: string) => {
+    setDocLanguage(value)
+    updateLanguagePreferences(patientLanguage, value)
+  }
+
+  const patientLangInfo = patientLanguage === "auto"
+    ? (detectedLanguage
+        ? patientLanguages.find(l => l.code === detectedLanguage)
+        : { flag: "\u{1F310}", name: "Auto Detect" })
+    : patientLanguages.find(l => l.code === patientLanguage)
+  const docLangInfo = docLanguages.find(l => l.code === docLanguage)
+
+  if (!hydrated) return null
+
   return (
-    <div className="container mx-auto p-4">
-      <motion.div
-        variants={fadeInUp}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        className="space-y-8"
-      >
-        {/* Language Selection Card with Glassmorphic Effect */}
-        <Card className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-3xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 pb-4">
-            <CardTitle className="flex items-center gap-3 text-2xl font-bold">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg">
-                <Languages className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                  Language Preferences
-                </span>
-              </div>
-            </CardTitle>
-            <CardDescription className="text-gray-800 ml-11">
-              Select the patient's spoken language and your preferred documentation language
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 py-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Patient Language Selection */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-purple-600" />
-                  <h3 className="text-lg font-bold text-gray-900">Patient Language</h3>
+    <div className="min-h-screen bg-gray-50/80">
+      <div className="container mx-auto px-4 py-6 max-w-4xl space-y-5">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative rounded-2xl shadow-lg"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 rounded-2xl" />
+          <div className="absolute top-0 right-0 w-56 h-56 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+          <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
+
+          <div className="relative px-6 py-5 text-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/20 rounded-xl shadow-inner">
+                  <Mic className="h-6 w-6" />
                 </div>
-                
-                {/* Detected Language Display */}
+                <div>
+                  <h1 className="text-lg sm:text-xl font-bold leading-tight tracking-tight">
+                    AI-Powered Live Transcription
+                  </h1>
+                  <p className="text-white/60 text-xs sm:text-sm mt-0.5">
+                    Record sessions, transcribe in real-time &amp; generate SOAP notes instantly
+                  </p>
+                </div>
+              </div>
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-400/30 to-yellow-400/30 border border-amber-300/40 rounded-full">
+                <Sparkles className="h-3.5 w-3.5 text-amber-200" />
+                <span className="text-xs font-semibold text-amber-100 tracking-wide">AI Enhanced</span>
+                <Zap className="h-3 w-3 text-yellow-300" />
+              </div>
+            </div>
+
+            {/* Active language summary chips */}
+            <div className="flex items-center gap-2 mt-3.5 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-400/25 border border-purple-300/40 rounded-full text-[11px] font-semibold">
+                <Globe className="h-3 w-3" />
+                Patient: {patientLangInfo?.flag} {patientLangInfo?.name}
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-400/25 border border-blue-300/40 rounded-full text-[11px] font-semibold">
+                <FileText className="h-3 w-3" />
+                Docs: {docLangInfo?.flag} {docLangInfo?.name}
+              </span>
+              {detectedLanguage && patientLanguage === "auto" && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-400/25 border border-emerald-300/40 rounded-full text-[11px] font-semibold">
+                  <CheckCircle className="h-3 w-3" />
+                  Detected: {patientLanguages.find(l => l.code === detectedLanguage)?.flag} {patientLanguages.find(l => l.code === detectedLanguage)?.name}
+                </span>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Language Preferences Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+        >
+          <div className="bg-white border border-gray-200/80 rounded-2xl shadow-md p-5 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-400 via-violet-400 to-indigo-500 rounded-t-2xl" />
+
+            <div className="flex items-center gap-2.5 mb-4 mt-1">
+              <span className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
+                <Languages className="h-4 w-4 text-purple-600" />
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-gray-900">Language Preferences</h2>
+                <p className="text-[11px] text-gray-500">Synced with your Settings profile</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Patient Language */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
+                  <span className="w-6 h-6 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <Globe className="h-3.5 w-3.5 text-purple-600" />
+                  </span>
+                  Patient Language
+                </label>
+
                 {detectedLanguage && patientLanguage === "auto" && (
-                  <div className="p-4 bg-gradient-to-r from-green-50/80 to-emerald-50/80 border border-green-200/50 rounded-xl backdrop-blur-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                      <span className="font-semibold text-green-900">Detected:</span>
-                      <Badge variant="secondary" className="bg-green-100 text-green-900 border-green-300 font-medium">
-                        {patientLanguages.find(l => l.code === detectedLanguage)?.flag} {patientLanguages.find(l => l.code === detectedLanguage)?.name || "Unknown"}
-                      </Badge>
-                    </div>
+                  <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    <span className="text-[11px] font-semibold text-emerald-800">Detected:</span>
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold">
+                      {patientLanguages.find(l => l.code === detectedLanguage)?.flag} {patientLanguages.find(l => l.code === detectedLanguage)?.name || "Unknown"}
+                    </Badge>
                   </div>
                 )}
-                
-                <Select 
-                  value={patientLanguage} 
-                  onValueChange={handlePatientLanguageChange}
-                >
-                  <SelectTrigger className="w-full bg-white/30 backdrop-blur-md border-2 border-purple-200/50 focus:border-purple-500 focus:ring-purple-500 rounded-xl py-6 text-base font-medium text-gray-900 shadow-lg">
+
+                <Select value={patientLanguage} onValueChange={handlePatientLanguageChange}>
+                  <SelectTrigger className="w-full h-10 bg-gray-50/80 border-gray-200 focus:border-purple-400 focus:ring-purple-200 rounded-lg text-sm font-medium">
                     <SelectValue placeholder="Select patient language" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white/80 backdrop-blur-lg border border-purple-200/50">
+                  <SelectContent className="bg-white border border-gray-200">
                     {patientLanguages.map((lang) => (
                       <SelectItem key={lang.code} value={lang.code}>
-                        <div className="flex items-center gap-3 py-2">
-                          <span className="text-lg">{lang.flag}</span>
-                          <span className="font-medium text-gray-900">{lang.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span>{lang.flag}</span>
+                          <span className="font-medium text-gray-900 text-sm">{lang.name}</span>
                           {lang.code === "auto" && (
-                            <Badge variant="secondary" className="ml-2 text-xs bg-purple-100 text-purple-800">
+                            <Badge className="ml-1 text-[9px] bg-purple-100 text-purple-700 border-purple-200">
                               Recommended
                             </Badge>
                           )}
@@ -247,32 +270,32 @@ function TranscriptionPageClient() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-sm text-gray-700 font-medium">
-                  Select the language your patient speaks. Use "Auto Detect" for automatic detection.
+                <p className="text-[10px] text-gray-500 font-medium">
+                  Use &quot;Auto Detect&quot; for automatic language detection
                 </p>
               </div>
 
-              {/* Documentation Language Selection */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Languages className="h-5 w-5 text-blue-600" />
-                  <h3 className="text-lg font-bold text-gray-900">Documentation Language</h3>
-                </div>
-                <Select 
-                  value={docLanguage} 
-                  onValueChange={handleDocLanguageChange}
-                >
-                  <SelectTrigger className="w-full bg-white/30 backdrop-blur-md border-2 border-blue-200/50 focus:border-blue-500 focus:ring-blue-500 rounded-xl py-6 text-base font-medium text-gray-900 shadow-lg">
+              {/* Documentation Language */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
+                  <span className="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center">
+                    <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                  </span>
+                  Documentation Language
+                </label>
+
+                <Select value={docLanguage} onValueChange={handleDocLanguageChange}>
+                  <SelectTrigger className="w-full h-10 bg-gray-50/80 border-gray-200 focus:border-indigo-400 focus:ring-indigo-200 rounded-lg text-sm font-medium">
                     <SelectValue placeholder="Select documentation language" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white/80 backdrop-blur-lg border border-blue-200/50">
+                  <SelectContent className="bg-white border border-gray-200">
                     {docLanguages.map((lang) => (
                       <SelectItem key={lang.code} value={lang.code}>
-                        <div className="flex items-center gap-3 py-2">
-                          <span className="text-lg">{lang.flag}</span>
-                          <span className="font-medium text-gray-900">{lang.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span>{lang.flag}</span>
+                          <span className="font-medium text-gray-900 text-sm">{lang.name}</span>
                           {lang.code === "en" && (
-                            <Badge variant="secondary" className="ml-2 text-xs bg-blue-100 text-blue-800">
+                            <Badge className="ml-1 text-[9px] bg-indigo-100 text-indigo-700 border-indigo-200">
                               Default
                             </Badge>
                           )}
@@ -281,63 +304,64 @@ function TranscriptionPageClient() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-sm text-gray-700 font-medium">
-                  Select the language for your clinical documentation. Defaults to English.
+                <p className="text-[10px] text-gray-500 font-medium">
+                  SOAP notes and documentation will be generated in this language
                 </p>
               </div>
             </div>
+          </div>
+        </motion.div>
 
-            {/* Language Info Badges */}
-            <div className="flex flex-wrap gap-3 pt-4">
-              <Badge className="bg-gradient-to-r from-purple-500/20 to-purple-600/20 text-purple-900 border-purple-200/50 px-4 py-2 text-base font-semibold rounded-full backdrop-blur-sm">
-                <Globe className="h-4 w-4 mr-2" />
-                Patient: {patientLanguage === "auto" ? (
-                  detectedLanguage ? 
-                  `${patientLanguages.find(l => l.code === detectedLanguage)?.flag} ${patientLanguages.find(l => l.code === detectedLanguage)?.name}` : 
-                  "🌐 Auto Detect (Recommended)"
-                ) : `${patientLanguages.find(l => l.code === patientLanguage)?.flag} ${patientLanguages.find(l => l.code === patientLanguage)?.name}`}
-              </Badge>
-              <Badge className="bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-900 border-blue-200/50 px-4 py-2 text-base font-semibold rounded-full backdrop-blur-sm">
-                <Languages className="h-4 w-4 mr-2" />
-                Documentation: {docLanguages.find(l => l.code === docLanguage)?.flag} {docLanguages.find(l => l.code === docLanguage)?.name}
-              </Badge>
+        {/* Live Transcription & Recording */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <div className="bg-white border border-gray-200/80 rounded-2xl shadow-md overflow-hidden relative">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-400 via-pink-500 to-fuchsia-500 rounded-t-2xl" />
+            <div className="p-5">
+              <div className="flex items-center gap-2.5 mb-4">
+                <span className="w-7 h-7 rounded-lg bg-rose-100 flex items-center justify-center">
+                  <Mic className="h-4 w-4 text-rose-600" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-bold text-gray-900">Live Transcription &amp; SOAP Note Generation</h2>
+                  <p className="text-[11px] text-gray-500">Record your session and we'll transcribe it in real-time</p>
+                </div>
+                <Badge className="ml-auto bg-rose-50 text-rose-700 border-rose-200 text-[9px] font-bold uppercase tracking-wide">
+                  <Mic className="h-3 w-3 mr-0.5" /> Live Audio
+                </Badge>
+              </div>
+
+              <Recorder
+                onTranscriptGenerated={(transcript, rawTranscript, detectedPatientLang) => {
+                  setTranscription(transcript)
+                  if (detectedPatientLang && detectedPatientLang !== "auto") {
+                    setDetectedLanguage(detectedPatientLang)
+                  }
+                }}
+                sessionId={patientId || undefined}
+                patientLanguage={patientLanguage}
+                docLanguage={docLanguage}
+              />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </motion.div>
 
-        <Separator />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Live Transcription & SOAP Note Generation</CardTitle>
-            <CardDescription>
-              Record your patient encounter, and we'll transcribe it in real-time.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Recorder
-              onTranscriptGenerated={(transcript, rawTranscript, detectedPatientLang) => {
-                setTranscription(transcript);
-                // Update detected language if returned from Whisper
-                if (detectedPatientLang && detectedPatientLang !== "auto") {
-                  setDetectedLanguage(detectedPatientLang);
-                }
-              }}
-              sessionId={patientId || undefined}
-              patientLanguage={patientLanguage}
-              docLanguage={docLanguage}
-            />
-          </CardContent>
-        </Card>
-
-        <Separator />
-
-        <SOAPGenerator initialTranscript={transcription} />
-      </motion.div>
+        {/* SOAP Note Generator */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <SOAPGenerator initialTranscript={transcription} />
+        </motion.div>
+      </div>
     </div>
-  );
+  )
 }
 
 export default function TranscriptionPage() {
-  return <TranscriptionPageClient />;
+  return <TranscriptionPageClient />
 }
