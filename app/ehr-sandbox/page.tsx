@@ -89,6 +89,8 @@ export default function EHRExportSandboxPage() {
   const [error, setError] = useState<string>('')
   const [copied, setCopied] = useState(false)
   const [building, setBuilding] = useState(false)
+  const [posting, setPosting] = useState(false)
+  const [postResult, setPostResult] = useState<string>('')
 
   const smartStatus = useSmartStatus()
   const { toast } = useToast()
@@ -148,6 +150,40 @@ export default function EHRExportSandboxPage() {
       setError(e?.message || 'Unexpected error')
     } finally {
       setBuilding(false)
+    }
+  }
+
+  async function sendToEpic() {
+    if (!output) return
+    setError('')
+    setPostResult('')
+    setPosting(true)
+    try {
+      const fhirResource = JSON.parse(output)
+      const res = await fetch('/api/smart/post-document-reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fhirResource),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        setPostResult(JSON.stringify(json, null, 2))
+        toast({
+          title: "SOAP Note Exported to Epic",
+          description: `DocumentReference created successfully (ID: ${json.resourceId || 'N/A'})`,
+        })
+      } else {
+        throw new Error(json.message || `Epic returned status ${json.status}`)
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Failed to send to Epic')
+      toast({
+        title: "Export Failed",
+        description: e?.message || 'Failed to send SOAP note to Epic',
+        variant: "destructive",
+      })
+    } finally {
+      setPosting(false)
     }
   }
 
@@ -383,6 +419,17 @@ export default function EHRExportSandboxPage() {
             <Download className="h-3.5 w-3.5" />
             Download
           </Button>
+          <Button
+            onClick={sendToEpic}
+            disabled={!output || !smartStatus.connected || posting}
+            className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-sm text-sm font-medium disabled:opacity-50"
+          >
+            {posting ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</>
+            ) : (
+              <><ArrowRight className="h-4 w-4" /> Send to Epic</>
+            )}
+          </Button>
         </motion.div>
 
         {/* Error Display */}
@@ -425,6 +472,34 @@ export default function EHRExportSandboxPage() {
             </pre>
           </div>
         </motion.div>
+
+        {/* Epic Response */}
+        <AnimatePresence>
+          {postResult && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="bg-white dark:bg-gray-900 border border-emerald-200/80 dark:border-emerald-700/80 rounded-2xl shadow-sm overflow-hidden relative"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-t-2xl" />
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Epic FHIR Server Response</span>
+                  </div>
+                  <Badge className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[10px]">
+                    <CheckCircle className="h-3 w-3 mr-1" /> Sent to Epic
+                  </Badge>
+                </div>
+                <pre className="bg-gray-900 dark:bg-gray-950 text-blue-300 p-4 rounded-xl overflow-auto max-h-60 text-xs font-mono border border-gray-700 dark:border-gray-800">
+                  {postResult}
+                </pre>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* How It Works */}
         <motion.div
