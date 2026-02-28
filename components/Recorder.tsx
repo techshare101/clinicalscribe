@@ -239,7 +239,7 @@ export default function Recorder({
       }
       
       const isProduction = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
-      const bitsPerSecond = isProduction ? 32000 : 128000;
+      const bitsPerSecond = isProduction ? 64000 : 128000;
       
       console.log(`🎙️ Recording at ${bitsPerSecond / 1000}kbps (${isProduction ? 'production' : 'development'} mode)`);
       
@@ -250,10 +250,10 @@ export default function Recorder({
       segmentTranscripts.current = [];
       pendingTranscriptions.current = 0;
 
-      // ── STREAMING TRANSCRIPTION ──
-      // Each 30s segment is transcribed immediately as it arrives.
-      // This keeps each API call ~120KB (well under Vercel's 4.5MB limit).
-      // On stop, we stitch all segment transcripts together.
+      // ── STREAMING TRANSCRIPTION (optimized) ──
+      // Each 30s segment is transcribed in parallel as it arrives.
+      // Retry once on failure. Live transcript updates during recording.
+      // At 64kbps each segment is ~240KB (well under Vercel's 4.5MB limit).
       recorder.ondataavailable = async (event) => {
         if (event.data.size > 0) {
           audioChunks.current.push(event.data);
@@ -262,26 +262,51 @@ export default function Recorder({
           const segmentBlob = new Blob([event.data], { type: mimeType });
           const sizeMB = (segmentBlob.size / (1024 * 1024)).toFixed(2);
           console.log(`🎤 Segment ${segIdx} ready (${sizeMB} MB) — sending to transcribe`);
-          setProgressMessage(`Transcribing segment ${segIdx + 1}...`);
+          setProgressMessage(`🎤 Transcribing segment ${segIdx + 1}...`);
 
           pendingTranscriptions.current++;
 
-          try {
-            const result = await transcribeAudio(segmentBlob, patientLanguage, docLanguage, segIdx);
+          // Transcribe with 1 retry on failure
+          let result: { transcript: string; rawTranscript: string } | null = null;
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              const res = await transcribeAudio(segmentBlob, patientLanguage, docLanguage, segIdx);
+              result = { transcript: res.transcript, rawTranscript: res.rawTranscript };
+              break;
+            } catch (segErr) {
+              if (attempt === 0) {
+                console.warn(`⚠️ Segment ${segIdx} attempt 1 failed, retrying...`, segErr);
+                await new Promise(r => setTimeout(r, 1000));
+              } else {
+                console.error(`❌ Segment ${segIdx} transcription failed after retry:`, segErr);
+              }
+            }
+          }
+
+          if (result && result.transcript) {
             segmentTranscripts.current.push({
               index: segIdx,
               transcript: result.transcript,
               rawTranscript: result.rawTranscript,
             });
             console.log(`✅ Segment ${segIdx} transcribed (${result.transcript.length} chars)`);
-            const completed = segmentTranscripts.current.length;
-            setProgressMessage(`✅ ${completed} segment${completed > 1 ? 's' : ''} transcribed`);
-          } catch (segErr) {
-            console.error(`❌ Segment ${segIdx} transcription failed:`, segErr);
+
+            // Live transcript: stitch all completed segments and display immediately
+            const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
+            const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
+            const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
+            setTranscript(liveText);
+            setRawTranscript(liveRaw);
+            // Also push to parent so SOAPGenerator textarea updates live
+            onTranscriptGenerated?.(liveText, liveRaw, patientLanguage !== "auto" ? patientLanguage : undefined);
+          } else {
             segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
-          } finally {
-            pendingTranscriptions.current--;
           }
+
+          const completed = segmentTranscripts.current.filter(s => s.transcript).length;
+          const total = segmentIndexRef.current;
+          setProgressMessage(`✅ ${completed}/${total} segments transcribed`);
+          pendingTranscriptions.current--;
 
           // Upload audio to Firebase Storage in background
           if (sessionId) {
@@ -433,7 +458,7 @@ export default function Recorder({
         }
       };
 
-      // Fire ondataavailable every 30 seconds — each segment is ~120KB at 32kbps
+      // Fire ondataavailable every 30 seconds — each segment is ~240KB at 64kbps
       recorder.start(30000);
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
