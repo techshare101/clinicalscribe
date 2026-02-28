@@ -354,7 +354,8 @@ function TranscriptionPageClient() {
               </div>
 
               <Recorder
-                onTranscriptGenerated={(transcript, rawTranscript, detectedPatientLang) => {
+                onTranscriptGenerated={(transcript, rawTranscript, detectedPatientLang, detectedDocLang) => {
+                  console.log('[page-client] onTranscriptGenerated called, length:', transcript.length);
                   setTranscription(transcript)
                   if (detectedPatientLang && detectedPatientLang !== "auto") {
                     setDetectedLanguage(detectedPatientLang)
@@ -377,6 +378,8 @@ function TranscriptionPageClient() {
         >
           <SOAPGenerator
             initialTranscript={transcription}
+            patientLang={patientLanguage}
+            docLang={docLanguage}
             onClearAll={() => {
               setTranscription("")
               setDetectedLanguage(null)

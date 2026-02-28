@@ -85,6 +85,7 @@ export default function Recorder({
   
   // Ordered stitching state
   const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>([]); // Store chunks with index for ordered stitching
+  const transcriptChunksRef = useRef<TranscriptChunk[]>([]); // Ref mirror to avoid stale reads
   const [progressMessage, setProgressMessage] = useState<string>(""); // Progress feedback message
   
   // Waveform visualization refs
@@ -138,6 +139,7 @@ export default function Recorder({
       setRawTranscript('');
       setRecordings([]);
       setTranscriptChunks([]);
+      transcriptChunksRef.current = [];
       setCurrentChunk(1);
       setTotalChunks(0);
       setIsChunkCompleted(false);
@@ -339,7 +341,11 @@ export default function Recorder({
             success: true
           };
 
-          setTranscriptChunks(prev => [...prev, newChunk].sort((a, b) => a.index - b.index));
+          setTranscriptChunks(prev => {
+            const updated = [...prev, newChunk].sort((a, b) => a.index - b.index);
+            transcriptChunksRef.current = updated;
+            return updated;
+          });
 
           // Save to Firestore
           if (sessionId && auth.currentUser) {
@@ -408,7 +414,11 @@ export default function Recorder({
             index: currentChunk, transcript: '', rawTranscript: '',
             success: false, error: err instanceof Error ? err.message : 'Unknown error'
           };
-          setTranscriptChunks(prev => [...prev, failedChunk].sort((a, b) => a.index - b.index));
+          setTranscriptChunks(prev => {
+            const updated = [...prev, failedChunk].sort((a, b) => a.index - b.index);
+            transcriptChunksRef.current = updated;
+            return updated;
+          });
           setIsChunkCompleted(true);
           setTotalChunks(prev => prev + 1);
 
@@ -492,8 +502,10 @@ export default function Recorder({
 
   // Function to combine all recordings into a single transcript
   const combineRecordings = async () => {
-    // Combine chunks in order using the transcriptChunks array
-    const successfulChunks = transcriptChunks
+    // Use ref to avoid stale React state — ref is updated synchronously in setTranscriptChunks callback
+    const chunks = transcriptChunksRef.current;
+    console.log(`📋 combineRecordings called — ${chunks.length} chunk(s) in ref`);
+    const successfulChunks = chunks
       .filter(chunk => chunk.success)
       .sort((a, b) => a.index - b.index);
     
