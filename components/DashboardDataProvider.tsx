@@ -96,9 +96,20 @@ const mockAuditLogs: AuditLog[] = [
 ];
 
 // Format Firestore timestamp to "X min ago" format
-function formatTimestamp(timestamp: Timestamp | undefined) {
+function formatTimestamp(timestamp: Timestamp | Date | string | undefined) {
   if (!timestamp) return "";
-  return formatDistanceToNow(timestamp.toDate(), { addSuffix: true })
+  let date: Date;
+  if (typeof timestamp === "string") {
+    date = new Date(timestamp);
+  } else if (timestamp instanceof Date) {
+    date = timestamp;
+  } else if (typeof timestamp?.toDate === "function") {
+    date = timestamp.toDate();
+  } else {
+    return "";
+  }
+  if (isNaN(date.getTime())) return "";
+  return formatDistanceToNow(date, { addSuffix: true })
     .replace("about ", "")
     .replace("less than a minute ago", "just now")
     .replace("minutes ago", "min ago");
