@@ -272,27 +272,11 @@ ${soapNote.plan}`;
     setError(null);
     setRestored(false);
     localStorage.removeItem("currentSOAPNote");
-    // Also clear the transcript data from localStorage
     localStorage.removeItem("currentTranscript");
   };
 
   return (
-    <div className="space-y-6" data-soap-generator>
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
-        <div>
-          <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-            <Stethoscope className="h-6 w-6 text-blue-600" />
-            SOAP Note Generator
-          </h2>
-          <p className="text-gray-600">Transform your transcription into structured clinical documentation</p>
-        </div>
-      </motion.div>
-
+    <div className="space-y-5" data-soap-generator>
       {/* Restoration Warning */}
       <AnimatePresence>
         {restored && (
@@ -300,387 +284,233 @@ ${soapNote.plan}`;
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2"
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl"
           >
-            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
-            <div className="text-sm text-amber-800">
-              <span className="font-medium">Restored saved SOAP note</span> - Data was automatically restored from your previous session. 
-              Clear manually before starting a new session.
-            </div>
+            <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+            <span className="text-sm text-amber-800">
+              <span className="font-medium">SOAP note restored</span> — Clear before starting a new session.
+            </span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Transcript Display - Always show translated transcript */}
+      {/* Transcript Display */}
       {(rawTranscript || transcript) && (
-        <Card className="border-l-4 border-l-blue-500 bg-blue-50/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-blue-900">
-                <Languages className="h-5 w-5" />
-                Translated Transcript (Documentation Language)
-              </CardTitle>
-              
-              {rawTranscript && transcript && rawTranscript !== transcript && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowRaw(!showRaw)}
-                  className="flex items-center gap-2"
-                >
-                  {showRaw ? (
-                    <>
-                      <FileText className="h-4 w-4" />
-                      Show Translated Text
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="h-4 w-4" />
-                      Show Raw Transcript
-                    </>
-                  )}
+        <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-2xl" />
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Languages className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-semibold text-gray-900">
+                  {showRaw ? 'Raw Transcript' : 'Translated Transcript'}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-blue-50 text-blue-600">
+                  {showRaw ? (patientLanguage === "auto" ? "Auto" : patientLanguage.toUpperCase()) : documentationLanguage.toUpperCase()}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {rawTranscript && transcript && rawTranscript !== transcript && (
+                  <Button variant="outline" size="sm" onClick={() => setShowRaw(!showRaw)} className="text-xs h-7 px-2.5">
+                    <FileText className="h-3 w-3 mr-1" />
+                    {showRaw ? 'Translated' : 'Raw'}
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={() => copyToClipboard(showRaw ? rawTranscript : transcript, showRaw ? 'raw' : 'translated')} className="text-xs h-7 px-2.5">
+                  {copied === (showRaw ? 'raw' : 'translated') ? <CheckCircle className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
                 </Button>
-              )}
+              </div>
             </div>
-            <Badge className="mt-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-              {showRaw ? 
-                `Patient Language: ${
-                  patientLanguage === "auto" ? "🌐 Auto Detected" :
-                  patientLanguage === "so" ? "🇸🇴 Somali" :
-                  patientLanguage === "hmn" ? "🇱🇦 Hmong" :
-                  patientLanguage === "sw" ? "🇰🇪 Swahili" :
-                  patientLanguage === "ar" ? "🇸🇦 Arabic" :
-                  patientLanguage === "en" ? "🇺🇸 English" :
-                  patientLanguage.toUpperCase()
-                }` : 
-                `Documentation Language: ${
-                  documentationLanguage === "en" ? "🇺🇸 English" :
-                  documentationLanguage === "so" ? "🇸🇴 Somali" :
-                  documentationLanguage === "hmn" ? "🇱🇦 Hmong" :
-                  documentationLanguage === "sw" ? "🇰🇪 Swahili" :
-                  documentationLanguage === "ar" ? "🇸🇦 Arabic" :
-                  documentationLanguage.toUpperCase()
-                }`
-              }
-            </Badge>
-          </CardHeader>
-          <CardContent>
             <Textarea
               value={showRaw ? rawTranscript : transcript}
-              onChange={(e) => {
-                if (showRaw) {
-                  setRawTranscript(e.target.value);
-                } else {
-                  setTranscript(e.target.value);
-                }
-              }}
-              className="min-h-[120px] bg-white resize-none"
-              placeholder={showRaw ? "Raw transcript will appear here..." : "Translated transcript will appear here..."}
+              onChange={(e) => { showRaw ? setRawTranscript(e.target.value) : setTranscript(e.target.value); }}
+              className="min-h-[100px] max-h-[200px] bg-gray-50/50 resize-none border-gray-200 focus:border-blue-300 focus:ring-blue-200 text-sm"
+              placeholder={showRaw ? "Raw transcript..." : "Translated transcript..."}
             />
-            <div className="flex items-center justify-between mt-3">
-              <div className="text-sm text-gray-500 flex items-center gap-2">
-                {showRaw ? (
-                  <>Original Patient Language: {
-                    patientLanguage === "auto" ? "🌐 Auto Detected" :
-                    patientLanguage === "so" ? "🇸🇴 Somali" :
-                    patientLanguage === "hmn" ? "🇱🇦 Hmong" :
-                    patientLanguage === "sw" ? "🇰🇪 Swahili" :
-                    patientLanguage === "ar" ? "🇸🇦 Arabic" :
-                    patientLanguage === "en" ? "🇺🇸 English" :
-                    patientLanguage.toUpperCase()
-                  }</>
-                ) : (
-                  <>Translated to Documentation Language: {
-                    documentationLanguage === "en" ? "🇺🇸 English" :
-                    documentationLanguage === "so" ? "🇸🇴 Somali" :
-                    documentationLanguage === "hmn" ? "🇱🇦 Hmong" :
-                    documentationLanguage === "sw" ? "🇰🇪 Swahili" :
-                    documentationLanguage === "ar" ? "🇸🇦 Arabic" :
-                    documentationLanguage.toUpperCase()
-                  }</>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => copyToClipboard(showRaw ? rawTranscript : transcript, showRaw ? 'raw' : 'translated')}
-              >
-                {copied === (showRaw ? 'raw' : 'translated') ? (
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-                {copied === (showRaw ? 'raw' : 'translated') ? 'Copied!' : 'Copy'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
-      {/* Patient and Encounter Information */}
-      <Card className="border-l-4 border-l-green-500 bg-green-50/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-900">
-            <User className="h-5 w-5" />
-            Patient Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="patient-name" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Patient Name
-              </Label>
-              <Input
-                id="patient-name"
-                value={patientNameInput}
-                onChange={(e) => setPatientNameInput(e.target.value)}
-                placeholder="Enter patient name"
-                className="bg-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="encounter-type" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Encounter Type
-              </Label>
-              <Input
-                id="encounter-type"
-                value={encounterTypeInput}
-                onChange={(e) => setEncounterTypeInput(e.target.value)}
-                placeholder="e.g., Initial Consultation, Follow-up"
-                className="bg-white"
-              />
-            </div>
+      {/* Patient Info — inline compact row */}
+      <div className="bg-white border border-gray-200/80 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-t-2xl" />
+        <div className="flex items-center gap-2 mb-3">
+          <User className="h-4 w-4 text-emerald-600" />
+          <span className="text-sm font-semibold text-gray-900">Patient Information</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-gray-600">Patient Name</Label>
+            <Input
+              value={patientNameInput}
+              onChange={(e) => setPatientNameInput(e.target.value)}
+              placeholder="Enter patient name"
+              className="h-9 text-sm bg-gray-50/50 border-gray-200 focus:border-emerald-300 focus:ring-emerald-200"
+            />
           </div>
-        </CardContent>
-      </Card>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-gray-600">Encounter Type</Label>
+            <Input
+              value={encounterTypeInput}
+              onChange={(e) => setEncounterTypeInput(e.target.value)}
+              placeholder="e.g., Initial Consultation"
+              className="h-9 text-sm bg-gray-50/50 border-gray-200 focus:border-emerald-300 focus:ring-emerald-200"
+            />
+          </div>
+        </div>
+      </div>
 
-      {/* Generate Button */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      {/* Generate + Clear buttons */}
+      <div className="flex gap-3">
         <Button
           onClick={generateSOAP}
           disabled={isGenerating || (!transcript && !rawTranscript)}
-          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 shadow-sm"
         >
-          {isGenerating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4" />
-          )}
-          {isGenerating ? 'Generating SOAP Note...' : 'Generate SOAP Note'}
+          {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {isGenerating ? 'Generating...' : 'Generate SOAP Note'}
         </Button>
-        <Button
-          onClick={clearAll}
-          variant="outline"
-          className="flex items-center justify-center gap-2"
-        >
+        <Button onClick={clearAll} variant="outline" className="flex items-center gap-2">
           <Trash2 className="h-4 w-4" />
           Clear All
         </Button>
       </div>
 
-      {/* Error Message */}
+      {/* Error */}
       {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+          <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+          <span className="text-sm text-red-800">{error}</span>
+        </div>
       )}
 
-      {/* SOAP Note Display */}
+      {/* SOAP Note Output */}
       <AnimatePresence>
         {soapNote && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            exit={{ opacity: 0, y: -16 }}
             className="space-y-4"
           >
-            {/* Header with Actions */}
-            <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
-              <CardHeader>
+            {/* Success header bar */}
+            <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 rounded-t-2xl" />
+              <div className="p-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-green-900">
-                      <CheckCircle className="h-5 w-5" />
-                      SOAP Note Generated
-                    </CardTitle>
-                    <CardDescription className="flex items-center gap-4 mt-1">
-                      {soapNote.patientName && (
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {soapNote.patientName}
-                        </span>
-                      )}
-                      {soapNote.encounterType && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {soapNote.encounterType}
-                        </span>
-                      )}
-                      {generationTime && (
-                        <Badge variant="secondary" className="text-xs">
-                          Generated in {(generationTime / 1000).toFixed(1)}s
-                        </Badge>
-                      )}
-                    </CardDescription>
-                    <div className="flex gap-2 mt-2">
-                      <Badge className="bg-purple-100 text-purple-800 border-purple-200">
-                        Patient Language: {(soapNote.patientLang || patientLanguage).toUpperCase()}
-                      </Badge>
-                      <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                        Documentation Language: {(soapNote.docLang || documentationLanguage).toUpperCase()}
-                      </Badge>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-100 rounded-xl">
+                      <CheckCircle className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">SOAP Note Generated</h3>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        {soapNote.patientName && (
+                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <User className="h-3 w-3" /> {soapNote.patientName}
+                          </span>
+                        )}
+                        {soapNote.encounterType && (
+                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <Calendar className="h-3 w-3" /> {soapNote.encounterType}
+                          </span>
+                        )}
+                        {generationTime && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-emerald-50 text-emerald-600">
+                            {(generationTime / 1000).toFixed(1)}s
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={copyFullSOAP}
-                      className="flex items-center gap-2"
-                    >
-                      {copied === 'full' ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
+                    <Button variant="outline" size="sm" onClick={copyFullSOAP} className="text-xs h-8">
+                      {copied === 'full' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
                       Copy All
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={exportSOAP}
-                      className="flex items-center gap-2"
-                    >
-                      <Download className="h-4 w-4" />
+                    <Button variant="outline" size="sm" onClick={exportSOAP} className="text-xs h-8">
+                      <Download className="h-3.5 w-3.5 mr-1" />
                       Export
                     </Button>
                   </div>
                 </div>
-              </CardHeader>
-            </Card>
+              </div>
+            </div>
 
-            {/* SOAP Sections */}
+            {/* SOAP Sections — 2x2 grid with colored accent tops */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Subjective */}
-              <Card className="border-l-4 border-l-blue-500">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-blue-900">
+              <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-t-2xl" />
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <Eye className="h-4 w-4" />
-                      Subjective
+                      <Eye className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-semibold text-gray-900">Subjective</span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(soapNote.subjective, 'subjective')}
-                    >
-                      {copied === 'subjective' ? (
-                        <CheckCircle className="h-3 w-3 text-green-600" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(soapNote.subjective, 'subjective')}>
+                      {copied === 'subjective' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
                     </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {soapNote.subjective}
-                  </p>
-                </CardContent>
-              </Card>
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{soapNote.subjective}</p>
+                </div>
+              </div>
 
               {/* Objective */}
-              <Card className="border-l-4 border-l-green-500">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-green-900">
+              <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-t-2xl" />
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <Stethoscope className="h-4 w-4" />
-                      Objective
+                      <Stethoscope className="h-4 w-4 text-emerald-600" />
+                      <span className="text-sm font-semibold text-gray-900">Objective</span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(soapNote.objective, 'objective')}
-                    >
-                      {copied === 'objective' ? (
-                        <CheckCircle className="h-3 w-3 text-green-600" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(soapNote.objective, 'objective')}>
+                      {copied === 'objective' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
                     </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {soapNote.objective}
-                  </p>
-                </CardContent>
-              </Card>
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{soapNote.objective}</p>
+                </div>
+              </div>
 
               {/* Assessment */}
-              <Card className="border-l-4 border-l-orange-500">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-orange-900">
+              <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-amber-600 rounded-t-2xl" />
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <Brain className="h-4 w-4" />
-                      Assessment
+                      <Brain className="h-4 w-4 text-amber-600" />
+                      <span className="text-sm font-semibold text-gray-900">Assessment</span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(soapNote.assessment, 'assessment')}
-                    >
-                      {copied === 'assessment' ? (
-                        <CheckCircle className="h-3 w-3 text-green-600" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(soapNote.assessment, 'assessment')}>
+                      {copied === 'assessment' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
                     </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {soapNote.assessment}
-                  </p>
-                </CardContent>
-              </Card>
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{soapNote.assessment}</p>
+                </div>
+              </div>
 
               {/* Plan */}
-              <Card className="border-l-4 border-l-purple-500">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-purple-900">
+              <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-t-2xl" />
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <Clipboard className="h-4 w-4" />
-                      Plan
+                      <Clipboard className="h-4 w-4 text-indigo-600" />
+                      <span className="text-sm font-semibold text-gray-900">Plan</span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(soapNote.plan, 'plan')}
-                    >
-                      {copied === 'plan' ? (
-                        <CheckCircle className="h-3 w-3 text-green-600" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(soapNote.plan, 'plan')}>
+                      {copied === 'plan' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
                     </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {soapNote.plan}
-                  </p>
-                </CardContent>
-              </Card>
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{soapNote.plan}</p>
+                </div>
+              </div>
             </div>
 
             {/* Signature and PDF Section */}
-            <SignatureAndPDF 
-              soapNote={soapNote} 
+            <SignatureAndPDF
+              soapNote={soapNote}
               patientName={patientNameInput}
               encounterType={encounterTypeInput}
               rawTranscript={rawTranscript}

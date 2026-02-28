@@ -777,28 +777,28 @@ export default function Recorder({
 
       {/* Transcript Display */}
       {transcript && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                Transcribed Text
-              </h3>
-              <Button
-                onClick={copyTranscript}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-              >
-                {copied ? (
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-                {copied ? 'Copied!' : 'Copy'}
-              </Button>
-            </div>
-            <p className="text-gray-700 whitespace-pre-wrap">{transcript}</p>
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></div>
+              Transcribed Text
+            </h3>
+            <Button
+              onClick={copyTranscript}
+              variant="outline"
+              size="sm"
+              className="text-xs h-7 px-2.5"
+            >
+              {copied ? (
+                <CheckCircle className="h-3 w-3 text-emerald-600" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+              <span className="ml-1">{copied ? 'Copied!' : 'Copy'}</span>
+            </Button>
+          </div>
+          <div className="max-h-[180px] overflow-y-auto">
+            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{transcript}</p>
           </div>
         </div>
       )}
