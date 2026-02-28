@@ -16,6 +16,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { FileText, Upload, Download, Signature, CheckCircle, AlertCircle, Trash2, User, Loader2, AlertTriangle } from 'lucide-react'
 import { formatDate } from '@/lib/formatDate'
+import { useSmartStatus } from '@/hooks/use-smart-status'
 
 interface SOAPNote {
   subjective: string
@@ -60,7 +61,63 @@ export default function SignatureAndPDF({
   const [uploadedPath, setUploadedPath] = useState<string | null>(null)
   const [lastPoint, setLastPoint] = useState<{ x: number; y: number } | null>(null)
   const [restored, setRestored] = useState(false)
+  const [epicExportStatus, setEpicExportStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
   const { toast } = useToast()
+  const smartStatus = useSmartStatus()
+
+  // Auto-export SOAP note to Epic FHIR server if connected
+  async function exportToEpic(pdfUrl?: string) {
+    if (!smartStatus.connected || !soapNote) return
+    setEpicExportStatus('sending')
+    try {
+      // Step 1: Build FHIR DocumentReference
+      const buildRes = await fetch('/api/fhir/document-reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          soap: {
+            subjective: soapNote.subjective,
+            objective: soapNote.objective,
+            assessment: soapNote.assessment,
+            plan: soapNote.plan,
+            patientName: patientName || soapNote.patientName,
+            encounterType: encounterType || soapNote.encounterType,
+            timestamp: soapNote.timestamp || new Date().toISOString(),
+          },
+          author: doctorName ? { name: doctorName } : undefined,
+          attachmentUrl: pdfUrl || undefined,
+          attachmentContentType: pdfUrl ? 'application/pdf' : undefined,
+        }),
+      })
+      if (!buildRes.ok) throw new Error('Failed to build FHIR resource')
+      const fhirResource = await buildRes.json()
+
+      // Step 2: Send to Epic
+      const sendRes = await fetch('/api/smart/post-document-reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fhirResource),
+      })
+      const sendJson = await sendRes.json()
+      if (sendJson.ok) {
+        setEpicExportStatus('success')
+        toast({
+          title: "Exported to Epic",
+          description: `SOAP note sent to Epic EHR successfully.`,
+        })
+      } else {
+        throw new Error(sendJson.message || 'Epic rejected the document')
+      }
+    } catch (e: any) {
+      console.error('[SignatureAndPDF] Epic export error:', e)
+      setEpicExportStatus('error')
+      toast({
+        title: "Epic Export Failed",
+        description: e?.message || 'Could not send SOAP note to Epic. You can retry from SOAP History.',
+        variant: "destructive",
+      })
+    }
+  }
 
   // Load saved data from localStorage on component mount
   useEffect(() => {
@@ -686,6 +743,11 @@ export default function SignatureAndPDF({
         description: "Your document has been generated and uploaded to secure storage.",
         variant: "default"
       });
+
+      // Auto-export to Epic if connected
+      if (smartStatus.connected) {
+        exportToEpic(result.url)
+      }
       
     } catch (error: any) {
       console.error('[SignatureAndPDF] PDF generation error:', error);
@@ -1166,6 +1228,44 @@ export default function SignatureAndPDF({
                   {isGenerating ? 'Generating PDF...' : 'Generate & Upload to Firestore'}
                 </Button>
                 
+                {/* Epic EHR Export Status */}
+                {smartStatus.connected && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-lg">
+                    {epicExportStatus === 'idle' && (
+                      <>
+                        <CheckCircle className="h-4 w-4 text-blue-500" />
+                        <span className="text-xs text-blue-700 dark:text-blue-300">EHR Connected — SOAP note will auto-export to Epic after PDF generation</span>
+                      </>
+                    )}
+                    {epicExportStatus === 'sending' && (
+                      <>
+                        <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                        <span className="text-xs text-blue-700 dark:text-blue-300">Sending SOAP note to Epic...</span>
+                      </>
+                    )}
+                    {epicExportStatus === 'success' && (
+                      <>
+                        <CheckCircle className="h-4 w-4 text-emerald-500" />
+                        <span className="text-xs text-emerald-700 dark:text-emerald-300">SOAP note exported to Epic successfully</span>
+                      </>
+                    )}
+                    {epicExportStatus === 'error' && (
+                      <>
+                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <span className="text-xs text-red-700 dark:text-red-300">Epic export failed — </span>
+                        <Button
+                          onClick={() => exportToEpic(uploadUrl || undefined)}
+                          variant="link"
+                          size="sm"
+                          className="text-xs text-red-600 dark:text-red-400 p-0 h-auto"
+                        >
+                          Retry
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {statusMessage && (
                   <Alert variant={statusMessage.includes('Error') || statusMessage.includes('❌') ? 'destructive' : 'default'}>
                     {statusMessage.includes('Error') || statusMessage.includes('❌') ? (
