@@ -306,7 +306,7 @@ export default function SOAPHistoryPage() {
   ] as const
 
   return (
-    <div className="min-h-screen bg-gray-50/80">
+    <div className="min-h-screen bg-gray-50/80 dark:bg-gray-950">
       <div className="container mx-auto px-4 py-6 max-w-5xl space-y-5">
         {/* Header */}
         <motion.div
@@ -348,17 +348,17 @@ export default function SOAPHistoryPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm p-4 relative overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm p-4 relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-2xl" />
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               {/* Filter Buttons */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 {[
-                  { key: 'all', label: 'All', icon: FileText, activeClass: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm', inactiveClass: 'text-gray-600 hover:text-indigo-700 border-gray-200 hover:border-indigo-300' },
-                  { key: 'flagged', label: 'Flagged', icon: AlertTriangle, activeClass: 'bg-red-600 hover:bg-red-700 text-white shadow-sm', inactiveClass: 'text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 hover:bg-red-50' },
-                  { key: 'non-flagged', label: 'Standard', icon: Sparkles, activeClass: 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm', inactiveClass: 'text-amber-600 hover:text-amber-700 border-amber-200 hover:border-amber-300 hover:bg-amber-50' },
-                  { key: 'pdf-available', label: 'PDF Ready', icon: Download, activeClass: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm', inactiveClass: 'text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50' },
-                  ...(isAdmin && archivedCount > 0 ? [{ key: 'archived', label: `Archived (${archivedCount})`, icon: Archive, activeClass: 'bg-gray-700 hover:bg-gray-800 text-white shadow-sm', inactiveClass: 'text-gray-500 hover:text-gray-700 border-gray-300 hover:bg-gray-50' }] : []),
+                  { key: 'all', label: 'All', icon: FileText, activeClass: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm', inactiveClass: 'text-gray-600 dark:text-gray-300 hover:text-indigo-700 dark:hover:text-indigo-400 border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-600' },
+                  { key: 'flagged', label: 'Flagged', icon: AlertTriangle, activeClass: 'bg-red-600 hover:bg-red-700 text-white shadow-sm', inactiveClass: 'text-red-600 dark:text-red-400 hover:text-red-700 border-red-200 dark:border-red-800 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/30' },
+                  { key: 'non-flagged', label: 'Standard', icon: Sparkles, activeClass: 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm', inactiveClass: 'text-amber-600 dark:text-amber-400 hover:text-amber-700 border-amber-200 dark:border-amber-800 hover:border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30' },
+                  { key: 'pdf-available', label: 'PDF Ready', icon: Download, activeClass: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm', inactiveClass: 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 border-emerald-200 dark:border-emerald-800 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' },
+                  ...(isAdmin && archivedCount > 0 ? [{ key: 'archived', label: `Archived (${archivedCount})`, icon: Archive, activeClass: 'bg-gray-700 hover:bg-gray-800 text-white shadow-sm', inactiveClass: 'text-gray-500 dark:text-gray-400 hover:text-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800' }] : []),
                 ].map((btn) => (
                   <Button
                     key={btn.key}
@@ -382,12 +382,12 @@ export default function SOAPHistoryPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search by patient, ID, or assessment..."
-                  className="pl-8 h-8 text-xs border-gray-200 focus:border-indigo-300 focus:ring-indigo-200"
+                  className="pl-8 h-8 text-xs border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 focus:border-indigo-300 dark:focus:border-indigo-600 focus:ring-indigo-200 dark:focus:ring-indigo-800"
                 />
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -397,7 +397,7 @@ export default function SOAPHistoryPage() {
 
             {/* Admin Bulk Actions */}
             {isAdmin && activeCount > 0 && (
-              <div className="flex items-center gap-2 pt-3 mt-3 border-t border-gray-100">
+              <div className="flex items-center gap-2 pt-3 mt-3 border-t border-gray-100 dark:border-gray-800">
                 <Shield className="h-3.5 w-3.5 text-amber-600" />
                 <span className="text-[11px] font-medium text-gray-500">Admin:</span>
                 {bulkAction === 'idle' && (
@@ -460,29 +460,29 @@ export default function SOAPHistoryPage() {
             transition={{ delay: 0.15 }}
           >
             <details className="group">
-              <summary className="flex items-center justify-between cursor-pointer px-4 py-3 bg-white border border-gray-200/80 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <summary className="flex items-center justify-between cursor-pointer px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-emerald-600" />
-                  <span className="text-sm font-semibold text-gray-900">Recent PDFs</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Recent PDFs</span>
                   <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">
                     {pdfHistory.length}
                   </Badge>
                 </div>
-                <span className="text-xs text-gray-400 group-open:hidden">Click to expand</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 group-open:hidden">Click to expand</span>
               </summary>
               <div className="space-y-2 mt-2">
                 {pdfHistory.slice(0, 5).map((entry) => (
                   <div
                     key={entry.id}
-                    className="bg-white border border-gray-200/80 rounded-xl p-3 flex items-center justify-between shadow-sm"
+                    className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-xl p-3 flex items-center justify-between shadow-sm"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg flex items-center justify-center">
                         <FileText className="h-4 w-4 text-indigo-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{entry.patientName || 'Unknown'}</p>
-                        <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{entry.patientName || 'Unknown'}</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
                           <Clock className="h-2.5 w-2.5" />
                           {entry.createdAt?.toDate?.()?.toLocaleString?.() || 'Just now'}
                         </p>
@@ -511,11 +511,11 @@ export default function SOAPHistoryPage() {
         >
           {filteredNotes.length === 0 ? (
             <div className="text-center py-16">
-              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                <Search className="h-7 w-7 text-gray-400" />
+              <div className="mx-auto w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4">
+                <Search className="h-7 w-7 text-gray-400 dark:text-gray-500" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-700 mb-1">No SOAP Notes Found</h3>
-              <p className="text-sm text-gray-500 max-w-sm mx-auto">
+              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-1">No SOAP Notes Found</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                 {searchTerm ? `No results for "${searchTerm}"` : 'No notes match the current filter'}
               </p>
             </div>
@@ -529,7 +529,7 @@ export default function SOAPHistoryPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.3) }}
-                    className="bg-white border border-gray-200/80 rounded-2xl shadow-sm overflow-hidden relative group"
+                    className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm overflow-hidden relative group"
                   >
                     {/* Accent stripe */}
                     <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${
@@ -544,14 +544,14 @@ export default function SOAPHistoryPage() {
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                             isRedFlag(note.redFlag)
-                              ? 'bg-red-100 text-red-600'
-                              : 'bg-indigo-100 text-indigo-600'
+                              ? 'bg-red-100 dark:bg-red-900/40 text-red-600'
+                              : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600'
                           }`}>
                             <FileText className="h-4 w-4" />
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <h3 className="text-sm font-semibold text-gray-900 truncate">
+                              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                                 {note.patientName || 'Unknown Patient'}
                               </h3>
                               <Badge className={`text-[10px] px-1.5 py-0 shrink-0 ${
@@ -562,7 +562,7 @@ export default function SOAPHistoryPage() {
                                 {isRedFlag(note.redFlag) ? 'Flagged' : 'Standard'}
                               </Badge>
                             </div>
-                            <div className="flex items-center gap-3 mt-0.5 text-[11px] text-gray-500">
+                            <div className="flex items-center gap-3 mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
                                 {formatRelativeTime(note.createdAt)}
@@ -726,7 +726,7 @@ export default function SOAPHistoryPage() {
                       </div>
 
                       {/* Assessment preview */}
-                      <p className="text-xs text-gray-600 leading-relaxed line-clamp-2 mb-2.5 pl-12">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2 mb-2.5 pl-12">
                         {note.assessment || 'No assessment available'}
                       </p>
 

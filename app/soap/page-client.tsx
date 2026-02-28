@@ -120,7 +120,7 @@ export default function SOAPPage() {
   const activeTranscript = manualTranscript || selectedTranscript;
 
   return (
-    <div className="min-h-screen bg-gray-50/80">
+    <div className="min-h-screen bg-gray-50/80 dark:bg-gray-950">
       <div className="container mx-auto px-4 py-6 max-w-5xl space-y-5">
         {/* Header */}
         <motion.div
@@ -156,9 +156,9 @@ export default function SOAPPage() {
 
         {/* Restoration Warning */}
         {restored && (
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
-            <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-            <span className="text-sm text-amber-800">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <span className="text-sm text-amber-800 dark:text-amber-200">
               <span className="font-medium">Session restored</span> — Clear before starting a new encounter.
             </span>
           </div>
@@ -172,10 +172,10 @@ export default function SOAPPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Card className="bg-white border border-gray-200/80 shadow-sm rounded-2xl overflow-hidden relative">
+            <Card className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 shadow-sm rounded-2xl overflow-hidden relative">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-t-2xl" />
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-gray-900 text-base font-semibold">
+                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100 text-base font-semibold">
                   <FileText className="h-4 w-4 text-blue-600" />
                   Manual Transcript
                 </CardTitle>
@@ -188,25 +188,25 @@ export default function SOAPPage() {
                   value={manualTranscript}
                   onChange={(e) => setManualTranscript(e.target.value)}
                   placeholder="Type or paste your patient transcript here..."
-                  className="min-h-[140px] resize-none border-gray-200 focus:border-blue-300 focus:ring-blue-200"
+                  className="min-h-[140px] resize-none border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 focus:border-blue-300 dark:focus:border-blue-600 focus:ring-blue-200 dark:focus:ring-blue-800"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">Patient Name</Label>
+                    <Label className="text-xs font-medium text-gray-600 dark:text-gray-400">Patient Name</Label>
                     <input
                       value={selectedPatient}
                       onChange={(e) => setSelectedPatient(e.target.value)}
                       placeholder="Enter patient name"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-300 dark:focus:border-blue-600"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-gray-600">Encounter Type</Label>
+                    <Label className="text-xs font-medium text-gray-600 dark:text-gray-400">Encounter Type</Label>
                     <input
                       value={selectedType}
                       onChange={(e) => setSelectedType(e.target.value)}
                       placeholder="e.g., Initial Consultation"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 focus:border-blue-300 dark:focus:border-blue-600"
                     />
                   </div>
                 </div>
@@ -220,10 +220,10 @@ export default function SOAPPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="bg-white border border-gray-200/80 shadow-sm rounded-2xl overflow-hidden relative">
+            <Card className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 shadow-sm rounded-2xl overflow-hidden relative">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-t-2xl" />
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-gray-900 text-base font-semibold">
+                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100 text-base font-semibold">
                   <Mic className="h-4 w-4 text-emerald-600" />
                   Live Audio Recording
                 </CardTitle>
@@ -245,11 +245,11 @@ export default function SOAPPage() {
           transition={{ delay: 0.3 }}
         >
           <details className="group">
-            <summary className="flex items-center justify-between cursor-pointer px-5 py-3.5 bg-white border border-gray-200/80 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+            <summary className="flex items-center justify-between cursor-pointer px-5 py-3.5 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2.5">
-                <Sparkles className="h-4 w-4 text-indigo-500" />
-                <span className="text-sm font-semibold text-gray-900">Sample Transcripts</span>
-                <span className="text-xs text-gray-500">— Try a demo to see how it works</span>
+                <Sparkles className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Sample Transcripts</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">— Try a demo to see how it works</span>
               </div>
               <ArrowRight className="h-4 w-4 text-gray-400 group-open:rotate-90 transition-transform" />
             </summary>
@@ -258,15 +258,15 @@ export default function SOAPPage() {
                 <button
                   key={sample.id}
                   onClick={() => loadSampleTranscript(sample)}
-                  className="text-left p-4 bg-white border border-gray-200/80 rounded-xl hover:border-indigo-300 hover:shadow-md transition-all group/card"
+                  className="text-left p-4 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-xl hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all group/card"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-gray-900">{sample.patient}</span>
-                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-indigo-50 text-indigo-600">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{sample.patient}</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
                       {sample.type}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 line-clamp-2 mb-2.5 leading-relaxed">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-2.5 leading-relaxed">
                     {sample.transcript.substring(0, 100)}...
                   </p>
                   <span className="text-xs font-medium text-indigo-600 flex items-center gap-1 group-hover/card:gap-2 transition-all">
@@ -285,7 +285,7 @@ export default function SOAPPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <Card className="bg-white border border-gray-200/80 shadow-sm rounded-2xl overflow-hidden relative">
+          <Card className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 shadow-sm rounded-2xl overflow-hidden relative">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 rounded-t-2xl" />
             <CardContent className="p-6">
               <SOAPGenerator
@@ -307,14 +307,14 @@ export default function SOAPPage() {
           transition={{ delay: 0.6 }}
           className="pb-4"
         >
-          <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm p-5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4">
               <CheckCircle className="h-4 w-4 text-amber-500" />
-              <h3 className="text-sm font-semibold text-gray-900">Documentation Guidelines</h3>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Documentation Guidelines</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">SOAP Format</h4>
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">SOAP Format</h4>
                 {[
                   { letter: "S", label: "Subjective", desc: "Patient's reported symptoms" },
                   { letter: "O", label: "Objective", desc: "Observable findings" },
@@ -322,17 +322,17 @@ export default function SOAPPage() {
                   { letter: "P", label: "Plan", desc: "Treatment & follow-up" }
                 ].map((item) => (
                   <div key={item.letter} className="flex items-center gap-2.5">
-                    <span className="w-5 h-5 bg-indigo-100 text-indigo-700 rounded flex items-center justify-center text-[10px] font-bold shrink-0">
+                    <span className="w-5 h-5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded flex items-center justify-center text-[10px] font-bold shrink-0">
                       {item.letter}
                     </span>
-                    <span className="text-xs text-gray-700">
+                    <span className="text-xs text-gray-700 dark:text-gray-300">
                       <span className="font-semibold">{item.label}</span> — {item.desc}
                     </span>
                   </div>
                 ))}
               </div>
               <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Best Practices</h4>
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Best Practices</h4>
                 {[
                   "Use clear, professional medical terminology",
                   "Include relevant vital signs and measurements",
@@ -341,7 +341,7 @@ export default function SOAPPage() {
                 ].map((practice, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                    <span className="text-xs text-gray-600">{practice}</span>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">{practice}</span>
                   </div>
                 ))}
               </div>
