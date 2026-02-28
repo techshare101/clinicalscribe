@@ -36,7 +36,7 @@ const roleConfig: Record<string, { label: string; color: string; icon: any; desc
     label: "System Admin",
     color: "bg-red-100 text-red-700",
     icon: ShieldCheck,
-    description: "Full system access including demo accounts"
+    description: "Full system access and configuration"
   }
 };
 
@@ -162,7 +162,7 @@ export default function RoleManagementPanel() {
               <tr className="text-left border-b">
                 <th className="pb-3 font-medium">User</th>
                 <th className="pb-3 font-medium">Current Role</th>
-                <th className="pb-3 font-medium">Subscription</th>
+                <th className="pb-3 font-medium">Pro Access</th>
                 <th className="pb-3 font-medium">Last Updated</th>
                 {canEditRoles && <th className="pb-3 font-medium">Actions</th>}
               </tr>
@@ -193,24 +193,20 @@ export default function RoleManagementPanel() {
                       <div className="text-xs text-gray-500 mt-1">{roleInfo.description}</div>
                     </td>
                     <td className="py-3">
-                      <div className="space-y-2">
-                        <div className="text-sm">
-                          {user.betaActive ? (
-                            <span className="text-green-600 font-medium">Pro Active</span>
-                          ) : (
-                            <span className="text-gray-500">Free</span>
-                          )}
-                          {user.subscriptionStatus && (
-                            <div className="text-xs text-gray-500">{user.subscriptionStatus}</div>
-                          )}
-                        </div>
-                        {/* Beta access toggle for admins */}
-                        {canEditRoles && (
+                      <div className="space-y-1">
+                        {canEditRoles ? (
                           <BetaAccessToggle 
                             uid={user.uid} 
                             email={user.email}
                             currentBetaStatus={user.betaActive || false}
                           />
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <div className={`w-2 h-2 rounded-full ${user.betaActive ? "bg-emerald-500" : "bg-gray-300"}`} />
+                            <span className={`text-xs font-medium ${user.betaActive ? "text-emerald-700" : "text-gray-500"}`}>
+                              {user.betaActive ? "Pro Active" : "Free Tier"}
+                            </span>
+                          </div>
                         )}
                       </div>
                     </td>

@@ -55,113 +55,139 @@ export default function SeedSOAPHistoryDemo() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <div className="flex items-start gap-3">
-          <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
-          <div className="flex-1">
-            <h3 className="font-semibold text-blue-900">SOAP History Demo Data</h3>
-            <p className="text-sm text-blue-700 mt-1">
-              Seed your SOAP History page with sample patient notes for training and demonstrations.
-            </p>
-            <p className="text-sm text-blue-600 mt-2">
-              This will create 3 demo SOAP notes with different statuses:
-            </p>
-            <ul className="list-disc list-inside text-sm text-blue-600 mt-1 ml-4">
-              <li>1 flagged note (red flag)</li>
-              <li>1 standard note</li>
-              <li>1 note with PDF ready</li>
-            </ul>
-          </div>
-        </div>
+      {/* Header */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900">Training Tools</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Onboard new team members with sample patient data and guided workflows.
+        </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={seedSOAPDemo}
-          disabled={loading}
-          className={`
-            flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all
-            ${loading 
-              ? "bg-gray-100 text-gray-500 cursor-not-allowed" 
-              : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg"
-            }
-          `}
-        >
-          {loading ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Seeding Demo Data...
-            </>
-          ) : (
-            <>
-              <FileText className="h-5 w-5" />
-              Seed SOAP Demo Data
-            </>
-          )}
-        </motion.button>
+      {/* Seed SOAP Card */}
+      <div className="rounded-xl border border-gray-200 p-6">
+        <div className="flex items-start gap-4">
+          <div className="p-2.5 bg-indigo-100 rounded-xl shrink-0">
+            <FileText className="h-5 w-5 text-indigo-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-gray-900">Generate Sample SOAP Notes</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Create realistic sample patient notes so your team can explore SOAP History,
+              practice exporting, and familiarize themselves with the workflow.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                Flagged note
+              </span>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-700 border border-gray-200">
+                Standard note
+              </span>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                PDF-ready note
+              </span>
+            </div>
 
-        {status === "success" && (
-          <motion.button
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            onClick={resetStatus}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Seed Again
-          </motion.button>
-        )}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mt-5">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={seedSOAPDemo}
+                disabled={loading}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  loading
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4" />
+                    Generate Sample Notes
+                  </>
+                )}
+              </motion.button>
+
+              {status === "success" && (
+                <motion.button
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  onClick={resetStatus}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Generate More
+                </motion.button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Status Messages */}
       {status !== "idle" && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`
-            rounded-lg p-4 flex items-start gap-3
-            ${status === "success" 
-              ? "bg-green-50 border border-green-200" 
+          className={`rounded-xl p-4 flex items-start gap-3 ${
+            status === "success"
+              ? "bg-emerald-50 border border-emerald-200"
               : "bg-red-50 border border-red-200"
-            }
-          `}
+          }`}
         >
           {status === "success" ? (
-            <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+            <CheckCircle className="h-5 w-5 text-emerald-600 mt-0.5" />
           ) : (
             <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
           )}
           <div className="flex-1">
-            <p className={`font-medium ${
-              status === "success" ? "text-green-900" : "text-red-900"
+            <p className={`font-medium text-sm ${
+              status === "success" ? "text-emerald-900" : "text-red-900"
             }`}>
-              {status === "success" ? "Success!" : "Error"}
+              {status === "success" ? "Sample notes created" : "Something went wrong"}
             </p>
-            <p className={`text-sm ${
-              status === "success" ? "text-green-700" : "text-red-700"
+            <p className={`text-sm mt-0.5 ${
+              status === "success" ? "text-emerald-700" : "text-red-700"
             }`}>
               {message}
             </p>
             {status === "success" && (
-              <p className="text-sm text-green-600 mt-2">
-                Navigate to the <a href="/soap-history" className="font-semibold underline">SOAP History</a> page to view the demo data.
-              </p>
+              <a
+                href="/soap-history"
+                className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:text-emerald-800 mt-2 underline underline-offset-2"
+              >
+                View in SOAP History &rarr;
+              </a>
             )}
           </div>
         </motion.div>
       )}
 
-      {/* Info Box */}
-      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-        <h4 className="font-medium text-gray-900 mb-2">About Demo Data</h4>
-        <ul className="space-y-1 text-sm text-gray-600">
-          <li>• Demo notes are added to your SOAP History</li>
-          <li>• They appear alongside any real notes you create</li>
-          <li>• You can delete them individually from the SOAP History page</li>
-          <li>• Running this multiple times will create additional demo notes</li>
-        </ul>
+      {/* Tips */}
+      <div className="rounded-xl border border-gray-200 p-5">
+        <h4 className="font-medium text-gray-900 text-sm mb-3">How it works</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
+          <div className="flex items-start gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+            <span>Sample notes appear in your SOAP History alongside real records</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+            <span>Delete them individually when no longer needed</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+            <span>Run multiple times to create additional training data</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+            <span>Perfect for onboarding new nurses to ClinicalScribe</span>
+          </div>
+        </div>
       </div>
     </div>
   );
