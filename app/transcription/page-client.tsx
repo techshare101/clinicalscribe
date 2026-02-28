@@ -65,9 +65,14 @@ const patientLanguages = [
   { code: "sw", name: "Swahili", flag: "\u{1F1F0}\u{1F1EA}" },
   { code: "tl", name: "Tagalog", flag: "\u{1F1F5}\u{1F1ED}" },
   { code: "am", name: "Amharic", flag: "\u{1F1EA}\u{1F1F9}" },
+  { code: "yo", name: "Yoruba", flag: "\u{1F1F3}\u{1F1EC}" },
+  { code: "tw", name: "Twi", flag: "\u{1F1EC}\u{1F1ED}" },
+  { code: "ha", name: "Hausa", flag: "\u{1F1F3}\u{1F1EC}" },
+  { code: "zu", name: "isiZulu", flag: "\u{1F1FF}\u{1F1E6}" },
+  { code: "xh", name: "isiXhosa", flag: "\u{1F1FF}\u{1F1E6}" },
 ]
 
-// Language configurations for documentation language (Fixed 15 languages)
+// Language configurations for documentation language
 const docLanguages = [
   { code: "en", name: "English", flag: "\u{1F1FA}\u{1F1F8}" },
   { code: "es", name: "Spanish", flag: "\u{1F1EA}\u{1F1F8}" },
@@ -84,6 +89,11 @@ const docLanguages = [
   { code: "ru", name: "Russian", flag: "\u{1F1F7}\u{1F1FA}" },
   { code: "am", name: "Amharic", flag: "\u{1F1EA}\u{1F1F9}" },
   { code: "ko", name: "Korean", flag: "\u{1F1F0}\u{1F1F7}" },
+  { code: "yo", name: "Yoruba", flag: "\u{1F1F3}\u{1F1EC}" },
+  { code: "tw", name: "Twi", flag: "\u{1F1EC}\u{1F1ED}" },
+  { code: "ha", name: "Hausa", flag: "\u{1F1F3}\u{1F1EC}" },
+  { code: "zu", name: "isiZulu", flag: "\u{1F1FF}\u{1F1E6}" },
+  { code: "xh", name: "isiXhosa", flag: "\u{1F1FF}\u{1F1E6}" },
 ]
 
 function TranscriptionPageClient() {

@@ -21,6 +21,11 @@ export const languageFlags: Record<string, string> = {
   hu: "🇭🇺", // Hungarian
   el: "🇬🇷", // Greek
   he: "🇮🇱", // Hebrew
+  yo: "🇳🇬", // Yoruba
+  tw: "🇬🇭", // Twi
+  ha: "🇳🇬", // Hausa
+  zu: "🇿🇦", // Zulu
+  xh: "🇿🇦", // Xhosa
 };
 
 // Language display names
@@ -46,6 +51,11 @@ export const languageNames: Record<string, string> = {
   hu: "Hungarian",
   el: "Greek",
   he: "Hebrew",
+  yo: "Yoruba",
+  tw: "Twi",
+  ha: "Hausa",
+  zu: "Zulu",
+  xh: "Xhosa",
 };
 
 // Get display name with flag for a language code
@@ -78,6 +88,11 @@ export function getLanguageBadgeVariant(langCode: string): string {
     ru: "bg-cyan-100 text-cyan-800",
     am: "bg-lime-100 text-lime-800",
     ko: "bg-pink-100 text-pink-800",
+    yo: "bg-amber-100 text-amber-800",
+    tw: "bg-emerald-100 text-emerald-800",
+    ha: "bg-orange-100 text-orange-800",
+    zu: "bg-sky-100 text-sky-800",
+    xh: "bg-violet-100 text-violet-800",
   };
   
   return variants[langCode] || "bg-gray-100 text-gray-800";

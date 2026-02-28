@@ -46,7 +46,11 @@ const patientLanguages = [
   { code: "sw", name: "Swahili", flag: "🇰🇪" },
   { code: "tl", name: "Tagalog", flag: "🇵🇭" },
   { code: "am", name: "Amharic", flag: "🇪🇹" },
-  // Add more languages as needed
+  { code: "yo", name: "Yoruba", flag: "🇳🇬" },
+  { code: "tw", name: "Twi", flag: "🇬🇭" },
+  { code: "ha", name: "Hausa", flag: "🇳🇬" },
+  { code: "zu", name: "isiZulu", flag: "🇿🇦" },
+  { code: "xh", name: "isiXhosa", flag: "🇿🇦" },
 ];
 
 export default function SettingsPageInner() {
