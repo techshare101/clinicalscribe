@@ -17,6 +17,7 @@ import {
 import { ExportToEHR } from './_components/ExportToEHR'
 import { EhrStatusBadge } from '@/components/EhrStatusBadge'
 import { DownloadPdfButton } from '@/components/DownloadPdfButton'
+import { ViewPdfButton } from '@/components/ViewPdfButton'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FileText,
@@ -655,19 +656,11 @@ export default function SOAPHistoryPage() {
                                       author={undefined}
                                       attachment={undefined}
                                     />
-                                    {((selectedNote as any).pdfUrl || (selectedNote as any).pdf?.url) && (
-                                      <a
-                                        href={(selectedNote as any).pdfUrl || (selectedNote as any).pdf?.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs">
-                                          <ExternalLink className="h-3 w-3 mr-1" /> View PDF
-                                        </Button>
-                                      </a>
-                                    )}
                                     {(selectedNote as any).storagePath && (
-                                      <DownloadPdfButton pdfPath={(selectedNote as any).storagePath} />
+                                      <>
+                                        <ViewPdfButton storagePath={(selectedNote as any).storagePath} variant="button" />
+                                        <DownloadPdfButton pdfPath={(selectedNote as any).storagePath} />
+                                      </>
                                     )}
                                   </div>
                                 </div>
@@ -739,14 +732,10 @@ export default function SOAPHistoryPage() {
 
                       {/* Status badges */}
                       <div className="flex items-center gap-2 pl-12">
-                        {(note as any).pdfUrl || (note as any).pdf?.url ? (
-                          <a href={(note as any).pdfUrl || (note as any).pdf?.url} target="_blank" rel="noopener noreferrer">
-                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] cursor-pointer hover:bg-emerald-100">
-                              View PDF
-                            </Badge>
-                          </a>
-                        ) : (note as any).storagePath || (note as any).pdf?.status === 'generated' ? (
-                          <Badge className="bg-gray-50 text-gray-500 border-gray-200 text-[10px]">PDF Ready</Badge>
+                        {(note as any).storagePath ? (
+                          <ViewPdfButton storagePath={(note as any).storagePath} variant="badge" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] cursor-pointer hover:bg-emerald-100" />
+                        ) : (note as any).pdfUrl || (note as any).pdf?.url || (note as any).pdf?.status === 'generated' ? (
+                          <Badge className="bg-gray-50 text-gray-500 border-gray-200 text-[10px]">PDF Generated</Badge>
                         ) : null}
                         {note.fhirExport?.status && note.fhirExport.status !== 'none' && (
                           <Badge className={`text-[10px] ${
