@@ -6,6 +6,7 @@ interface DashboardCardProps {
   description?: string
   children: React.ReactNode
   className?: string
+  accent?: string
   badge?: {
     text: string
     color?: string
@@ -17,15 +18,19 @@ export function DashboardCard({
   description, 
   children, 
   className,
+  accent,
   badge 
 }: DashboardCardProps) {
   const isHero = className?.includes("hero-card")
 
   return (
     <Card className={cn(
-      "h-fit bg-white border border-gray-200/80 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden",
+      "h-fit bg-white border border-gray-200/80 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden relative",
       className
     )}>
+      {accent && (
+        <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-2xl", accent)} />
+      )}
       <CardHeader className={cn(
         "pb-3 relative z-10",
         isHero && "text-white"

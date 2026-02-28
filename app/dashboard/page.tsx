@@ -34,15 +34,23 @@ function useHydration() {
   return hydrated
 }
 
-// Empty state component
-function EmptyState({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+// Empty state component with color support
+function EmptyState({ icon: Icon, title, description, color = "gray" }: { icon: any; title: string; description: string; color?: string }) {
+  const colorMap: Record<string, { bg: string; iconBg: string; icon: string; title: string; desc: string; ring: string }> = {
+    emerald: { bg: "bg-emerald-50/60", iconBg: "bg-emerald-100", icon: "text-emerald-500", title: "text-emerald-800", desc: "text-emerald-600/70", ring: "ring-1 ring-emerald-200/50" },
+    blue:    { bg: "bg-blue-50/60",    iconBg: "bg-blue-100",    icon: "text-blue-500",    title: "text-blue-800",    desc: "text-blue-600/70",    ring: "ring-1 ring-blue-200/50" },
+    indigo:  { bg: "bg-indigo-50/60",  iconBg: "bg-indigo-100",  icon: "text-indigo-500",  title: "text-indigo-800",  desc: "text-indigo-600/70",  ring: "ring-1 ring-indigo-200/50" },
+    amber:   { bg: "bg-amber-50/60",   iconBg: "bg-amber-100",   icon: "text-amber-500",   title: "text-amber-800",   desc: "text-amber-600/70",   ring: "ring-1 ring-amber-200/50" },
+    gray:    { bg: "bg-gray-50",        iconBg: "bg-gray-100",    icon: "text-gray-400",    title: "text-gray-500",    desc: "text-gray-400",       ring: "" },
+  }
+  const c = colorMap[color] || colorMap.gray
   return (
-    <div className="flex flex-col items-center justify-center py-8 text-center">
-      <div className="p-3 bg-gray-100 rounded-xl mb-3">
-        <Icon className="h-6 w-6 text-gray-400" />
+    <div className={`flex flex-col items-center justify-center py-10 text-center rounded-xl ${c.bg} ${c.ring}`}>
+      <div className={`p-3.5 ${c.iconBg} rounded-2xl mb-3 shadow-sm`}>
+        <Icon className={`h-6 w-6 ${c.icon}`} />
       </div>
-      <p className="text-sm font-medium text-gray-500">{title}</p>
-      <p className="text-xs text-gray-400 mt-1">{description}</p>
+      <p className={`text-sm font-semibold ${c.title}`}>{title}</p>
+      <p className={`text-xs mt-1 max-w-[200px] ${c.desc}`}>{description}</p>
     </div>
   )
 }
@@ -143,10 +151,11 @@ function DashboardContent() {
         <DashboardCard 
           title="Patient Queue" 
           description="Active encounters"
+          accent="bg-gradient-to-r from-emerald-400 to-emerald-600"
           badge={{ text: "Live", color: "bg-emerald-100 text-emerald-700" }}
         >
           {patients.length === 0 ? (
-            <EmptyState icon={UserCheck} title="No active patients" description="Patients will appear here during encounters" />
+            <EmptyState icon={UserCheck} title="No active patients" description="Patients will appear here during encounters" color="emerald" />
           ) : (
             <div className="space-y-2.5">
               {patients.map((patient, index) => (
@@ -191,6 +200,7 @@ function DashboardContent() {
         <DashboardCard 
           title="Recent Notes" 
           description="Latest transcriptions"
+          accent="bg-gradient-to-r from-blue-400 to-blue-600"
           badge={{ text: "Feed", color: "bg-blue-100 text-blue-700" }}
         >
           <div className="space-y-3">
@@ -198,7 +208,7 @@ function DashboardContent() {
               <button
                 onClick={() => setViewMode("summary")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  viewMode === "summary" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  viewMode === "summary" ? "bg-blue-600 text-white shadow-sm" : "bg-blue-50 text-blue-700 hover:bg-blue-100"
                 }`}
               >
                 Summary
@@ -206,7 +216,7 @@ function DashboardContent() {
               <button
                 onClick={() => setViewMode("soap")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  viewMode === "soap" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  viewMode === "soap" ? "bg-blue-600 text-white shadow-sm" : "bg-blue-50 text-blue-700 hover:bg-blue-100"
                 }`}
               >
                 SOAP
@@ -214,7 +224,7 @@ function DashboardContent() {
             </div>
             
             {transcriptions.length === 0 ? (
-              <EmptyState icon={FileText} title="No notes yet" description="Notes will appear as you create them" />
+              <EmptyState icon={FileText} title="No notes yet" description="Notes will appear as you create them" color="blue" />
             ) : (
               <div className="space-y-2.5">
                 {transcriptions
@@ -255,10 +265,11 @@ function DashboardContent() {
         <DashboardCard 
           title="Performance" 
           description="Key metrics"
+          accent="bg-gradient-to-r from-indigo-400 to-indigo-600"
           badge={{ text: "Analytics", color: "bg-indigo-100 text-indigo-700" }}
         >
           {analytics.length === 0 ? (
-            <EmptyState icon={TrendingUp} title="No data yet" description="Analytics will populate as you use the system" />
+            <EmptyState icon={TrendingUp} title="No data yet" description="Analytics will populate as you use the system" color="indigo" />
           ) : (
             <div className="space-y-4">
               {analytics.map((metric, index) => {
@@ -293,6 +304,7 @@ function DashboardContent() {
         <DashboardCard 
           title="Activity Log" 
           description="Recent actions"
+          accent="bg-gradient-to-r from-amber-400 to-amber-600"
           badge={{ text: "Audit", color: "bg-amber-100 text-amber-700" }}
         >
           <div className="space-y-3">
@@ -302,7 +314,7 @@ function DashboardContent() {
                   key={f}
                   onClick={() => setAuditFilter(f)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize ${
-                    auditFilter === f ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    auditFilter === f ? "bg-amber-600 text-white shadow-sm" : "bg-amber-50 text-amber-700 hover:bg-amber-100"
                   }`}
                 >
                   {f === "all" && <Filter className="w-3 h-3 inline mr-1" />}
@@ -312,7 +324,7 @@ function DashboardContent() {
             </div>
             
             {auditLogs.length === 0 ? (
-              <EmptyState icon={Shield} title="No activity" description="Actions will be logged here" />
+              <EmptyState icon={Shield} title="No activity" description="Actions will be logged here" color="amber" />
             ) : (
               <div className="space-y-2.5">
                 {auditLogs.map((log, index) => (
