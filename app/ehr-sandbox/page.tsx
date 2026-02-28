@@ -5,28 +5,33 @@ import React, { useMemo, useState, useEffect } from 'react'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { useSmartStatus } from '@/hooks/use-smart-status'
 import { useToast } from '@/hooks/use-toast'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import ConnectToEHRButton from '@/components/ConnectToEHRButton'
 import ConnectionLifecycle from '@/components/ConnectionLifecycle'
 import {
-  Share2,
   Database,
   FileText,
-  Link,
   CheckCircle,
   AlertCircle,
   Download,
   Copy,
   Sparkles,
-  Zap,
   Shield,
   Code,
-  ArrowRight
+  ArrowRight,
+  Eye,
+  Stethoscope,
+  Brain,
+  Clipboard,
+  User,
+  Link2,
+  Terminal,
+  Key,
+  RefreshCw,
+  Loader2
 } from 'lucide-react'
 
 function tryParseJSON(value: string): any | null {
@@ -36,6 +41,13 @@ function tryParseJSON(value: string): any | null {
     return null
   }
 }
+
+const SOAP_SECTIONS = [
+  { key: 'subjective', letter: 'S', label: 'Subjective', icon: Eye, borderColor: 'border-l-blue-500', dotColor: 'bg-blue-500' },
+  { key: 'objective', letter: 'O', label: 'Objective', icon: Stethoscope, borderColor: 'border-l-emerald-500', dotColor: 'bg-emerald-500' },
+  { key: 'assessment', letter: 'A', label: 'Assessment', icon: Brain, borderColor: 'border-l-amber-500', dotColor: 'bg-amber-500' },
+  { key: 'plan', letter: 'P', label: 'Plan', icon: Clipboard, borderColor: 'border-l-indigo-500', dotColor: 'bg-indigo-500' },
+] as const
 
 export default function EHRExportSandboxPage() {
   const [subjective, setSubjective] = useState('')
@@ -48,29 +60,37 @@ export default function EHRExportSandboxPage() {
   const [attachmentUrl, setAttachmentUrl] = useState('')
   const [output, setOutput] = useState<string>('')
   const [error, setError] = useState<string>('')
-  
-  // 🔥 Get EHR connection status and toast system
+  const [copied, setCopied] = useState(false)
+  const [building, setBuilding] = useState(false)
+
   const smartStatus = useSmartStatus()
   const { toast } = useToast()
   const [previousConnectionStatus, setPreviousConnectionStatus] = useState<boolean | null>(null)
 
-  // 🎯 Toast notification when EHR connection status changes
   useEffect(() => {
     if (previousConnectionStatus !== null && previousConnectionStatus !== smartStatus.connected) {
       if (smartStatus.connected) {
         toast({
-          title: "🟢 EHR Connected!",
-          description: "Successfully connected to Epic SMART on FHIR. You can now export clinical data.",
+          title: "EHR Connected",
+          description: "Successfully connected to Epic SMART on FHIR.",
         })
       } else {
         toast({
-          title: "🔴 EHR Disconnected",
-          description: "Connection to EHR has been lost. Please reconnect if needed.",
+          title: "EHR Disconnected",
+          description: "Connection to EHR has been lost. Please reconnect.",
         })
       }
     }
     setPreviousConnectionStatus(smartStatus.connected)
   }, [smartStatus.connected, previousConnectionStatus, toast])
+
+  const soapValues: Record<string, string> = { subjective, objective, assessment, plan }
+  const soapSetters: Record<string, (v: string) => void> = {
+    subjective: setSubjective,
+    objective: setObjective,
+    assessment: setAssessment,
+    plan: setPlan,
+  }
 
   const canSubmit = useMemo(() => {
     return [subjective, objective, assessment, plan].some((s) => s.trim().length > 0)
@@ -79,6 +99,7 @@ export default function EHRExportSandboxPage() {
   async function buildFHIR() {
     setError('')
     setOutput('')
+    setBuilding(true)
     try {
       const res = await fetch('/api/fhir/document-reference', {
         method: 'POST',
@@ -98,12 +119,16 @@ export default function EHRExportSandboxPage() {
       setOutput(JSON.stringify(json, null, 2))
     } catch (e: any) {
       setError(e?.message || 'Unexpected error')
+    } finally {
+      setBuilding(false)
     }
   }
 
   function copyOutput() {
     if (!output) return
     navigator.clipboard.writeText(output)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
   }
 
   function downloadOutput() {
@@ -117,322 +142,293 @@ export default function EHRExportSandboxPage() {
     URL.revokeObjectURL(url)
   }
 
-  const parsedExample = tryParseJSON(output)
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Floating Background Elements */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-blue-300/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-purple-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-indigo-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
-      </div>
+    <div className="min-h-screen bg-gray-50/80 dark:bg-gray-950">
+      <div className="container mx-auto px-4 py-6 max-w-5xl space-y-5">
 
-      <div className="relative container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
+        {/* Page Header */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="text-center mb-12"
+          className="relative rounded-2xl shadow-lg overflow-hidden"
         >
-          <motion.div 
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.8, type: "spring", bounce: 0.6 }}
-            className="flex items-center justify-center gap-4 mb-6"
-          >
-            <div className="relative">
-              <div className="p-4 bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 rounded-3xl shadow-2xl ring-4 ring-emerald-200/50">
-                <Share2 className="h-10 w-10 text-white drop-shadow-lg" />
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700" />
+          <div className="absolute top-0 right-0 w-56 h-56 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+          <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
+
+          <div className="relative px-6 py-5 text-white">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/20 rounded-xl">
+                  <Database className="h-6 w-6" />
+                </div>
+                <div>
+                  <h1 className="text-lg sm:text-xl font-bold leading-tight tracking-tight">
+                    EHR Integration Sandbox
+                  </h1>
+                  <p className="text-white/60 text-xs sm:text-sm mt-0.5">
+                    Build &amp; test FHIR DocumentReference resources
+                  </p>
+                </div>
               </div>
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full border-2 border-white animate-pulse" />
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className="bg-white/15 text-white/90 border-white/20 text-[10px]">
+                  <Database className="h-3 w-3 mr-1" /> FHIR R4
+                </Badge>
+                <Badge className="bg-white/15 text-white/90 border-white/20 text-[10px]">
+                  <Shield className="h-3 w-3 mr-1" /> SMART on FHIR
+                </Badge>
+                <Badge className="bg-white/15 text-white/90 border-white/20 text-[10px]">
+                  <Code className="h-3 w-3 mr-1" /> Sandbox
+                </Badge>
+              </div>
             </div>
-            <div className="text-left">
-              <h1 className="text-5xl font-black bg-gradient-to-r from-gray-900 via-emerald-800 to-teal-900 bg-clip-text text-transparent drop-shadow-sm">
-                EHR Integration Sandbox
-              </h1>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-0 shadow-lg">
-                  <Database className="h-3 w-3 mr-1" />
-                  FHIR R4
-                </Badge>
-                <Badge className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0 shadow-lg">
-                  <Shield className="h-3 w-3 mr-1" />
-                  SMART on FHIR
-                </Badge>
-                <Badge className="bg-gradient-to-r from-purple-500 to-pink-600 text-white border-0 shadow-lg">
-                  <Code className="h-3 w-3 mr-1" />
-                  Developer
-                </Badge>
+          </div>
+        </motion.div>
+
+        {/* Connection Status Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm p-4 relative overflow-hidden"
+        >
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-cyan-500 rounded-t-2xl" />
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-2.5 h-2.5 rounded-full ${smartStatus.connected ? 'bg-emerald-500 animate-pulse' : smartStatus.loading ? 'bg-blue-400 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'}`} />
+              <div>
+                <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">EHR Connection</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                  {smartStatus.loading ? 'Checking...' : smartStatus.connected ? 'Connected to Epic' : 'Not connected'}
+                </span>
+              </div>
+            </div>
+            <ConnectToEHRButton />
+          </div>
+        </motion.div>
+
+        {/* Main Form Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Left Column — Document Metadata */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm p-5 relative overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-2xl" />
+            <div className="flex items-center gap-2.5 mb-4 mt-1">
+              <span className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Document Metadata</h2>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">FHIR resource fields</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
+                  <User className="h-3 w-3" /> Patient Name
+                </label>
+                <Input
+                  placeholder="e.g. John Doe (optional)"
+                  value={patientName}
+                  onChange={(e) => setPatientName(e.target.value)}
+                  className="h-9 text-sm bg-gray-50/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 focus:border-blue-400 focus:ring-blue-200 rounded-lg"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
+                  <Stethoscope className="h-3 w-3" /> Encounter Type
+                </label>
+                <Input
+                  placeholder="e.g. Office visit"
+                  value={encounterType}
+                  onChange={(e) => setEncounterType(e.target.value)}
+                  className="h-9 text-sm bg-gray-50/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 focus:border-blue-400 focus:ring-blue-200 rounded-lg"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
+                  <User className="h-3 w-3" /> Author Name
+                </label>
+                <Input
+                  placeholder="e.g. Dr. Smith (optional)"
+                  value={authorName}
+                  onChange={(e) => setAuthorName(e.target.value)}
+                  className="h-9 text-sm bg-gray-50/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 focus:border-blue-400 focus:ring-blue-200 rounded-lg"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
+                  <Link2 className="h-3 w-3" /> Attachment URL
+                </label>
+                <Input
+                  placeholder="HTML/PDF URL (optional)"
+                  value={attachmentUrl}
+                  onChange={(e) => setAttachmentUrl(e.target.value)}
+                  className="h-9 text-sm bg-gray-50/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 focus:border-blue-400 focus:ring-blue-200 rounded-lg"
+                />
               </div>
             </div>
           </motion.div>
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed"
+
+          {/* Right Column — SOAP Content */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm p-5 relative overflow-hidden"
           >
-            Build and test FHIR DocumentReference resources with 
-            <span className="font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent"> enterprise-grade EHR integration</span>
-          </motion.p>
-        </motion.div>
-
-        {/* Main Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.8 }}
-          className="relative group"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 via-teal-400/10 to-cyan-400/10 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
-            {/* Header with Connection Status */}
-            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 p-8 relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16 animate-pulse" />
-                <div className="absolute bottom-0 right-0 w-40 h-40 bg-white rounded-full translate-x-20 translate-y-20 animate-pulse" style={{ animationDelay: '1s' }} />
-              </div>
-              
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <motion.div
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ duration: 0.6, delay: 0.6 }}
-                    className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl ring-2 ring-white/30"
-                  >
-                    <Database className="h-6 w-6 text-white" />
-                  </motion.div>
-                  <div>
-                    <h3 className="text-2xl font-black text-white">FHIR Integration Sandbox</h3>
-                    <p className="text-emerald-100 font-medium">Build and test EHR DocumentReference resources</p>
-                  </div>
-                </div>
-                
-                {/* Connection Status with Connect to EHR Button */}
-                <div className="flex items-center gap-4">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className={`px-4 py-2 rounded-xl backdrop-blur-sm ${smartStatus.connected ? 'bg-white/20 text-white border border-white/30' : 'bg-purple-600/90 text-white'} transition-all duration-300`}>
-                      <ConnectToEHRButton />
-                    </div>
-                    
-                    {smartStatus.loading && (
-                      <Badge className="bg-blue-500/20 text-white border-white/30 px-4 py-2 text-sm font-bold">
-                        <span className="animate-pulse">Checking connection...</span>
-                      </Badge>
-                    )}
-                    
-                    {!smartStatus.loading && smartStatus.connected && (
-                      <Badge className="bg-emerald-500/20 text-white border-white/30 px-4 py-2 text-sm font-bold">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Connected to Epic
-                      </Badge>
-                    )}
-                    
-                    {!smartStatus.loading && !smartStatus.connected && smartStatus.error && (
-                      <Badge className="bg-amber-500/20 text-white border-white/30 px-4 py-2 text-sm font-bold">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        Connection status unavailable
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500 rounded-t-2xl" />
+            <div className="flex items-center gap-2.5 mb-4 mt-1">
+              <span className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">SOAP Note Content</h2>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">Clinical note sections</p>
               </div>
             </div>
-            
-            <div className="p-8 space-y-8">
-              {/* Input Form */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Column - Metadata */}
-                <div className="space-y-6">
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200/50">
-                    <h4 className="font-black text-blue-900 mb-4 flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      Document Metadata
-                    </h4>
-                    <div className="space-y-4">
-                      <Input 
-                        placeholder="Patient name (optional)" 
-                        value={patientName} 
-                        onChange={(e) => setPatientName(e.target.value)}
-                        className="h-12 rounded-xl border-2 border-blue-200 focus:border-blue-500"
-                      />
-                      <Input 
-                        placeholder="Encounter type (e.g., Office visit)" 
-                        value={encounterType} 
-                        onChange={(e) => setEncounterType(e.target.value)}
-                        className="h-12 rounded-xl border-2 border-blue-200 focus:border-blue-500"
-                      />
-                      <Input 
-                        placeholder="Author name (optional)" 
-                        value={authorName} 
-                        onChange={(e) => setAuthorName(e.target.value)}
-                        className="h-12 rounded-xl border-2 border-blue-200 focus:border-blue-500"
-                      />
-                      <Input 
-                        placeholder="Attachment URL (HTML/PDF optional)" 
-                        value={attachmentUrl} 
-                        onChange={(e) => setAttachmentUrl(e.target.value)}
-                        className="h-12 rounded-xl border-2 border-blue-200 focus:border-blue-500"
-                      />
-                    </div>
+            <div className="space-y-3">
+              {SOAP_SECTIONS.map((section) => {
+                const Icon = section.icon
+                return (
+                  <div key={section.key} className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
+                      <span className={`w-2 h-2 rounded-full ${section.dotColor}`} />
+                      {section.label}
+                    </label>
+                    <Textarea
+                      placeholder={section.label}
+                      rows={2}
+                      value={soapValues[section.key]}
+                      onChange={(e) => soapSetters[section.key](e.target.value)}
+                      className="text-sm bg-gray-50/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:border-emerald-400 focus:ring-emerald-200 resize-none rounded-lg"
+                    />
                   </div>
-                </div>
-                
-                {/* Right Column - SOAP Content */}
-                <div className="space-y-6">
-                  <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-6 border border-emerald-200/50">
-                    <h4 className="font-black text-emerald-900 mb-4 flex items-center gap-2">
-                      <Sparkles className="h-5 w-5" />
-                      SOAP Note Content
-                    </h4>
-                    <div className="space-y-4">
-                      {[
-                        { label: 'Subjective', value: subjective, setter: setSubjective, color: 'emerald' },
-                        { label: 'Objective', value: objective, setter: setObjective, color: 'blue' },
-                        { label: 'Assessment', value: assessment, setter: setAssessment, color: 'purple' },
-                        { label: 'Plan', value: plan, setter: setPlan, color: 'orange' }
-                      ].map((section) => (
-                        <div key={section.label} className="space-y-2">
-                          <label className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                            <span className={`w-3 h-3 bg-${section.color}-500 rounded-full`}></span>
-                            {section.label}
-                          </label>
-                          <Textarea 
-                            placeholder={section.label} 
-                            rows={3} 
-                            value={section.value} 
-                            onChange={(e) => section.setter(e.target.value)}
-                            className={`rounded-xl border-2 border-${section.color}-200 focus:border-${section.color}-500 resize-none`}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                )
+              })}
+            </div>
+          </motion.div>
+        </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-4 justify-center">
-                <Button 
-                  onClick={buildFHIR} 
-                  disabled={!canSubmit}
-                  className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-700 hover:via-teal-700 hover:to-cyan-700 text-white rounded-2xl shadow-xl hover:shadow-2xl font-bold text-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1"
-                >
-                  <Code className="h-5 w-5" />
-                  Build FHIR Resource
-                </Button>
-                <Button 
-                  onClick={copyOutput} 
-                  disabled={!output}
-                  className="flex items-center gap-2 px-6 py-4 bg-white text-emerald-700 border-2 border-emerald-200 hover:border-emerald-300 rounded-2xl shadow-lg hover:shadow-xl font-bold transition-all duration-300 hover:scale-105"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy JSON
-                </Button>
-                <Button 
-                  onClick={downloadOutput} 
-                  disabled={!output}
-                  className="flex items-center gap-2 px-6 py-4 bg-white text-blue-700 border-2 border-blue-200 hover:border-blue-300 rounded-2xl shadow-lg hover:shadow-xl font-bold transition-all duration-300 hover:scale-105"
-                >
-                  <Download className="h-4 w-4" />
-                  Download
-                </Button>
-              </div>
+        {/* Action Buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="flex flex-wrap gap-2.5 justify-center"
+        >
+          <Button
+            onClick={buildFHIR}
+            disabled={!canSubmit || building}
+            className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-sm text-sm font-medium"
+          >
+            {building ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Building...</>
+            ) : (
+              <><Code className="h-4 w-4" /> Build FHIR Resource</>
+            )}
+          </Button>
+          <Button
+            onClick={copyOutput}
+            disabled={!output}
+            variant="outline"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-gray-200 dark:border-gray-700"
+          >
+            {copied ? <CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? 'Copied!' : 'Copy JSON'}
+          </Button>
+          <Button
+            onClick={downloadOutput}
+            disabled={!output}
+            variant="outline"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-gray-200 dark:border-gray-700"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download
+          </Button>
+        </motion.div>
 
-              {/* Error Display */}
-              {error && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 flex items-center gap-3"
-                >
-                  <AlertCircle className="h-5 w-5 text-red-600" />
-                  <span className="text-red-800 font-medium">{error}</span>
-                </motion.div>
+        {/* Error Display */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl"
+            >
+              <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+              <span className="text-sm text-red-800 dark:text-red-300 font-medium">{error}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* FHIR Output */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm overflow-hidden relative"
+        >
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-gray-600 to-gray-800 dark:from-gray-500 dark:to-gray-700 rounded-t-2xl" />
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Terminal className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">FHIR DocumentReference Output</span>
+              </div>
+              {output && (
+                <Badge className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[10px]">
+                  <CheckCircle className="h-3 w-3 mr-1" /> Generated
+                </Badge>
               )}
-
-              <Separator className="my-8" />
-
-              {/* Output Section */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <h4 className="text-xl font-black text-gray-900">FHIR DocumentReference Output</h4>
-                  {output && (
-                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Generated
-                    </Badge>
-                  )}
-                </div>
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl opacity-95 group-hover:opacity-100 transition-opacity duration-300" />
-                  <pre className="relative bg-gray-900 text-green-300 p-6 rounded-2xl overflow-auto max-h-96 text-sm font-mono border-2 border-gray-700 shadow-inner">
-                    {output || '// FHIR DocumentReference JSON will appear here after building...'}
-                  </pre>
-                </div>
-              </div>
             </div>
+            <pre className="bg-gray-900 dark:bg-gray-950 text-emerald-300 p-4 rounded-xl overflow-auto max-h-80 text-xs font-mono border border-gray-700 dark:border-gray-800">
+              {output || '// FHIR DocumentReference JSON will appear here after building...'}
+            </pre>
           </div>
         </motion.div>
 
-        {/* UX Flow Card with Glassmorphism Effect */}
+        {/* How It Works */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.8 }}
-          className="mt-8 relative group"
+          transition={{ delay: 0.35 }}
+          className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm p-5 relative overflow-hidden"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-400/10 via-indigo-400/10 to-blue-400/10 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          <div className="relative bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 p-8 overflow-hidden">
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute -top-20 -right-20 w-40 h-40 bg-purple-400/10 rounded-full blur-2xl" />
-              <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-blue-400/10 rounded-full blur-2xl" />
-            </div>
-            
-            <div className="relative">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg">
-                  <ArrowRight className="h-5 w-5 text-white" />
-                </div>
-                <h3 className="text-xl font-black text-gray-900">How It Works</h3>
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-400 to-indigo-500 rounded-t-2xl" />
+          <div className="flex items-center gap-2.5 mb-4">
+            <span className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
+              <ArrowRight className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+            </span>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">How It Works</h3>
+          </div>
+          <div className="space-y-2.5">
+            {[
+              { step: 1, text: <>Nurse clicks <span className="font-semibold text-purple-700 dark:text-purple-400">Connect to EHR</span>.</> },
+              { step: 2, text: 'Epic login page opens — nurse enters their hospital credentials.' },
+              { step: 3, text: 'Epic authenticates and may ask for permission.' },
+              { step: 4, text: 'Epic redirects back to ClinicalScribe with authorization code.' },
+              { step: 5, text: 'ClinicalScribe exchanges the code for an access token.' },
+              { step: 6, text: <>SOAP Note PDF is exported to Epic as a <code className="px-1 py-0.5 bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 rounded text-xs font-mono">DocumentReference</code>.</> },
+            ].map((item) => (
+              <div key={item.step} className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-full text-xs font-bold">
+                  {item.step}
+                </span>
+                <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{item.text}</span>
               </div>
-              
-              <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-6 border border-indigo-100">
-                <ol className="list-decimal list-inside space-y-3 text-gray-700">
-                  <li className="flex items-center gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">1</span>
-                    <span>Nurse clicks <span className="font-semibold text-purple-700">Connect to EHR</span>.</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">2</span>
-                    <span>Epic login page opens — nurse enters their hospital credentials.</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">3</span>
-                    <span>Epic authenticates and may ask for permission.</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">4</span>
-                    <span>Epic redirects back to ClinicalScribe with authorization code.</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">5</span>
-                    <span>ClinicalScribe exchanges the code for an access token.</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full font-bold">6</span>
-                    <span>SOAP Note PDF is exported to Epic as a <code className="px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded font-mono text-sm">DocumentReference</code>.</span>
-                  </li>
-                </ol>
-              </div>
-            </div>
+            ))}
           </div>
         </motion.div>
 
-        {/* Connection Lifecycle Diagram */}
+        {/* Connection Lifecycle */}
         <ConnectionLifecycle />
       </div>
     </div>

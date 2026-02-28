@@ -1,78 +1,68 @@
 "use client";
 import { motion } from "framer-motion";
-import { Shield, Key, RefreshCw, FileText } from "lucide-react";
+import { Shield, Key, RefreshCw, FileText, Link2, CheckCircle } from "lucide-react";
 
 export default function ConnectionLifecycle() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className="mt-10 p-6 rounded-2xl shadow-xl border
-                 bg-white/20 backdrop-blur-xl
-                 border-white/30 text-gray-900 dark:text-gray-100"
+      transition={{ delay: 0.4 }}
+      className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm p-5 relative overflow-hidden"
     >
-      <h2 className="text-xl font-bold mb-4 text-purple-600 flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
-        </svg>
-        Connection Lifecycle
-      </h2>
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-t-2xl" />
 
-      <ol className="space-y-3 text-sm md:text-base list-decimal list-inside">
-        <li>
-          Nurse clicks <span className="font-medium">Connect to EHR</span>.
-        </li>
-        <li>
-          Epic login page opens — nurse enters credentials (with MFA if required).
-        </li>
-        <li>
-          Epic redirects back with an <code className="px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded font-mono text-sm">authorization code</code>.
-        </li>
-        <li>
-          ClinicalScribe exchanges the code for{" "}
-          <span className="font-medium">Access + Refresh Tokens</span>.
-        </li>
-        <li>
-          Tokens stored securely in <span className="font-medium">httpOnly cookies</span>.
-        </li>
-        <li>Dashboard shows <span className="text-green-600 font-medium">✅ Connected to Epic</span>.</li>
-        <li>
-          SOAP Note PDF exported into Epic as{" "}
-          <code className="px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded font-mono text-sm">DocumentReference</code>.
-        </li>
-        <li>
-          Tokens expire → <span className="font-medium">SMART Status API</span>{" "}
-          auto-refreshes silently using the refresh token.
-        </li>
-      </ol>
+      <div className="flex items-center gap-2.5 mb-4">
+        <span className="w-7 h-7 rounded-lg bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center">
+          <Link2 className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+        </span>
+        <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Connection Lifecycle</h3>
+      </div>
 
-      <div className="mt-6 bg-gradient-to-r from-purple-500/30 to-indigo-500/30
-                      rounded-xl p-4 text-sm text-gray-800 dark:text-gray-200 shadow-md">
-        <p className="font-semibold mb-2 flex items-center gap-2">
-          <Shield className="h-4 w-4" />
-          Why it matters:
+      <div className="space-y-2">
+        {[
+          { text: <>Nurse clicks <span className="font-semibold text-gray-900 dark:text-gray-100">Connect to EHR</span>.</> },
+          { text: 'Epic login page opens — nurse enters credentials (with MFA if required).' },
+          { text: <>Epic redirects back with an <code className="px-1 py-0.5 bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-300 rounded text-xs font-mono">authorization code</code>.</> },
+          { text: <>ClinicalScribe exchanges the code for <span className="font-semibold text-gray-900 dark:text-gray-100">Access + Refresh Tokens</span>.</> },
+          { text: <>Tokens stored securely in <span className="font-semibold text-gray-900 dark:text-gray-100">httpOnly cookies</span>.</> },
+          { text: <>Dashboard shows <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Connected to Epic</span>.</> },
+          { text: <>SOAP Note PDF exported into Epic as <code className="px-1 py-0.5 bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-300 rounded text-xs font-mono">DocumentReference</code>.</> },
+          { text: <>Tokens expire — <span className="font-semibold text-gray-900 dark:text-gray-100">SMART Status API</span> auto-refreshes silently using the refresh token.</> },
+        ].map((item, i) => (
+          <div key={i} className="flex items-start gap-3">
+            <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400 rounded-full text-[10px] font-bold mt-0.5">
+              {i + 1}
+            </span>
+            <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{item.text}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Why It Matters */}
+      <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl">
+        <p className="text-xs font-bold text-gray-900 dark:text-gray-100 mb-2.5 flex items-center gap-1.5">
+          <Shield className="h-3.5 w-3.5 text-indigo-500" />
+          Why it matters
         </p>
-        <ul className="list-disc list-inside space-y-1">
-          <li className="flex items-start gap-2">
-            <Key className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span><span className="font-medium">HIPAA-friendly</span> — tokens never exposed to client-side JS.</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <RefreshCw className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span><span className="font-medium">OAuth2-compliant</span> — refresh tokens extend session securely.</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            <span><span className="font-medium">Nurse-friendly</span> — no repeated logins during a shift.</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span><span className="font-medium">Enterprise-ready</span> — exactly how Epic SMART on FHIR expects apps to behave.</span>
-          </li>
-        </ul>
+        <div className="space-y-2">
+          <div className="flex items-start gap-2">
+            <Key className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-500 dark:text-gray-400" />
+            <span className="text-xs text-gray-700 dark:text-gray-300"><span className="font-semibold">HIPAA-friendly</span> — tokens never exposed to client-side JS.</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <RefreshCw className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-500 dark:text-gray-400" />
+            <span className="text-xs text-gray-700 dark:text-gray-300"><span className="font-semibold">OAuth2-compliant</span> — refresh tokens extend session securely.</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <CheckCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-500 dark:text-gray-400" />
+            <span className="text-xs text-gray-700 dark:text-gray-300"><span className="font-semibold">Nurse-friendly</span> — no repeated logins during a shift.</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <FileText className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-500 dark:text-gray-400" />
+            <span className="text-xs text-gray-700 dark:text-gray-300"><span className="font-semibold">Enterprise-ready</span> — exactly how Epic SMART on FHIR expects apps to behave.</span>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
