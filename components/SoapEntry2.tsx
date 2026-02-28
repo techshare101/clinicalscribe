@@ -315,6 +315,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
         plan: plan.trim(),
         painLevel: painLevel.trim(),
         uid: user.uid,
+        userId: user.uid,
         createdAt: serverTimestamp(),
         fhirExport: { status: 'none' },
       }
