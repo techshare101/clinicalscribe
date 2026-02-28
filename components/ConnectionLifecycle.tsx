@@ -40,27 +40,38 @@ export default function ConnectionLifecycle() {
       </div>
 
       {/* Why It Matters */}
-      <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl">
-        <p className="text-xs font-bold text-gray-900 dark:text-gray-100 mb-2.5 flex items-center gap-1.5">
-          <Shield className="h-3.5 w-3.5 text-indigo-500" />
+      <div className="mt-5 p-4 bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-blue-950/40 border border-indigo-200/60 dark:border-indigo-800/40 rounded-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-24 h-24 bg-purple-200/20 dark:bg-purple-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl" />
+        <p className="relative text-xs font-bold text-indigo-900 dark:text-indigo-200 mb-3 flex items-center gap-2">
+          <span className="p-1 bg-indigo-100 dark:bg-indigo-900/60 rounded-md">
+            <Shield className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+          </span>
           Why it matters
         </p>
-        <div className="space-y-2">
-          <div className="flex items-start gap-2">
-            <Key className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-500 dark:text-gray-400" />
-            <span className="text-xs text-gray-700 dark:text-gray-300"><span className="font-semibold">HIPAA-friendly</span> — tokens never exposed to client-side JS.</span>
+        <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="flex items-start gap-2.5 p-2.5 bg-white/70 dark:bg-gray-800/50 rounded-lg border border-emerald-200/50 dark:border-emerald-800/30">
+            <div className="p-1 bg-emerald-100 dark:bg-emerald-900/50 rounded-md flex-shrink-0 mt-0.5">
+              <Key className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <span className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed"><span className="font-bold text-emerald-700 dark:text-emerald-400">HIPAA-friendly</span> — tokens never exposed to client-side JS.</span>
           </div>
-          <div className="flex items-start gap-2">
-            <RefreshCw className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-500 dark:text-gray-400" />
-            <span className="text-xs text-gray-700 dark:text-gray-300"><span className="font-semibold">OAuth2-compliant</span> — refresh tokens extend session securely.</span>
+          <div className="flex items-start gap-2.5 p-2.5 bg-white/70 dark:bg-gray-800/50 rounded-lg border border-blue-200/50 dark:border-blue-800/30">
+            <div className="p-1 bg-blue-100 dark:bg-blue-900/50 rounded-md flex-shrink-0 mt-0.5">
+              <RefreshCw className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+            </div>
+            <span className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed"><span className="font-bold text-blue-700 dark:text-blue-400">OAuth2-compliant</span> — refresh tokens extend session securely.</span>
           </div>
-          <div className="flex items-start gap-2">
-            <CheckCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-500 dark:text-gray-400" />
-            <span className="text-xs text-gray-700 dark:text-gray-300"><span className="font-semibold">Nurse-friendly</span> — no repeated logins during a shift.</span>
+          <div className="flex items-start gap-2.5 p-2.5 bg-white/70 dark:bg-gray-800/50 rounded-lg border border-purple-200/50 dark:border-purple-800/30">
+            <div className="p-1 bg-purple-100 dark:bg-purple-900/50 rounded-md flex-shrink-0 mt-0.5">
+              <CheckCircle className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+            </div>
+            <span className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed"><span className="font-bold text-purple-700 dark:text-purple-400">Nurse-friendly</span> — no repeated logins during a shift.</span>
           </div>
-          <div className="flex items-start gap-2">
-            <FileText className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-500 dark:text-gray-400" />
-            <span className="text-xs text-gray-700 dark:text-gray-300"><span className="font-semibold">Enterprise-ready</span> — exactly how Epic SMART on FHIR expects apps to behave.</span>
+          <div className="flex items-start gap-2.5 p-2.5 bg-white/70 dark:bg-gray-800/50 rounded-lg border border-amber-200/50 dark:border-amber-800/30">
+            <div className="p-1 bg-amber-100 dark:bg-amber-900/50 rounded-md flex-shrink-0 mt-0.5">
+              <FileText className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+            </div>
+            <span className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed"><span className="font-bold text-amber-700 dark:text-amber-400">Enterprise-ready</span> — exactly how Epic SMART on FHIR expects apps to behave.</span>
           </div>
         </div>
       </div>

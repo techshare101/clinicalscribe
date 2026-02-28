@@ -150,36 +150,37 @@ export default function EHRExportSandboxPage() {
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative rounded-2xl shadow-lg overflow-hidden"
+          className="relative rounded-2xl shadow-xl overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700" />
-          <div className="absolute top-0 right-0 w-56 h-56 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
-          <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
+          <div className="absolute top-0 right-0 w-72 h-72 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-2xl" />
+          <div className="absolute bottom-0 left-0 w-56 h-56 bg-cyan-400/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl" />
+          <div className="absolute top-1/2 left-1/2 w-32 h-32 bg-emerald-300/10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-xl" />
 
-          <div className="relative px-6 py-5 text-white">
+          <div className="relative px-6 py-6 text-white">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-white/20 rounded-xl">
-                  <Database className="h-6 w-6" />
+              <div className="flex items-center gap-3.5">
+                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl ring-1 ring-white/25 shadow-lg">
+                  <Database className="h-6 w-6 drop-shadow" />
                 </div>
                 <div>
-                  <h1 className="text-lg sm:text-xl font-bold leading-tight tracking-tight">
+                  <h1 className="text-xl sm:text-2xl font-extrabold leading-tight tracking-tight drop-shadow-sm">
                     EHR Integration Sandbox
                   </h1>
-                  <p className="text-white/60 text-xs sm:text-sm mt-0.5">
-                    Build &amp; test FHIR DocumentReference resources
+                  <p className="text-emerald-100/70 text-xs sm:text-sm mt-0.5 font-medium">
+                    Build &amp; test FHIR DocumentReference resources with enterprise-grade integration
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge className="bg-white/15 text-white/90 border-white/20 text-[10px]">
+                <Badge className="bg-white/20 text-white border-white/25 text-[10px] shadow-sm backdrop-blur-sm">
                   <Database className="h-3 w-3 mr-1" /> FHIR R4
                 </Badge>
-                <Badge className="bg-white/15 text-white/90 border-white/20 text-[10px]">
+                <Badge className="bg-white/20 text-white border-white/25 text-[10px] shadow-sm backdrop-blur-sm">
                   <Shield className="h-3 w-3 mr-1" /> SMART on FHIR
                 </Badge>
-                <Badge className="bg-white/15 text-white/90 border-white/20 text-[10px]">
+                <Badge className="bg-white/20 text-white border-white/25 text-[10px] shadow-sm backdrop-blur-sm">
                   <Code className="h-3 w-3 mr-1" /> Sandbox
                 </Badge>
               </div>
@@ -205,7 +206,9 @@ export default function EHRExportSandboxPage() {
                 </span>
               </div>
             </div>
-            <ConnectToEHRButton />
+            <div className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-xl shadow-sm transition-all duration-200">
+              <ConnectToEHRButton />
+            </div>
           </div>
         </motion.div>
 
