@@ -1,7 +1,7 @@
 // app/ehr-sandbox/page.tsx
 'use client'
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { Suspense, useMemo, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -50,26 +50,11 @@ const SOAP_SECTIONS = [
   { key: 'plan', letter: 'P', label: 'Plan', icon: Clipboard, borderColor: 'border-l-indigo-500', dotColor: 'bg-indigo-500' },
 ] as const
 
-export default function EHRExportSandboxPage() {
-  const [subjective, setSubjective] = useState('')
-  const [objective, setObjective] = useState('')
-  const [assessment, setAssessment] = useState('')
-  const [plan, setPlan] = useState('')
-  const [patientName, setPatientName] = useState('')
-  const [encounterType, setEncounterType] = useState('Office visit')
-  const [authorName, setAuthorName] = useState('')
-  const [attachmentUrl, setAttachmentUrl] = useState('')
-  const [output, setOutput] = useState<string>('')
-  const [error, setError] = useState<string>('')
-  const [copied, setCopied] = useState(false)
-  const [building, setBuilding] = useState(false)
-
-  const smartStatus = useSmartStatus()
-  const { toast } = useToast()
+// Inner component that reads URL search params (requires Suspense boundary)
+function SearchParamsHandler() {
   const searchParams = useSearchParams()
-  const [previousConnectionStatus, setPreviousConnectionStatus] = useState<boolean | null>(null)
+  const { toast } = useToast()
 
-  // Show toast for OAuth callback results
   useEffect(() => {
     const smartParam = searchParams?.get('smart')
     const reason = searchParams?.get('reason')
@@ -87,6 +72,27 @@ export default function EHRExportSandboxPage() {
       })
     }
   }, [searchParams, toast])
+
+  return null
+}
+
+export default function EHRExportSandboxPage() {
+  const [subjective, setSubjective] = useState('')
+  const [objective, setObjective] = useState('')
+  const [assessment, setAssessment] = useState('')
+  const [plan, setPlan] = useState('')
+  const [patientName, setPatientName] = useState('')
+  const [encounterType, setEncounterType] = useState('Office visit')
+  const [authorName, setAuthorName] = useState('')
+  const [attachmentUrl, setAttachmentUrl] = useState('')
+  const [output, setOutput] = useState<string>('')
+  const [error, setError] = useState<string>('')
+  const [copied, setCopied] = useState(false)
+  const [building, setBuilding] = useState(false)
+
+  const smartStatus = useSmartStatus()
+  const { toast } = useToast()
+  const [previousConnectionStatus, setPreviousConnectionStatus] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (previousConnectionStatus !== null && previousConnectionStatus !== smartStatus.connected) {
@@ -165,6 +171,7 @@ export default function EHRExportSandboxPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/80 dark:bg-gray-950">
+      <Suspense fallback={null}><SearchParamsHandler /></Suspense>
       <div className="container mx-auto px-4 py-6 max-w-5xl space-y-5">
 
         {/* Page Header */}
