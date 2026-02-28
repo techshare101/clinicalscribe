@@ -32,42 +32,41 @@ export function WelcomeHeader({ className }: WelcomeHeaderProps) {
 
   return (
     <motion.div
-      className={`relative overflow-hidden rounded-3xl shadow-lg mb-8 ${className}`}
-      initial={{ opacity: 0, y: -20 }}
+      className={`relative overflow-hidden rounded-2xl shadow-sm mb-6 ${className}`}
+      initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.4 }}
     >
       {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-700 to-purple-800"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-800" />
       
-      {/* Decorative circles */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl"></div>
-      <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/20 rounded-full translate-y-1/2 -translate-x-1/4 blur-xl"></div>
+      {/* Subtle decorative element */}
+      <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
       
-      <div className="relative z-10 px-8 py-6 text-white">
+      <div className="relative z-10 px-6 py-5 text-white">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
           <div>
-            <h1 className="text-2xl font-semibold mb-1">
+            <h1 className="text-xl font-semibold">
               {greeting}, {displayName} 👋
             </h1>
-            <p className="text-white/80">
+            <p className="text-white/70 text-sm mt-0.5">
               Welcome to your ClinicalScribe dashboard
               {isAdmin && " — Admin access enabled"}
             </p>
           </div>
           
-          <div className="flex flex-col md:flex-row items-end md:items-center gap-3">
+          <div className="flex items-center gap-3">
             {/* Role badge */}
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-              profile?.role === "system-admin" ? 'bg-purple-500 text-white' : 
-              profile?.role === "nurse-admin" ? 'bg-emerald-500 text-white' : 
-              'bg-blue-200 text-blue-800'
+            <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+              profile?.role === "system-admin" ? 'bg-white/20 text-white' : 
+              profile?.role === "nurse-admin" ? 'bg-white/20 text-white' : 
+              'bg-white/15 text-white/90'
             }`}>
               {roleDisplay}
             </span>
             
             {/* Date display */}
-            <span className="text-sm opacity-80">
+            <span className="text-sm text-white/60">
               {today}
             </span>
           </div>

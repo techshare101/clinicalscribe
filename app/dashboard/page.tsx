@@ -17,366 +17,364 @@ import {
   FileText,
   Play,
   Plus,
-  RefreshCw
+  ArrowRight,
+  Activity,
+  TrendingUp
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { DashboardCard } from "@/components/DashboardCard"
 import { WelcomeHeader } from "@/components/WelcomeHeader"
 import { DashboardDataProvider, useDashboardData } from "@/components/DashboardDataProvider"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 
-// Add hydration state to prevent SSR mismatch
 function useHydration() {
   const [hydrated, setHydrated] = useState(false)
-  useEffect(() => {
-    setHydrated(true)
-  }, [])
+  useEffect(() => { setHydrated(true) }, [])
   return hydrated
 }
 
-// Mock data for Admin Actions (not in Firestore)
-const mockAdminActions = [
-  { id: 1, action: "Approve Note", count: 3, icon: CheckCircle, color: "text-green-500" },
-  { id: 2, action: "Flag for Review", count: 1, icon: AlertCircle, color: "text-yellow-500" },
-  { id: 3, action: "Export to PDF", count: 5, icon: FileSpreadsheet, color: "text-blue-500" },
-]
+// Empty state component
+function EmptyState({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 text-center">
+      <div className="p-3 bg-gray-100 rounded-xl mb-3">
+        <Icon className="h-6 w-6 text-gray-400" />
+      </div>
+      <p className="text-sm font-medium text-gray-500">{title}</p>
+      <p className="text-xs text-gray-400 mt-1">{description}</p>
+    </div>
+  )
+}
 
-// Dashboard content component that uses the dashboard data context
 function DashboardContent() {
-  const { patients, transcriptions, analytics, auditLogs, loading, error, mode } = useDashboardData();
+  const { patients, transcriptions, analytics, auditLogs, loading, mode } = useDashboardData()
   const [viewMode, setViewMode] = useState<"summary" | "soap">("summary")
-  const [filter, setFilter] = useState<string>("all")
+  const [auditFilter, setAuditFilter] = useState<string>("all")
 
-  // Show loading state if data is loading
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500/20 border-t-blue-500" />
-          <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 border border-blue-300/30" />
-          <div className="absolute inset-2 animate-pulse rounded-full bg-blue-100" />
+      <div className="flex justify-center py-16">
+        <div className="flex items-center gap-3 text-gray-500">
+          <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-300 border-t-indigo-600" />
+          <span className="text-sm">Loading dashboard...</span>
         </div>
       </div>
     )
   }
 
   return (
-    <>
-      {/* Demo Mode Badge */}
+    <div className="space-y-6">
+      {/* Sample Data Indicator */}
       {mode === "demo" && (
-        <div className="mb-6">
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-            <FileSpreadsheet className="h-4 w-4 mr-1.5" />
-            Demo Mode
-          </span>
-          <p className="mt-1 text-sm text-gray-600">
-            Showing sample data. Real patient data will appear here when available.
-          </p>
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          <span className="text-sm text-amber-800 font-medium">Sample data</span>
+          <span className="text-sm text-amber-600">— Real patient data will appear here as you use ClinicalScribe.</span>
         </div>
       )}
 
-      {/* Quick Launch Cards */}
-      <motion.div 
-        className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.5 }}
-      >
-        {/* Quick Transcription Launch */}
-        <DashboardCard 
-          title="Quick Transcription" 
-          description="Start a new voice recording session"
-          badge={{ text: "🎙️ RECORD", variant: "destructive" }}
-          className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white border-0 shadow-2xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-500 relative overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjMwIiBjeT0iMzAiIHI9IjMiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI3BhdHRlcm4pIi8+PC9zdmc+')] opacity-20"></div>
-          <div className="flex flex-col items-center justify-center p-6 relative z-10">
-            <div className="relative mb-4">
-              <div className="absolute inset-0 bg-white/30 rounded-full blur-md animate-pulse"></div>
-              <Link href="/transcription">
-                <Button 
-                  size="lg" 
-                  className="relative h-24 w-24 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 group shadow-red-500/30"
-                >
-                  <Mic className="h-10 w-10 text-white group-hover:text-white/90 transition-colors duration-300" />
-                </Button>
-              </Link>
-            </div>
-            <p className="text-white/90 text-center mt-2 font-medium">
-              Click to start recording a new patient encounter
-            </p>
-            <div className="mt-4 flex items-center text-white/80 text-sm">
-              <Play className="h-4 w-4 mr-1 animate-pulse text-white" />
-              <span>Ready to record</span>
-            </div>
-          </div>
-        </DashboardCard>
-
-        {/* Quick SOAP Note Launch */}
-        <DashboardCard 
-          title="Quick SOAP Note" 
-          description="Create a manual SOAP note"
-          badge={{ text: "📝 WRITE", variant: "default" }}
-          className="bg-gradient-to-br from-green-600 via-emerald-600 to-teal-700 text-white border-0 shadow-2xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-500 relative overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjMwIiBjeT0iMzAiIHI9IjMiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI3BhdHRlcm4pIi8+PC9zdmc+')] opacity-20"></div>
-          <div className="flex flex-col items-center justify-center p-6 relative z-10">
-            <div className="relative mb-4">
-              <div className="absolute inset-0 bg-white/30 rounded-full blur-md animate-pulse"></div>
-              <Link href="/soap-entry">
-                <Button 
-                  size="lg" 
-                  className="relative h-24 w-24 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 group shadow-green-500/30"
-                >
-                  <FileText className="h-10 w-10 text-white group-hover:text-white/90 transition-colors duration-300" />
-                </Button>
-              </Link>
-            </div>
-            <p className="text-white/90 text-center mt-2 font-medium">
-              Click to create a new manual SOAP note
-            </p>
-            <div className="mt-4 flex items-center text-white/80 text-sm">
-              <Plus className="h-4 w-4 mr-1 text-white" />
-              <span>New note</span>
-            </div>
-          </div>
-        </DashboardCard>
-      </motion.div>
-
-      {/* Dashboard Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Patient Queue Overview */}
-        <DashboardCard 
-          title="Patient Queue Overview" 
-          description="Real-time status tracking of patients"
-          badge={{ text: "LIVE", variant: "default" }}
-        >
-          <div className="space-y-4">
-            {patients.map((patient, index) => (
-              <motion.div 
-                key={patient.id} 
-                className="flex items-center justify-between p-4 bg-white/50 rounded-xl border border-white/50 hover:bg-white/70 transition-all duration-300 backdrop-blur-sm shadow-sm hover:shadow-md"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
+      {/* Quick Actions Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Voice Recording */}
+        <Link href="/transcription" className="group">
+          <motion.div
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4" />
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <Mic className="h-6 w-6" />
+                </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-800">{patient.name}</span>
-                    <Badge 
-                      variant={patient.priority === "High" ? "destructive" : patient.priority === "Medium" ? "default" : "secondary"}
-                      className="text-xs px-2 py-1 rounded-full"
-                    >
-                      {patient.priority}
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1 flex items-center">
-                    <UserCheck className="h-4 w-4 mr-1" />
-                    {patient.room} • {patient.formattedTime}
-                  </div>
-                </div>
-                <Badge 
-                  variant={patient.status === "Signed" ? "default" : "secondary"}
-                  className="text-xs px-2 py-1 rounded-full"
-                >
-                  {patient.status}
-                </Badge>
-              </motion.div>
-            ))}
-          </div>
-        </DashboardCard>
-
-        {/* Summary Feed */}
-        <DashboardCard 
-          title="Summary Feed" 
-          description="Last 5 transcriptions"
-          badge={{ text: "REAL-TIME", variant: "default" }}
-        >
-          <div className="space-y-4">
-            {/* Toggle Buttons */}
-            <div className="flex gap-2">
-              <Button 
-                variant={viewMode === "summary" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setViewMode("summary")}
-                className="rounded-full px-4 transition-all duration-300"
-              >
-                Summary
-              </Button>
-              <Button 
-                variant={viewMode === "soap" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setViewMode("soap")}
-                className="rounded-full px-4 transition-all duration-300"
-              >
-                SOAP
-              </Button>
-            </div>
-            
-            {/* Transcription List */}
-            <div className="space-y-3">
-              {transcriptions
-                .filter(item => filter === "all" || item.type?.toLowerCase() === filter)
-                .slice(0, 5)
-                .map((item, index) => (
-                  <motion.div 
-                    key={item.id} 
-                    className="p-4 bg-white/50 rounded-xl border border-white/50 hover:bg-white/70 transition-all duration-300 backdrop-blur-sm shadow-sm hover:shadow-md"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-medium text-gray-800 flex items-center">
-                          <FileText className="h-4 w-4 mr-2 text-blue-500" />
-                          {item.patient}
-                        </div>
-                        <div className="text-sm text-gray-600 mt-1 line-clamp-2">{item.content}</div>
-                      </div>
-                      <Badge variant="secondary" className="text-xs px-2 py-1 rounded-full">
-                        {item.type}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-gray-400 mt-2 flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {item.formattedTime}
-                    </div>
-                  </motion.div>
-                ))}
-            </div>
-          </div>
-        </DashboardCard>
-
-        {/* Triage Analytics */}
-        <DashboardCard 
-          title="Triage Analytics" 
-          description="Daily metrics and performance indicators"
-          badge={{ text: "ANALYTICS", variant: "default" }}
-        >
-          <div className="space-y-4">
-            {analytics.map((metric, index) => (
-              <div key={metric.id}>
-                <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700 flex items-center">
-                    <BarChart3 className="h-4 w-4 mr-2 text-indigo-500" />
-                    {metric.metric}
-                  </span>
-                  <span className="text-sm font-medium text-gray-900">{metric.value}{metric.unit} / {metric.target}{metric.unit}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <motion.div 
-                    className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full" 
-                    style={{ width: `${(metric.value / metric.target) * 100}%` }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(metric.value / metric.target) * 100}%` }}
-                    transition={{ duration: 1, delay: index * 0.2 }}
-                  ></motion.div>
+                  <h3 className="font-semibold text-lg">Voice Recording</h3>
+                  <p className="text-white/70 text-sm">Start a new patient encounter</p>
                 </div>
               </div>
-            ))}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/90 rounded-lg text-sm font-medium shadow-sm">
+                  <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                  Record
+                </div>
+                <ArrowRight className="h-5 w-5 text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all" />
+              </div>
+            </div>
+          </motion.div>
+        </Link>
+
+        {/* Manual SOAP */}
+        <Link href="/soap-entry" className="group">
+          <motion.div
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-green-700 p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4" />
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">SOAP Note</h3>
+                  <p className="text-white/70 text-sm">Create a manual clinical note</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 rounded-lg text-sm font-medium">
+                  <Plus className="h-4 w-4" />
+                  New
+                </div>
+                <ArrowRight className="h-5 w-5 text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all" />
+              </div>
+            </div>
+          </motion.div>
+        </Link>
+      </div>
+
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Patient Queue */}
+        <DashboardCard 
+          title="Patient Queue" 
+          description="Active encounters"
+          badge={{ text: "Live", color: "bg-emerald-100 text-emerald-700" }}
+        >
+          {patients.length === 0 ? (
+            <EmptyState icon={UserCheck} title="No active patients" description="Patients will appear here during encounters" />
+          ) : (
+            <div className="space-y-2.5">
+              {patients.map((patient, index) => (
+                <motion.div 
+                  key={patient.id} 
+                  className="flex items-center justify-between p-3.5 rounded-xl border border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-all duration-200"
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.06 }}
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 text-sm truncate">{patient.name}</span>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                        patient.priority === "High" ? "bg-red-100 text-red-700" 
+                        : patient.priority === "Medium" ? "bg-amber-100 text-amber-700" 
+                        : "bg-gray-100 text-gray-600"
+                      }`}>
+                        {patient.priority}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                      <span>{patient.room}</span>
+                      <span className="text-gray-300">·</span>
+                      <span>{patient.formattedTime}</span>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 ${
+                    patient.status === "Signed" ? "bg-emerald-100 text-emerald-700" 
+                    : patient.status === "SOAP Ready" ? "bg-blue-100 text-blue-700"
+                    : "bg-gray-100 text-gray-600"
+                  }`}>
+                    {patient.status}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </DashboardCard>
+
+        {/* Transcription Feed */}
+        <DashboardCard 
+          title="Recent Notes" 
+          description="Latest transcriptions"
+          badge={{ text: "Feed", color: "bg-blue-100 text-blue-700" }}
+        >
+          <div className="space-y-3">
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setViewMode("summary")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  viewMode === "summary" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Summary
+              </button>
+              <button
+                onClick={() => setViewMode("soap")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  viewMode === "soap" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                SOAP
+              </button>
+            </div>
+            
+            {transcriptions.length === 0 ? (
+              <EmptyState icon={FileText} title="No notes yet" description="Notes will appear as you create them" />
+            ) : (
+              <div className="space-y-2.5">
+                {transcriptions
+                  .filter(item => viewMode === "summary" ? item.type === "Summary" : item.type === "SOAP")
+                  .slice(0, 4)
+                  .map((item, index) => (
+                    <motion.div 
+                      key={item.id} 
+                      className="p-3.5 rounded-xl border border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-all duration-200"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.06 }}
+                    >
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900 text-sm flex items-center gap-2">
+                            <FileText className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                            <span className="truncate">{item.patient}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{item.content}</p>
+                        </div>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-600 shrink-0">
+                          {item.type}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-2 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {item.formattedTime}
+                      </div>
+                    </motion.div>
+                  ))}
+              </div>
+            )}
           </div>
+        </DashboardCard>
+
+        {/* Analytics */}
+        <DashboardCard 
+          title="Performance" 
+          description="Key metrics"
+          badge={{ text: "Analytics", color: "bg-indigo-100 text-indigo-700" }}
+        >
+          {analytics.length === 0 ? (
+            <EmptyState icon={TrendingUp} title="No data yet" description="Analytics will populate as you use the system" />
+          ) : (
+            <div className="space-y-4">
+              {analytics.map((metric, index) => {
+                const pct = Math.min((metric.value / metric.target) * 100, 100)
+                const isGood = pct >= 80
+                return (
+                  <div key={metric.id}>
+                    <div className="flex justify-between items-baseline mb-1.5">
+                      <span className="text-sm font-medium text-gray-700">{metric.metric}</span>
+                      <span className="text-sm tabular-nums">
+                        <span className="font-semibold text-gray-900">{metric.value}</span>
+                        <span className="text-gray-400">/{metric.target}</span>
+                        <span className="text-gray-400 text-xs ml-0.5">{metric.unit === "%" ? "%" : ""}</span>
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <motion.div 
+                        className={`h-2 rounded-full ${isGood ? "bg-emerald-500" : "bg-indigo-500"}`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.8, delay: index * 0.15, ease: "easeOut" }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </DashboardCard>
 
         {/* Audit Trail */}
         <DashboardCard 
-          title="Audit Trail" 
-          description="Complete activity log"
-          badge={{ text: "SECURE", variant: "default" }}
+          title="Activity Log" 
+          description="Recent actions"
+          badge={{ text: "Audit", color: "bg-amber-100 text-amber-700" }}
         >
-          <div className="space-y-4">
-            {/* Filter Controls */}
-            <div className="flex gap-2 flex-wrap">
-              <Button 
-                variant={filter === "all" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setFilter("all")}
-                className="rounded-full px-4 transition-all duration-300"
-              >
-                <Filter className="w-4 h-4 mr-1" />
-                All
-              </Button>
-              <Button 
-                variant={filter === "summary" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setFilter("summary")}
-                className="rounded-full px-4 transition-all duration-300"
-              >
-                Summary
-              </Button>
-              <Button 
-                variant={filter === "soap" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setFilter("soap")}
-                className="rounded-full px-4 transition-all duration-300"
-              >
-                SOAP
-              </Button>
-            </div>
-            
-            {/* Audit Log List */}
-            <div className="space-y-3">
-              {auditLogs.map((log, index) => (
-                <motion.div 
-                  key={log.id} 
-                  className="p-4 bg-white/50 rounded-xl border border-white/50 hover:bg-white/70 transition-all duration-300 backdrop-blur-sm shadow-sm hover:shadow-md"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
+          <div className="space-y-3">
+            <div className="flex gap-1.5">
+              {["all", "summary", "soap"].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setAuditFilter(f)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize ${
+                    auditFilter === f ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
                 >
-                  <div className="flex justify-between">
-                    <div>
-                      <div className="font-medium text-gray-800 flex items-center">
-                        <Shield className="h-4 w-4 mr-2 text-amber-500" />
-                        {log.user}
-                      </div>
-                      <div className="text-sm text-gray-600">{log.action} • {log.patient}</div>
-                    </div>
-                    <div className="text-xs text-gray-400 flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {log.formattedTime}
-                    </div>
-                  </div>
-                </motion.div>
+                  {f === "all" && <Filter className="w-3 h-3 inline mr-1" />}
+                  {f}
+                </button>
               ))}
             </div>
-          </div>
-        </DashboardCard>
-
-        {/* Admin Actions */}
-        <DashboardCard 
-          title="Admin Actions" 
-          description="Quick controls and oversight"
-          className="md:col-span-2"
-          badge={{ text: "ADMIN", variant: "destructive" }}
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {mockAdminActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <motion.div 
-                  key={action.id} 
-                  className="flex items-center p-4 bg-white/50 rounded-xl border border-white/50 hover:bg-white/70 transition-all duration-300 backdrop-blur-sm shadow-sm hover:shadow-md"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className={`p-3 rounded-xl bg-gradient-to-br ${action.color.replace('text-', 'from-').replace('-500', '-100')} to-white mr-4`}>
-                    <Icon className={`w-6 h-6 ${action.color}`} />
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-800">{action.action}</div>
-                    <div className="text-2xl font-bold text-gray-900">{action.count}</div>
-                  </div>
-                </motion.div>
-              );
-            })}
+            
+            {auditLogs.length === 0 ? (
+              <EmptyState icon={Shield} title="No activity" description="Actions will be logged here" />
+            ) : (
+              <div className="space-y-2.5">
+                {auditLogs.map((log, index) => (
+                  <motion.div 
+                    key={log.id} 
+                    className="p-3.5 rounded-xl border border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-all duration-200"
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.06 }}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-900 text-sm flex items-center gap-2">
+                          <Shield className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          <span className="truncate">{log.user}</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">{log.action} · {log.patient}</p>
+                      </div>
+                      <span className="text-[11px] text-gray-400 flex items-center gap-1 shrink-0">
+                        <Clock className="h-3 w-3" />
+                        {log.formattedTime}
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         </DashboardCard>
       </div>
-    </>
-  );
+
+      {/* Quick Stats Bar */}
+      <motion.div
+        className="grid grid-cols-3 gap-4"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        {[
+          { label: "Notes to Review", count: 3, icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
+          { label: "Flagged", count: 1, icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: "Ready to Export", count: 5, icon: FileSpreadsheet, color: "text-blue-600", bg: "bg-blue-50" },
+        ].map((stat) => {
+          const Icon = stat.icon
+          return (
+            <div 
+              key={stat.label}
+              className="flex items-center gap-3.5 p-4 bg-white rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className={`p-2.5 rounded-xl ${stat.bg}`}>
+                <Icon className={`h-5 w-5 ${stat.color}`} />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900 tabular-nums">{stat.count}</div>
+                <div className="text-xs text-gray-500 font-medium">{stat.label}</div>
+              </div>
+            </div>
+          )
+        })}
+      </motion.div>
+    </div>
+  )
 }
 
 export default function DashboardPage() {
@@ -384,26 +382,22 @@ export default function DashboardPage() {
   const { profile, isLoading } = useProfile()
   const router = useRouter()
 
-  // Dev override: always show dashboard
   const devOverride = process.env.NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS === "true"
 
-  // Show loading state until hydrated AND profile is resolved
   if (!hydrated || isLoading) {
     return (
-      <div className="flex justify-center py-12">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500/20 border-t-blue-500" />
-          <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 border border-blue-300/30" />
-          <div className="absolute inset-2 animate-pulse rounded-full bg-blue-100" />
+      <div className="flex justify-center items-center py-24">
+        <div className="flex items-center gap-3 text-gray-500">
+          <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-300 border-t-indigo-600" />
+          <span className="text-sm">Loading...</span>
         </div>
       </div>
     )
   }
 
-  // Show paywall if user doesn't have active subscription AND no dev override
   if (!devOverride && profile && !profile.betaActive) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
           <PaywallCard />
         </div>
@@ -411,21 +405,10 @@ export default function DashboardPage() {
     )
   }
 
-  // Show full dashboard if admin OR has active plan OR dev override
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Floating background elements for glassmorphism effect */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-10 left-10 w-72 h-72 bg-blue-300/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
-        <div className="absolute top-1/3 right-1/3 w-80 h-80 bg-indigo-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }} />
-      </div>
-      
-      <div className="container mx-auto px-4 py-8 max-w-6xl relative">
-        {/* Welcome Header */}
+    <div className="min-h-screen bg-gray-50/80">
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
         <WelcomeHeader />
-        
-        {/* Dashboard Data Provider with Dashboard Content */}
         <DashboardDataProvider>
           <DashboardContent />
         </DashboardDataProvider>
