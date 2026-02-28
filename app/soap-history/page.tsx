@@ -299,10 +299,10 @@ export default function SOAPHistoryPage() {
   const archivedCount = soapNotes.filter((n: any) => n.archived).length
 
   const soapSections = [
-    { key: 'subjective', label: 'Subjective', letter: 'S', color: 'blue' },
-    { key: 'objective', label: 'Objective', letter: 'O', color: 'emerald' },
-    { key: 'assessment', label: 'Assessment', letter: 'A', color: 'amber' },
-    { key: 'plan', label: 'Plan', letter: 'P', color: 'indigo' },
+    { key: 'subjective', label: 'Subjective', letter: 'S', headerBg: 'bg-blue-50 dark:bg-blue-950/40', headerBorder: 'border-blue-100 dark:border-blue-900/50', badgeBg: 'bg-blue-200 dark:bg-blue-800', badgeText: 'text-blue-800 dark:text-blue-200' },
+    { key: 'objective', label: 'Objective', letter: 'O', headerBg: 'bg-emerald-50 dark:bg-emerald-950/40', headerBorder: 'border-emerald-100 dark:border-emerald-900/50', badgeBg: 'bg-emerald-200 dark:bg-emerald-800', badgeText: 'text-emerald-800 dark:text-emerald-200' },
+    { key: 'assessment', label: 'Assessment', letter: 'A', headerBg: 'bg-amber-50 dark:bg-amber-950/40', headerBorder: 'border-amber-100 dark:border-amber-900/50', badgeBg: 'bg-amber-200 dark:bg-amber-800', badgeText: 'text-amber-800 dark:text-amber-200' },
+    { key: 'plan', label: 'Plan', letter: 'P', headerBg: 'bg-indigo-50 dark:bg-indigo-950/40', headerBorder: 'border-indigo-100 dark:border-indigo-900/50', badgeBg: 'bg-indigo-200 dark:bg-indigo-800', badgeText: 'text-indigo-800 dark:text-indigo-200' },
   ] as const
 
   return (
@@ -594,7 +594,7 @@ export default function SOAPHistoryPage() {
                             </DialogTrigger>
                             <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                               <DialogHeader>
-                                <DialogTitle className="text-lg font-semibold text-gray-900">
+                                <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                                   SOAP Note — {selectedNote?.patientName || 'Unknown'}
                                 </DialogTitle>
                               </DialogHeader>
@@ -602,13 +602,13 @@ export default function SOAPHistoryPage() {
                                 <div className="space-y-4 mt-2">
                                   {/* Audit row */}
                                   <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-gray-50 rounded-xl p-3">
-                                      <p className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold mb-1">Created</p>
-                                      <p className="text-sm text-gray-900">{formatDate(selectedNote.createdAt)}</p>
-                                      <p className="text-xs text-gray-500">{formatRelativeTime(selectedNote.createdAt)}</p>
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+                                      <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Created</p>
+                                      <p className="text-sm text-gray-900 dark:text-gray-100">{formatDate(selectedNote.createdAt)}</p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">{formatRelativeTime(selectedNote.createdAt)}</p>
                                     </div>
-                                    <div className="bg-gray-50 rounded-xl p-3">
-                                      <p className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold mb-1">Clinical</p>
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+                                      <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Clinical</p>
                                       <div className="flex items-center gap-2 text-sm">
                                         {selectedNote.painLevel && <span>Pain: {selectedNote.painLevel}</span>}
                                         <Badge className={`text-[10px] ${isRedFlag(selectedNote.redFlag) ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
@@ -621,16 +621,16 @@ export default function SOAPHistoryPage() {
                                   {/* SOAP sections */}
                                   <div className="space-y-3">
                                     {soapSections.map((section) => (
-                                      <div key={section.key} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                                        <div className={`flex items-center gap-2 px-3 py-2 bg-${section.color}-50 border-b border-${section.color}-100`}>
-                                          <span className={`w-5 h-5 bg-${section.color}-200 text-${section.color}-800 rounded flex items-center justify-center text-[10px] font-bold`}>
+                                      <div key={section.key} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                                        <div className={`flex items-center gap-2 px-3 py-2 ${section.headerBg} border-b ${section.headerBorder}`}>
+                                          <span className={`w-5 h-5 ${section.badgeBg} ${section.badgeText} rounded flex items-center justify-center text-[10px] font-bold`}>
                                             {section.letter}
                                           </span>
-                                          <span className="text-sm font-semibold text-gray-900">{section.label}</span>
+                                          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{section.label}</span>
                                         </div>
                                         <div className="p-3">
-                                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                                            {(selectedNote as any)[section.key]}
+                                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                            {(selectedNote as any)[section.key] || 'No data available'}
                                           </p>
                                         </div>
                                       </div>
@@ -638,7 +638,7 @@ export default function SOAPHistoryPage() {
                                   </div>
 
                                   {/* Actions footer */}
-                                  <div className="pt-3 border-t border-gray-200 flex flex-wrap gap-2">
+                                  <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-2">
                                     <ExportToEHR
                                       note={{
                                         id: selectedNote.id,

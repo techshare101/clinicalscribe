@@ -28,9 +28,16 @@ export async function GET(req: Request) {
 
     let notes = notesSnapshot.docs.map(doc => {
       const data = doc.data();
+      // Normalize: SignatureAndPDF saves SOAP under nested `soap` object,
+      // while SoapEntry2 saves flat. Flatten nested soap fields to top level.
+      const soap = data.soap || {};
       return {
         id: doc.id,
         ...data,
+        subjective: data.subjective || soap.subjective || '',
+        objective: data.objective || soap.objective || '',
+        assessment: data.assessment || soap.assessment || '',
+        plan: data.plan || soap.plan || '',
         createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : data.createdAt
       };
     });
