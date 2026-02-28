@@ -165,14 +165,14 @@ export default function SOAPPage() {
         )}
 
         {/* Input Section: Manual + Recording side by side on large screens */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
           {/* Manual Transcript Entry */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Card className="h-full bg-white border border-gray-200/80 shadow-sm rounded-2xl overflow-hidden relative">
+            <Card className="bg-white border border-gray-200/80 shadow-sm rounded-2xl overflow-hidden relative">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-t-2xl" />
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-gray-900 text-base font-semibold">
@@ -220,7 +220,7 @@ export default function SOAPPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="h-full bg-white border border-gray-200/80 shadow-sm rounded-2xl overflow-hidden relative">
+            <Card className="bg-white border border-gray-200/80 shadow-sm rounded-2xl overflow-hidden relative">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-t-2xl" />
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-gray-900 text-base font-semibold">

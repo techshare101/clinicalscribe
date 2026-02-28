@@ -558,132 +558,116 @@ export default function Recorder({
   const chunkProgress = (recordingTime / 900) * 100; // 900 seconds = 15 minutes
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 max-h-[520px] overflow-y-auto">
       {/* Waveform Visualization */}
-      <div className="relative bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100/50">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <div className="w-3 h-3 bg-indigo-500 rounded-full animate-pulse"></div>
-            Live Audio Visualization
+      <div className="relative bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-3 border border-indigo-100/50">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-pulse"></div>
+            Live Audio
           </h3>
-          <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 border-indigo-200">
+          <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[10px] px-1.5 py-0">
             Real-time
           </Badge>
         </div>
         <canvas 
           ref={canvasRef} 
-          className="w-full h-32 bg-white/50 rounded-xl border border-indigo-200/50"
+          className="w-full h-20 bg-white/50 rounded-lg border border-indigo-200/50"
           width={600}
-          height={128}
+          height={80}
         />
-        <div className="flex justify-center mt-3">
-          <Badge variant="outline" className="text-xs text-gray-500">
-            Audio waveform visualization during recording
-          </Badge>
-        </div>
         
-        {/* Display language information */}
-        <div className="flex gap-2 mt-4 justify-center">
-          <Badge className="bg-purple-100 text-purple-800 border-purple-200">
-            Patient Language: {
-              patientLanguage === "auto" ? "🌐 Auto Detect" : 
-              patientLanguage === "so" ? "🇸🇴 Somali" :
-              patientLanguage === "hmn" ? "🇱🇦 Hmong" :
-              patientLanguage === "sw" ? "🇰🇪 Swahili" :
-              patientLanguage === "ar" ? "🇸🇦 Arabic" :
-              patientLanguage === "en" ? "🇺🇸 English" :
+        {/* Language + Chunk progress — compact row */}
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px] px-1.5 py-0">
+            Patient: {
+              patientLanguage === "auto" ? "Auto" : 
+              patientLanguage === "so" ? "Somali" :
+              patientLanguage === "hmn" ? "Hmong" :
+              patientLanguage === "sw" ? "Swahili" :
+              patientLanguage === "ar" ? "Arabic" :
+              patientLanguage === "en" ? "English" :
               patientLanguage.toUpperCase()
             }
           </Badge>
-          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-            Documentation Language: {
-              docLanguage === "en" ? "🇺🇸 English" :
-              docLanguage === "so" ? "🇸🇴 Somali" :
-              docLanguage === "hmn" ? "🇱🇦 Hmong" :
-              docLanguage === "sw" ? "🇰🇪 Swahili" :
-              docLanguage === "ar" ? "🇸🇦 Arabic" :
+          <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px] px-1.5 py-0">
+            Doc: {
+              docLanguage === "en" ? "English" :
+              docLanguage === "so" ? "Somali" :
+              docLanguage === "hmn" ? "Hmong" :
+              docLanguage === "sw" ? "Swahili" :
+              docLanguage === "ar" ? "Arabic" :
               docLanguage.toUpperCase()
             }
           </Badge>
+          <span className="ml-auto text-[10px] font-medium text-gray-500">
+            Chunk {currentChunk}/4 · {formatTime(recordingTime)}
+          </span>
         </div>
-        
-        {/* Chunk progress indicator */}
-        <div className="mt-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-gray-700">
-              Chunk {currentChunk} of 4
-            </span>
-            <span className="text-sm font-medium text-gray-700">
-              {formatTime(recordingTime)} / 15:00
-            </span>
-          </div>
-          <Progress value={chunkProgress} className="h-2" />
-        </div>
+        <Progress value={chunkProgress} className="h-1.5 mt-1.5" />
         
         {/* Recording timer */}
         {isRecording && (
-          <div className="flex items-center justify-center mt-4 gap-2 text-red-600 font-medium">
-            <Timer className="h-5 w-5 animate-pulse" />
-            <span>Recording Chunk {currentChunk}: {formatTime(recordingTime)}</span>
-            {recordingTime >= 840 && ( // Warning at 14 minutes
-              <span className="text-orange-600">(Approaching 15-min limit)</span>
+          <div className="flex items-center justify-center mt-2 gap-1.5 text-red-600 text-xs font-medium">
+            <Timer className="h-3.5 w-3.5 animate-pulse" />
+            <span>Chunk {currentChunk}: {formatTime(recordingTime)}</span>
+            {recordingTime >= 840 && (
+              <span className="text-orange-600 text-[10px]">(Near limit)</span>
             )}
           </div>
         )}
         
         {/* Progress message */}
         {progressMessage && (
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-center">
-            <span className="font-medium text-blue-800">{progressMessage}</span>
+          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg text-center">
+            <span className="text-xs font-medium text-blue-800">{progressMessage}</span>
           </div>
         )}
         
         {/* All chunks completed message */}
         {totalChunks >= 4 && !isRecording && (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center justify-center">
-            <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-            <span className="font-medium text-green-800">
-              All chunks recorded. Final SOAP note generated.
-            </span>
+          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg flex items-center justify-center">
+            <CheckCircle className="h-3.5 w-3.5 text-green-500 mr-1.5" />
+            <span className="text-xs font-medium text-green-800">All chunks recorded.</span>
           </div>
         )}
       </div>
 
       {/* Recording Controls */}
-      <div className="flex flex-col sm:flex-row items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-center gap-2 flex-wrap">
         {!isRecording ? (
           !showNextChunkPrompt ? (
             <Button
               onClick={handleStart}
               disabled={loading || totalChunks >= 4}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-xl shadow-sm transition-all"
             >
-              <Mic className="h-5 w-5" />
+              <Mic className="h-4 w-4" />
               {loading ? 'Transcribing...' : totalChunks >= 4 ? 'All Chunks Recorded' : `Start Chunk ${currentChunk}`}
             </Button>
           ) : (
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
               <Button
                 onClick={startNextChunk}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl shadow-sm transition-all"
               >
-                <Play className="h-5 w-5" />
-                Start Chunk {currentChunk + 1}
+                <Play className="h-4 w-4" />
+                Next Chunk
               </Button>
               <Button
                 onClick={combineRecordings}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-sm transition-all"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Combining...
                   </>
                 ) : (
                   <>
-                    <Stethoscope className="h-5 w-5" />
-                    Combine All Chunks Now
+                    <Stethoscope className="h-4 w-4" />
+                    Combine Chunks
                   </>
                 )}
               </Button>
@@ -692,20 +676,20 @@ export default function Recorder({
         ) : (
           <Button
             onClick={handleStop}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white rounded-xl shadow-sm transition-all"
           >
-            <Square className="h-5 w-5" />
-            Stop Chunk {currentChunk} ({formatTime(recordingTime)})
+            <Square className="h-4 w-4" />
+            Stop ({formatTime(recordingTime)})
           </Button>
         )}
         
         {transcript && !showNextChunkPrompt && (
           <Button
             onClick={generateSOAP}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-sm transition-all"
           >
-            <Stethoscope className="h-5 w-5" />
-            Generate SOAP Note
+            <Stethoscope className="h-4 w-4" />
+            Generate SOAP
           </Button>
         )}
         
@@ -714,17 +698,17 @@ export default function Recorder({
           <Button
             onClick={combineRecordings}
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl shadow-sm transition-all"
           >
             {loading ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Combining...
               </>
             ) : (
               <>
-                <Stethoscope className="h-5 w-5" />
-                Combine into Final SOAP
+                <Stethoscope className="h-4 w-4" />
+                Combine Final SOAP
               </>
             )}
           </Button>
