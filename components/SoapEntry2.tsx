@@ -390,71 +390,79 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
   return (
     <div className="space-y-4">
       {/* Client & Session Info */}
-      <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm p-5 relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-t-2xl" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-white border border-gray-200/80 rounded-2xl shadow-md p-5 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 rounded-t-2xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-1">
           {/* Client Name */}
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 uppercase tracking-wide">
-              <User className="h-3.5 w-3.5" /> Client / Patient
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
+              <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center">
+                <User className="h-3.5 w-3.5 text-emerald-600" />
+              </span>
+              Client / Patient
             </label>
             <div className="relative">
               <Input
-                placeholder="Search or enter name"
-                className="h-9 text-sm bg-gray-50 border-gray-200 focus:border-emerald-300 focus:ring-emerald-200"
+                placeholder="Search or enter client name..."
+                className="h-10 text-sm bg-gray-50/80 border-gray-200 focus:border-emerald-400 focus:ring-emerald-200 rounded-lg pl-3 font-medium"
                 value={patientName}
                 onChange={(e) => { setPatientName(e.target.value); setPatientId(undefined) }}
               />
               {patientId && (
                 <button
                   onClick={() => setPatientId(undefined)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 hover:text-gray-600"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 hover:text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded"
                 >
                   Clear
                 </button>
               )}
               {!patientId && patientName.trim().length >= 2 && patientSuggestions.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full rounded-lg border bg-white shadow-lg max-h-40 overflow-y-auto">
+                <div className="absolute z-10 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl max-h-40 overflow-y-auto">
                   {patientSuggestions.map((p: { id: string; name: string; mrn?: string }) => (
                     <button
                       key={p.id}
                       type="button"
-                      className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-sm transition-colors"
+                      className="w-full text-left px-3 py-2.5 hover:bg-emerald-50 text-sm transition-colors border-b border-gray-50 last:border-0"
                       onClick={() => { setPatientName(p.name); setPatientId(p.id) }}
                     >
-                      <span className="font-medium text-gray-900">{p.name}</span>
-                      {p.mrn && <span className="text-[10px] text-gray-400 ml-2">MRN: {p.mrn}</span>}
+                      <span className="font-semibold text-gray-900">{p.name}</span>
+                      {p.mrn && <span className="text-[10px] text-gray-400 ml-2 bg-gray-100 px-1.5 py-0.5 rounded">MRN: {p.mrn}</span>}
                     </button>
                   ))}
                 </div>
               )}
               {patientId && (
-                <p className="text-[10px] text-emerald-600 mt-0.5 font-medium">Linked to patient record</p>
+                <p className="text-[10px] text-emerald-600 mt-1 font-semibold flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" /> Linked to patient record
+                </p>
               )}
             </div>
           </div>
 
           {/* Encounter Type */}
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 uppercase tracking-wide">
-              <Stethoscope className="h-3.5 w-3.5" /> Session Type
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
+              <span className="w-6 h-6 rounded-lg bg-teal-100 flex items-center justify-center">
+                <Stethoscope className="h-3.5 w-3.5 text-teal-600" />
+              </span>
+              Session Type
             </label>
             <Input
               placeholder="e.g. Initial Visit, Deep Tissue..."
-              className="h-9 text-sm bg-gray-50 border-gray-200 focus:border-emerald-300 focus:ring-emerald-200"
+              className="h-10 text-sm bg-gray-50/80 border-gray-200 focus:border-teal-400 focus:ring-teal-200 rounded-lg pl-3 font-medium"
               value={encounterType}
               onChange={(e) => setEncounterType(e.target.value)}
             />
-            <div className="flex flex-wrap gap-1 mt-1">
+            <div className="flex flex-wrap gap-1.5">
               {encounterPresets.map((preset) => (
                 <button
                   key={preset.value}
                   type="button"
                   onClick={() => setEncounterType(preset.value)}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all ${
                     encounterType === preset.value
-                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800 border border-gray-200/60'
                   }`}
                 >
                   {preset.label}
@@ -465,45 +473,43 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
         </div>
 
         {/* Pain Level */}
-        <div className="mt-4 space-y-1.5">
-          <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 uppercase tracking-wide">
-            <Gauge className="h-3.5 w-3.5" /> Pain / Discomfort Level (0–10)
+        <div className="mt-5 pt-4 border-t border-gray-100 space-y-2">
+          <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
+            <span className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
+              <Gauge className="h-3.5 w-3.5 text-amber-600" />
+            </span>
+            Pain / Discomfort Level
           </label>
-          <div className="flex items-center gap-3">
-            <Input
-              type="number"
-              min="0"
-              max="10"
-              value={painLevel}
-              onChange={(e) => setPainLevel(e.target.value)}
-              placeholder="0-10"
-              className="h-9 text-sm bg-gray-50 border-gray-200 w-24 focus:border-emerald-300 focus:ring-emerald-200"
-            />
-            {painLevel && (
-              <div className="flex items-center gap-2">
-                <div className="flex gap-0.5">
-                  {Array.from({ length: 10 }, (_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setPainLevel(String(i + 1))}
-                      className={`w-5 h-5 rounded text-[9px] font-bold transition-all ${
-                        i + 1 <= painNum
-                          ? i + 1 <= 3 ? 'bg-emerald-500 text-white' : i + 1 <= 6 ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
-                          : 'bg-gray-100 text-gray-400'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-                <Badge className={`text-[10px] ${
-                  painColor === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : painColor === 'amber' ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-red-50 text-red-700 border-red-200'
-                }`}>
-                  {painNum <= 3 ? 'Mild' : painNum <= 6 ? 'Moderate' : 'Severe'}
-                </Badge>
-              </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex gap-1">
+              {Array.from({ length: 10 }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setPainLevel(String(i + 1))}
+                  className={`w-7 h-7 rounded-lg text-[10px] font-bold transition-all ${
+                    i + 1 <= painNum
+                      ? i + 1 <= 3
+                        ? 'bg-emerald-500 text-white shadow-sm'
+                        : i + 1 <= 6
+                          ? 'bg-amber-500 text-white shadow-sm'
+                          : 'bg-red-500 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+            {painLevel ? (
+              <Badge className={`text-[10px] font-bold px-2.5 py-0.5 ${
+                painColor === 'emerald' ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                  : painColor === 'amber' ? 'bg-amber-100 text-amber-700 border-amber-300'
+                  : 'bg-red-100 text-red-700 border-red-300'
+              }`}>
+                {painNum <= 3 ? 'Mild' : painNum <= 6 ? 'Moderate' : 'Severe'} — {painLevel}/10
+              </Badge>
+            ) : (
+              <span className="text-[10px] text-gray-400 font-medium">Click to rate</span>
             )}
           </div>
         </div>
