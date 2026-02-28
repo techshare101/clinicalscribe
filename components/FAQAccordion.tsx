@@ -30,17 +30,17 @@ export default function FAQAccordion({
   };
 
   return (
-    <section className="px-6 py-20 bg-gradient-to-b from-white to-slate-50">
+    <section className="px-6 py-20 bg-gradient-to-b from-white to-slate-50 dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 mb-4">
-            <HelpCircle className="h-8 w-8 text-purple-600" />
-            <h2 className="text-4xl font-black bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            <HelpCircle className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+            <h2 className="text-4xl font-black bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
               {title}
             </h2>
           </div>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             {subtitle}
           </p>
         </div>
@@ -54,10 +54,10 @@ export default function FAQAccordion({
               <div
                 key={index}
                 className={`
-                  bg-white rounded-2xl shadow-lg border transition-all duration-300
+                  bg-white dark:bg-gray-800/80 rounded-2xl shadow-lg border transition-all duration-300
                   ${isOpen 
-                    ? 'border-purple-200 shadow-purple-100/50' 
-                    : 'border-gray-100 hover:border-purple-100'
+                    ? 'border-purple-200 dark:border-purple-700/50 shadow-purple-100/50 dark:shadow-purple-900/20' 
+                    : 'border-gray-100 dark:border-gray-700 hover:border-purple-100 dark:hover:border-purple-800'
                   }
                 `}
               >
@@ -67,20 +67,20 @@ export default function FAQAccordion({
                 >
                   <h3 className={`
                     text-lg font-bold pr-4 transition-colors duration-300
-                    ${isOpen ? 'text-purple-700' : 'text-gray-900 group-hover:text-purple-600'}
+                    ${isOpen ? 'text-purple-700 dark:text-purple-400' : 'text-gray-900 dark:text-gray-100 group-hover:text-purple-600 dark:group-hover:text-purple-400'}
                   `}>
                     {item.question}
                   </h3>
                   <div className={`
                     flex-shrink-0 p-2 rounded-full transition-all duration-300
                     ${isOpen 
-                      ? 'bg-purple-100 rotate-180' 
-                      : 'bg-gray-100 group-hover:bg-purple-50'
+                      ? 'bg-purple-100 dark:bg-purple-900/50 rotate-180' 
+                      : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-purple-50 dark:group-hover:bg-purple-900/30'
                     }
                   `}>
                     <ChevronDown className={`
                       h-5 w-5 transition-colors duration-300
-                      ${isOpen ? 'text-purple-600' : 'text-gray-500'}
+                      ${isOpen ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'}
                     `} />
                   </div>
                 </button>
@@ -91,8 +91,8 @@ export default function FAQAccordion({
                   ${isOpen ? 'max-h-96' : 'max-h-0'}
                 `}>
                   <div className="px-6 pb-6">
-                    <div className="border-t border-gray-100 pt-4">
-                      <p className="text-gray-600 leading-relaxed">
+                    <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                      <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
                         {item.answer}
                       </p>
                     </div>
@@ -104,8 +104,8 @@ export default function FAQAccordion({
         </div>
 
         {/* CTA */}
-        <div className="mt-12 text-center p-8 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-100">
-          <p className="text-lg text-gray-700 mb-4">
+        <div className="mt-12 text-center p-8 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 rounded-2xl border border-purple-100 dark:border-purple-800/50">
+          <p className="text-lg text-gray-700 dark:text-gray-300 mb-4">
             Still have questions? We're here to help!
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -117,7 +117,7 @@ export default function FAQAccordion({
             </a>
             <a
               href="/docs"
-              className="px-6 py-3 bg-white text-purple-600 rounded-xl hover:bg-gray-50 transition-all duration-300 font-medium border border-purple-200"
+              className="px-6 py-3 bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 font-medium border border-purple-200 dark:border-purple-700"
             >
               View Documentation
             </a>
