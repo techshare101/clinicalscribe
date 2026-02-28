@@ -37,11 +37,11 @@ function useHydration() {
 // Empty state component with color support
 function EmptyState({ icon: Icon, title, description, color = "gray" }: { icon: any; title: string; description: string; color?: string }) {
   const colorMap: Record<string, { bg: string; iconBg: string; icon: string; title: string; desc: string; ring: string }> = {
-    emerald: { bg: "bg-emerald-50/60", iconBg: "bg-emerald-100", icon: "text-emerald-500", title: "text-emerald-800", desc: "text-emerald-600/70", ring: "ring-1 ring-emerald-200/50" },
-    blue:    { bg: "bg-blue-50/60",    iconBg: "bg-blue-100",    icon: "text-blue-500",    title: "text-blue-800",    desc: "text-blue-600/70",    ring: "ring-1 ring-blue-200/50" },
-    indigo:  { bg: "bg-indigo-50/60",  iconBg: "bg-indigo-100",  icon: "text-indigo-500",  title: "text-indigo-800",  desc: "text-indigo-600/70",  ring: "ring-1 ring-indigo-200/50" },
-    amber:   { bg: "bg-amber-50/60",   iconBg: "bg-amber-100",   icon: "text-amber-500",   title: "text-amber-800",   desc: "text-amber-600/70",   ring: "ring-1 ring-amber-200/50" },
-    gray:    { bg: "bg-gray-50",        iconBg: "bg-gray-100",    icon: "text-gray-400",    title: "text-gray-500",    desc: "text-gray-400",       ring: "" },
+    emerald: { bg: "bg-emerald-50/60 dark:bg-emerald-950/30", iconBg: "bg-emerald-100 dark:bg-emerald-900/50", icon: "text-emerald-500 dark:text-emerald-400", title: "text-emerald-800 dark:text-emerald-200", desc: "text-emerald-600/70 dark:text-emerald-400/70", ring: "ring-1 ring-emerald-200/50 dark:ring-emerald-700/40" },
+    blue:    { bg: "bg-blue-50/60 dark:bg-blue-950/30",       iconBg: "bg-blue-100 dark:bg-blue-900/50",    icon: "text-blue-500 dark:text-blue-400",    title: "text-blue-800 dark:text-blue-200",    desc: "text-blue-600/70 dark:text-blue-400/70",    ring: "ring-1 ring-blue-200/50 dark:ring-blue-700/40" },
+    indigo:  { bg: "bg-indigo-50/60 dark:bg-indigo-950/30",   iconBg: "bg-indigo-100 dark:bg-indigo-900/50",  icon: "text-indigo-500 dark:text-indigo-400",  title: "text-indigo-800 dark:text-indigo-200",  desc: "text-indigo-600/70 dark:text-indigo-400/70",  ring: "ring-1 ring-indigo-200/50 dark:ring-indigo-700/40" },
+    amber:   { bg: "bg-amber-50/60 dark:bg-amber-950/30",     iconBg: "bg-amber-100 dark:bg-amber-900/50",   icon: "text-amber-500 dark:text-amber-400",   title: "text-amber-800 dark:text-amber-200",   desc: "text-amber-600/70 dark:text-amber-400/70",   ring: "ring-1 ring-amber-200/50 dark:ring-amber-700/40" },
+    gray:    { bg: "bg-gray-50 dark:bg-gray-800/30",           iconBg: "bg-gray-100 dark:bg-gray-800",        icon: "text-gray-400 dark:text-gray-500",    title: "text-gray-500 dark:text-gray-300",    desc: "text-gray-400 dark:text-gray-500",           ring: "" },
   }
   const c = colorMap[color] || colorMap.gray
   return (
@@ -152,7 +152,7 @@ function DashboardContent() {
           title="Patient Queue" 
           description="Active encounters"
           accent="bg-gradient-to-r from-emerald-400 to-emerald-600"
-          badge={{ text: "Live", color: "bg-emerald-100 text-emerald-700" }}
+          badge={{ text: "Live", color: "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300" }}
         >
           {patients.length === 0 ? (
             <EmptyState icon={UserCheck} title="No active patients" description="Patients will appear here during encounters" color="emerald" />
@@ -201,14 +201,14 @@ function DashboardContent() {
           title="Recent Notes" 
           description="Latest transcriptions"
           accent="bg-gradient-to-r from-blue-400 to-blue-600"
-          badge={{ text: "Feed", color: "bg-blue-100 text-blue-700" }}
+          badge={{ text: "Feed", color: "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300" }}
         >
           <div className="space-y-3">
             <div className="flex gap-1.5">
               <button
                 onClick={() => setViewMode("summary")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  viewMode === "summary" ? "bg-blue-600 text-white shadow-sm" : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  viewMode === "summary" ? "bg-blue-600 text-white shadow-sm" : "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40"
                 }`}
               >
                 Summary
@@ -216,7 +216,7 @@ function DashboardContent() {
               <button
                 onClick={() => setViewMode("soap")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  viewMode === "soap" ? "bg-blue-600 text-white shadow-sm" : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  viewMode === "soap" ? "bg-blue-600 text-white shadow-sm" : "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40"
                 }`}
               >
                 SOAP
@@ -228,7 +228,11 @@ function DashboardContent() {
             ) : (
               <div className="space-y-2.5">
                 {transcriptions
-                  .filter(item => viewMode === "summary" ? item.type === "Summary" : item.type === "SOAP")
+                  .filter(item => {
+                    if (viewMode === "summary") return item.type === "Summary"
+                    if (viewMode === "soap") return item.type === "SOAP"
+                    return true
+                  })
                   .slice(0, 4)
                   .map((item, index) => (
                     <motion.div 
@@ -266,7 +270,7 @@ function DashboardContent() {
           title="Performance" 
           description="Key metrics"
           accent="bg-gradient-to-r from-indigo-400 to-indigo-600"
-          badge={{ text: "Analytics", color: "bg-indigo-100 text-indigo-700" }}
+          badge={{ text: "Analytics", color: "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300" }}
         >
           {analytics.length === 0 ? (
             <EmptyState icon={TrendingUp} title="No data yet" description="Analytics will populate as you use the system" color="indigo" />
@@ -305,7 +309,7 @@ function DashboardContent() {
           title="Activity Log" 
           description="Recent actions"
           accent="bg-gradient-to-r from-amber-400 to-amber-600"
-          badge={{ text: "Audit", color: "bg-amber-100 text-amber-700" }}
+          badge={{ text: "Audit", color: "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300" }}
         >
           <div className="space-y-3">
             <div className="flex gap-1.5">
@@ -314,7 +318,7 @@ function DashboardContent() {
                   key={f}
                   onClick={() => setAuditFilter(f)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize ${
-                    auditFilter === f ? "bg-amber-600 text-white shadow-sm" : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                    auditFilter === f ? "bg-amber-600 text-white shadow-sm" : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40"
                   }`}
                 >
                   {f === "all" && <Filter className="w-3 h-3 inline mr-1" />}
@@ -364,9 +368,9 @@ function DashboardContent() {
         transition={{ delay: 0.5 }}
       >
         {[
-          { label: "Notes to Review", count: 3, icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Flagged", count: 1, icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Ready to Export", count: 5, icon: FileSpreadsheet, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: "Notes to Review", count: 3, icon: CheckCircle, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-900/40" },
+          { label: "Flagged", count: 1, icon: AlertCircle, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-900/40" },
+          { label: "Ready to Export", count: 5, icon: FileSpreadsheet, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-900/40" },
         ].map((stat) => {
           const Icon = stat.icon
           return (

@@ -230,38 +230,95 @@ export function DashboardDataProvider({ children }: DashboardDataProviderProps) 
       
       unsubscribes.push(patientsUnsub);
 
-      // Fetch transcriptions data
-      const transcriptionsQuery = query(
-        collection(db, "transcriptions"),
-        where("userId", "==", user.uid),
-        orderBy("timestamp", "desc"),
+      // Fetch SOAP notes (saved by SoapEntry2 with field "uid" and by SignatureAndPDF with "userId")
+      // SoapEntry2 uses "uid" field and "createdAt" timestamp
+      const soapNotesQuery = query(
+        collection(db, "soapNotes"),
+        where("uid", "==", user.uid),
+        orderBy("createdAt", "desc"),
         limit(5)
       );
       
-      const transcriptionsUnsub = onSnapshot(transcriptionsQuery, (snapshot) => {
-        const transcriptionsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          formattedTime: formatTimestamp(doc.data().timestamp),
-        })) as Transcription[];
+      const soapNotesUnsub = onSnapshot(soapNotesQuery, (snapshot) => {
+        const soapData = snapshot.docs.map(doc => {
+          const d = doc.data();
+          // Build a short content preview from SOAP fields
+          const preview = d.subjective
+            ? (d.subjective as string).slice(0, 120) + ((d.subjective as string).length > 120 ? "..." : "")
+            : d.soap?.subjective
+              ? (d.soap.subjective as string).slice(0, 120)
+              : "SOAP note";
+          return {
+            id: doc.id,
+            patient: d.patientName || "Unknown Patient",
+            type: "SOAP" as const,
+            content: preview,
+            timestamp: d.createdAt || Timestamp.now(),
+            formattedTime: d.createdAt ? formatTimestamp(d.createdAt) : "just now",
+          };
+        }) as Transcription[];
         
         setData(prev => ({
           ...prev,
-          transcriptions: transcriptionsData.length > 0 ? transcriptionsData : prev.transcriptions,
-          mode: transcriptionsData.length > 0 ? "real" : prev.mode,
+          transcriptions: soapData.length > 0 ? soapData : prev.transcriptions,
+          mode: soapData.length > 0 ? "real" : prev.mode,
         }));
       }, (error) => {
-        // Check if it's a permissions error
         if (error.code === 'permission-denied' || error.message?.includes('Missing or insufficient permissions')) {
-          // Suppress permissions errors as we handle them gracefully by staying in demo mode
-          // console.log("Permissions error for transcriptions collection, staying in demo mode");
+          // Stay in demo mode silently
         } else {
-          // Log other errors
-          console.error("Transcriptions snapshot error:", error);
+          console.error("SOAP notes snapshot error:", error);
         }
       });
       
-      unsubscribes.push(transcriptionsUnsub);
+      unsubscribes.push(soapNotesUnsub);
+
+      // Also try fetching with "userId" field (used by SignatureAndPDF)
+      const soapNotesByUserIdQuery = query(
+        collection(db, "soapNotes"),
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc"),
+        limit(5)
+      );
+      
+      const soapNotesByUserIdUnsub = onSnapshot(soapNotesByUserIdQuery, (snapshot) => {
+        const soapData = snapshot.docs.map(doc => {
+          const d = doc.data();
+          const preview = d.soap?.subjective
+            ? (d.soap.subjective as string).slice(0, 120)
+            : d.transcript
+              ? (d.transcript as string).slice(0, 120)
+              : "SOAP note";
+          return {
+            id: doc.id,
+            patient: d.patientName || "Unknown Patient",
+            type: "SOAP" as const,
+            content: preview,
+            timestamp: d.createdAt || Timestamp.now(),
+            formattedTime: d.createdAt ? formatTimestamp(d.createdAt) : "just now",
+          };
+        }) as Transcription[];
+        
+        if (soapData.length > 0) {
+          setData(prev => {
+            // Merge with existing transcriptions, deduplicate by id
+            const existing = new Map(prev.transcriptions.map(t => [t.id, t]));
+            soapData.forEach(t => existing.set(t.id, t));
+            const merged = Array.from(existing.values())
+              .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))
+              .slice(0, 10);
+            return { ...prev, transcriptions: merged, mode: "real" };
+          });
+        }
+      }, (error) => {
+        if (error.code === 'permission-denied' || error.message?.includes('Missing or insufficient permissions')) {
+          // Stay in demo mode silently
+        } else {
+          console.error("SOAP notes (userId) snapshot error:", error);
+        }
+      });
+      
+      unsubscribes.push(soapNotesByUserIdUnsub);
 
       // Fetch analytics data
       const analyticsQuery = query(collection(db, "analytics"));

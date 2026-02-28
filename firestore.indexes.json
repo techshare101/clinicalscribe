@@ -18,6 +18,14 @@
       ]
     },
     {
+      "collectionGroup": "soapNotes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "pdfs",
       "queryScope": "COLLECTION",
       "fields": [
