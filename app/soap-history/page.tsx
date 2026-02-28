@@ -260,6 +260,16 @@ export default function SOAPHistoryPage() {
     }
   }
 
+  // Smart search: recognize category keywords and auto-apply filter
+  useEffect(() => {
+    const t = searchTerm.trim().toLowerCase()
+    if (t === 'flagged' || t === 'red flag') { setFilter('flagged'); setSearchTerm(''); return }
+    if (t === 'standard' || t === 'non-flagged' || t === 'normal') { setFilter('non-flagged'); setSearchTerm(''); return }
+    if (t === 'pdf ready' || t === 'pdf' || t === 'pdf available') { setFilter('pdf-available'); setSearchTerm(''); return }
+    if (t === 'all' || t === 'clear') { setFilter('all'); setSearchTerm(''); return }
+    if (isAdmin && (t === 'archived' || t === 'archive')) { setFilter('archived'); setSearchTerm(''); return }
+  }, [searchTerm, isAdmin])
+
   // Client-side filtering: status filter + patient name search
   const filteredNotes = soapNotes.filter(note => {
     // Archived filter (admin only)
@@ -270,13 +280,16 @@ export default function SOAPHistoryPage() {
     if (filter === 'flagged' && !isRedFlag(note.redFlag)) return false
     if (filter === 'non-flagged' && isRedFlag(note.redFlag)) return false
     if (filter === 'pdf-available' && !((note as any).storagePath || (note as any).pdf?.status === 'generated')) return false
-    // Search filter
+    // Search filter — search across patient name, ID, encounter type, and all SOAP sections
     if (searchTerm.trim().length >= 2) {
       const term = searchTerm.toLowerCase()
-      const nameMatch = (note.patientName || '').toLowerCase().includes(term)
-      const pidMatch = (note.patientId || '').toLowerCase().includes(term)
-      const assessmentMatch = (note.assessment || '').toLowerCase().includes(term)
-      if (!nameMatch && !pidMatch && !assessmentMatch) return false
+      const fields = [
+        note.patientName, note.patientId, note.assessment,
+        note.subjective, note.objective, note.plan,
+        (note as any).encounterType,
+      ]
+      const anyMatch = fields.some(f => (f || '').toLowerCase().includes(term))
+      if (!anyMatch) return false
     }
     return true
   })
@@ -340,21 +353,19 @@ export default function SOAPHistoryPage() {
               {/* Filter Buttons */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 {[
-                  { key: 'all', label: 'All', icon: FileText },
-                  { key: 'flagged', label: 'Flagged', icon: AlertTriangle },
-                  { key: 'non-flagged', label: 'Standard', icon: Sparkles },
-                  { key: 'pdf-available', label: 'PDF Ready', icon: Download },
-                  ...(isAdmin && archivedCount > 0 ? [{ key: 'archived', label: `Archived (${archivedCount})`, icon: Archive }] : []),
+                  { key: 'all', label: 'All', icon: FileText, activeClass: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm', inactiveClass: 'text-gray-600 hover:text-indigo-700 border-gray-200 hover:border-indigo-300' },
+                  { key: 'flagged', label: 'Flagged', icon: AlertTriangle, activeClass: 'bg-red-600 hover:bg-red-700 text-white shadow-sm', inactiveClass: 'text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 hover:bg-red-50' },
+                  { key: 'non-flagged', label: 'Standard', icon: Sparkles, activeClass: 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm', inactiveClass: 'text-amber-600 hover:text-amber-700 border-amber-200 hover:border-amber-300 hover:bg-amber-50' },
+                  { key: 'pdf-available', label: 'PDF Ready', icon: Download, activeClass: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm', inactiveClass: 'text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50' },
+                  ...(isAdmin && archivedCount > 0 ? [{ key: 'archived', label: `Archived (${archivedCount})`, icon: Archive, activeClass: 'bg-gray-700 hover:bg-gray-800 text-white shadow-sm', inactiveClass: 'text-gray-500 hover:text-gray-700 border-gray-300 hover:bg-gray-50' }] : []),
                 ].map((btn) => (
                   <Button
                     key={btn.key}
                     variant={filter === btn.key ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setFilter(btn.key as any)}
+                    onClick={() => { setFilter(btn.key as any); setSearchTerm('') }}
                     className={`text-xs h-8 rounded-lg ${
-                      filter === btn.key
-                        ? btn.key === 'archived' ? 'bg-gray-700 hover:bg-gray-800 text-white shadow-sm' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900 border-gray-200'
+                      filter === btn.key ? btn.activeClass : btn.inactiveClass
                     }`}
                   >
                     <btn.icon className="h-3 w-3 mr-1" />
