@@ -101,21 +101,30 @@ export function SOAPGenerator({
     };
   }, []);
 
-  // Update transcript when initialTranscript prop changes
+  // Sync props to internal state unconditionally so parent changes always flow through
   useEffect(() => {
-    if (initialTranscript) {
-      setTranscript(initialTranscript);
-    }
-    if (initialRawTranscript) {
-      setRawTranscript(initialRawTranscript);
-    }
-    if (patientLang) {
-      setPatientLanguage(patientLang);
-    }
-    if (docLang) {
-      setDocumentationLanguage(docLang);
-    }
-  }, [initialTranscript, initialRawTranscript, patientLang, docLang]);
+    setTranscript(initialTranscript);
+  }, [initialTranscript]);
+
+  useEffect(() => {
+    setRawTranscript(initialRawTranscript);
+  }, [initialRawTranscript]);
+
+  useEffect(() => {
+    setPatientNameInput(patientName);
+  }, [patientName]);
+
+  useEffect(() => {
+    setEncounterTypeInput(encounterType);
+  }, [encounterType]);
+
+  useEffect(() => {
+    if (patientLang) setPatientLanguage(patientLang);
+  }, [patientLang]);
+
+  useEffect(() => {
+    if (docLang) setDocumentationLanguage(docLang);
+  }, [docLang]);
 
   // Load SOAP note from localStorage on component mount
   useEffect(() => {
