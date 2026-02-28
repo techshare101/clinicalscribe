@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { SOAPGenerator } from '@/components/SOAPGenerator';
@@ -16,8 +15,6 @@ import {
   Sparkles,
   ArrowRight,
   CheckCircle,
-  Brain,
-  Clipboard,
   Trash2,
   AlertTriangle
 } from 'lucide-react';
@@ -45,6 +42,9 @@ const sampleTranscripts = [
 
 export default function SOAPPage() {
   const [selectedTranscript, setSelectedTranscript] = useState('');
+  const [selectedRawTranscript, setSelectedRawTranscript] = useState('');
+  const [selectedPatientLang, setSelectedPatientLang] = useState('');
+  const [selectedDocLang, setSelectedDocLang] = useState('');
   const [manualTranscript, setManualTranscript] = useState(''); // For manual entry
   const [selectedPatient, setSelectedPatient] = useState('');
   const [selectedType, setSelectedType] = useState('');
@@ -94,8 +94,11 @@ export default function SOAPPage() {
     setManualTranscript(''); // Clear manual transcript when loading sample
   };
 
-  const handleTranscriptGenerated = (transcript: string) => {
+  const handleTranscriptGenerated = (transcript: string, rawTranscript?: string, patientLang?: string, docLang?: string) => {
     setSelectedTranscript(transcript);
+    if (rawTranscript) setSelectedRawTranscript(rawTranscript);
+    if (patientLang) setSelectedPatientLang(patientLang);
+    if (docLang) setSelectedDocLang(docLang);
     setSelectedPatient('');
     setSelectedType('Live Recording');
     setManualTranscript(''); // Clear manual transcript when recording
@@ -103,6 +106,9 @@ export default function SOAPPage() {
 
   const clearAllData = () => {
     setSelectedTranscript('');
+    setSelectedRawTranscript('');
+    setSelectedPatientLang('');
+    setSelectedDocLang('');
     setManualTranscript('');
     setSelectedPatient('');
     setSelectedType('');
@@ -114,276 +120,230 @@ export default function SOAPPage() {
   const activeTranscript = manualTranscript || selectedTranscript;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="min-h-screen bg-gray-50/80">
+      <div className="container mx-auto px-4 py-6 max-w-5xl space-y-5">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
+          className="relative overflow-hidden rounded-2xl shadow-sm"
         >
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl">
-              <Stethoscope className="h-8 w-8 text-white" />
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-800" />
+          <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+          <div className="relative z-10 px-6 py-5 text-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/20 rounded-xl">
+                  <Stethoscope className="h-6 w-6" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-semibold">SOAP Note Generator</h1>
+                  <p className="text-white/70 text-sm">Transform transcripts into structured clinical documentation</p>
+                </div>
+              </div>
+              <Button
+                onClick={clearAllData}
+                variant="outline"
+                size="sm"
+                className="border-white/30 text-white hover:bg-white/10 bg-transparent"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Clear All
+              </Button>
             </div>
-            <h1 className="text-4xl font-bold text-blue-900 dark:text-blue-100">
-              AI SOAP Note Generator
-            </h1>
           </div>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Transform medical transcripts into structured clinical documentation using advanced AI
-          </p>
         </motion.div>
 
         {/* Restoration Warning */}
         {restored && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2"
-          >
-            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
-            <div className="text-sm text-amber-800">
-              <span className="font-medium">Restored saved SOAP data</span> - Data was automatically restored from your previous session. 
-              Clear manually before starting a new session.
-            </div>
-          </motion.div>
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+            <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+            <span className="text-sm text-amber-800">
+              <span className="font-medium">Session restored</span> — Clear before starting a new encounter.
+            </span>
+          </div>
         )}
 
-        {/* Manual Transcript Entry */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-12"
-        >
-          <Card className="border-2 border-dashed border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-blue-900">
-                    <FileText className="h-5 w-5" />
-                    Manual Transcript Entry
-                  </CardTitle>
-                  <CardDescription>
-                    Type or paste your medical transcript directly
-                  </CardDescription>
-                </div>
-                <Button
-                  onClick={clearAllData}
-                  variant="outline"
-                  size="sm"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Clear All
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="manual-transcript">Patient Transcript</Label>
-                  <Textarea
-                    id="manual-transcript"
-                    value={manualTranscript}
-                    onChange={(e) => setManualTranscript(e.target.value)}
-                    placeholder="Type or paste your patient transcript here..."
-                    className="min-h-[120px]"
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="manual-patient">Patient Name</Label>
+        {/* Input Section: Manual + Recording side by side on large screens */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Manual Transcript Entry */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="h-full bg-white border border-gray-200/80 shadow-sm rounded-2xl overflow-hidden relative">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-t-2xl" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-gray-900 text-base font-semibold">
+                  <FileText className="h-4 w-4 text-blue-600" />
+                  Manual Transcript
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Type or paste your medical transcript
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Textarea
+                  value={manualTranscript}
+                  onChange={(e) => setManualTranscript(e.target.value)}
+                  placeholder="Type or paste your patient transcript here..."
+                  className="min-h-[140px] resize-none border-gray-200 focus:border-blue-300 focus:ring-blue-200"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-gray-600">Patient Name</Label>
                     <input
-                      id="manual-patient"
                       value={selectedPatient}
                       onChange={(e) => setSelectedPatient(e.target.value)}
                       placeholder="Enter patient name"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="manual-type">Encounter Type</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-gray-600">Encounter Type</Label>
                     <input
-                      id="manual-type"
                       value={selectedType}
                       onChange={(e) => setSelectedType(e.target.value)}
                       placeholder="e.g., Initial Consultation"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
                     />
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-        {/* Live Recording Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-12"
-        >
-          <Card className="border-2 border-dashed border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-900">
-                <Mic className="h-5 w-5" />
-                Live Audio Recording
-              </CardTitle>
-              <CardDescription>
-                Record medical consultations in real-time and get instant transcriptions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Recorder onTranscriptGenerated={handleTranscriptGenerated} />
-            </CardContent>
-          </Card>
-        </motion.div>
+          {/* Live Recording Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="h-full bg-white border border-gray-200/80 shadow-sm rounded-2xl overflow-hidden relative">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-t-2xl" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-gray-900 text-base font-semibold">
+                  <Mic className="h-4 w-4 text-emerald-600" />
+                  Live Audio Recording
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Record consultations and get instant transcriptions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Recorder onTranscriptGenerated={handleTranscriptGenerated} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
 
-        {/* Sample Transcripts */}
+        {/* Sample Transcripts — compact collapsible */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mb-12"
         >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Sample Medical Transcripts
-              </CardTitle>
-              <CardDescription>
-                Try these sample transcripts to see how the SOAP generator works
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {sampleTranscripts.map((sample) => (
-                  <Card key={sample.id} className="border border-gray-200 hover:border-blue-300 transition-colors">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium">{sample.patient}</CardTitle>
-                        <Badge variant="secondary" className="text-xs">
-                          {sample.type}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-xs text-gray-600 mb-3 line-clamp-3">
-                        {sample.transcript.substring(0, 120)}...
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => loadSampleTranscript(sample)}
-                        className="w-full flex items-center gap-2"
-                      >
-                        Load Sample
-                        <ArrowRight className="h-3 w-3" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+          <details className="group">
+            <summary className="flex items-center justify-between cursor-pointer px-5 py-3.5 bg-white border border-gray-200/80 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="h-4 w-4 text-indigo-500" />
+                <span className="text-sm font-semibold text-gray-900">Sample Transcripts</span>
+                <span className="text-xs text-gray-500">— Try a demo to see how it works</span>
               </div>
-            </CardContent>
-          </Card>
+              <ArrowRight className="h-4 w-4 text-gray-400 group-open:rotate-90 transition-transform" />
+            </summary>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+              {sampleTranscripts.map((sample) => (
+                <button
+                  key={sample.id}
+                  onClick={() => loadSampleTranscript(sample)}
+                  className="text-left p-4 bg-white border border-gray-200/80 rounded-xl hover:border-indigo-300 hover:shadow-md transition-all group/card"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-gray-900">{sample.patient}</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-indigo-50 text-indigo-600">
+                      {sample.type}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 line-clamp-2 mb-2.5 leading-relaxed">
+                    {sample.transcript.substring(0, 100)}...
+                  </p>
+                  <span className="text-xs font-medium text-indigo-600 flex items-center gap-1 group-hover/card:gap-2 transition-all">
+                    Load Sample
+                    <ArrowRight className="h-3 w-3" />
+                  </span>
+                </button>
+              ))}
+            </div>
+          </details>
         </motion.div>
 
         {/* SOAP Generator */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.0, duration: 0.6 }}
-          className="mb-12"
+          transition={{ delay: 0.4 }}
         >
-          <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
-            <div className="bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                  <Brain className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-white">AI SOAP Generator</h3>
-                  <p className="text-gray-300">Transform transcripts into clinical documentation</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-8">
+          <Card className="bg-white border border-gray-200/80 shadow-sm rounded-2xl overflow-hidden relative">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 rounded-t-2xl" />
+            <CardContent className="p-6">
               <SOAPGenerator
                 initialTranscript={activeTranscript}
+                initialRawTranscript={selectedRawTranscript}
                 patientName={selectedPatient}
                 encounterType={selectedType}
+                patientLang={selectedPatientLang || undefined}
+                docLang={selectedDocLang || undefined}
               />
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </motion.div>
 
-        {/* Clinical Guidelines */}
+        {/* Clinical Guidelines — compact footer */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2, duration: 0.6 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="pb-4"
         >
-          <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-amber-200/50 overflow-hidden">
-            <div className="bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 p-8">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="p-3 bg-amber-500/20 rounded-xl">
-                  <CheckCircle className="h-6 w-6 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-amber-900">Clinical Documentation Guidelines</h3>
-                  <p className="text-amber-700">Best practices for professional medical documentation</p>
-                </div>
+          <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle className="h-4 w-4 text-amber-500" />
+              <h3 className="text-sm font-semibold text-gray-900">Documentation Guidelines</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">SOAP Format</h4>
+                {[
+                  { letter: "S", label: "Subjective", desc: "Patient's reported symptoms" },
+                  { letter: "O", label: "Objective", desc: "Observable findings" },
+                  { letter: "A", label: "Assessment", desc: "Clinical interpretation" },
+                  { letter: "P", label: "Plan", desc: "Treatment & follow-up" }
+                ].map((item) => (
+                  <div key={item.letter} className="flex items-center gap-2.5">
+                    <span className="w-5 h-5 bg-indigo-100 text-indigo-700 rounded flex items-center justify-center text-[10px] font-bold shrink-0">
+                      {item.letter}
+                    </span>
+                    <span className="text-xs text-gray-700">
+                      <span className="font-semibold">{item.label}</span> — {item.desc}
+                    </span>
+                  </div>
+                ))}
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-amber-200/30">
-                  <h4 className="font-black text-amber-900 mb-4 flex items-center gap-2">
-                    <span className="text-lg">📋</span>
-                    SOAP Format
-                  </h4>
-                  <div className="space-y-3">
-                    {[
-                      { label: "Subjective", desc: "Patient's reported symptoms and concerns" },
-                      { label: "Objective", desc: "Observable findings and measurements" },
-                      { label: "Assessment", desc: "Clinical interpretation and diagnosis" },
-                      { label: "Plan", desc: "Treatment plan and follow-up instructions" }
-                    ].map((item, index) => (
-                      <div key={index} className="flex gap-3">
-                        <div className="w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                          {item.label[0]}
-                        </div>
-                        <div>
-                          <span className="font-bold text-amber-900">{item.label}:</span>
-                          <span className="text-amber-800 ml-2">{item.desc}</span>
-                        </div>
-                      </div>
-                    ))}
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Best Practices</h4>
+                {[
+                  "Use clear, professional medical terminology",
+                  "Include relevant vital signs and measurements",
+                  "Document patient's exact words when relevant",
+                  "Always review and verify AI-generated content"
+                ].map((practice, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                    <span className="text-xs text-gray-600">{practice}</span>
                   </div>
-                </div>
-                
-                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-amber-200/30">
-                  <h4 className="font-black text-amber-900 mb-4 flex items-center gap-2">
-                    <span className="text-lg">⭐</span>
-                    Best Practices
-                  </h4>
-                  <div className="space-y-2">
-                    {[
-                      "Use clear, professional medical terminology",
-                      "Include relevant vital signs and measurements",
-                      "Document patient's exact words when relevant",
-                      "Always review and verify AI-generated content"
-                    ].map((practice, index) => (
-                      <div key={index} className="flex items-start gap-2">
-                        <CheckCircle className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                        <span className="text-amber-800 text-sm font-medium">{practice}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
