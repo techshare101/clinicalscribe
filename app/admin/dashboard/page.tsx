@@ -6,9 +6,11 @@ import DemoAccountsAdmin from "@/components/DemoAccountsAdmin";
 import RoleManagementPanel from "@/components/RoleManagementPanel";
 import SeedSOAPHistoryDemo from "@/components/SeedSOAPHistoryDemo";
 import HealthcheckWidget from "@/components/HealthcheckWidget";
+import OrganizationPanel from "@/components/OrganizationPanel";
 import { useUserRole } from "@/hooks/useUserRole";
 import { withRoleGuard } from "@/lib/withRoleGuard";
 import { 
+  Building2,
   CreditCard, 
   FileText, 
   Users, 
@@ -54,6 +56,12 @@ function AdminDashboardContent() {
       label: "Role Management",
       icon: Users,
       visible: true, // Both can see, but nurse-admin is view-only
+    },
+    {
+      id: "organization",
+      label: "Organization",
+      icon: Building2,
+      visible: true, // Both admin types can manage their org
     },
   ].filter(tab => tab.visible);
 
@@ -237,6 +245,16 @@ function AdminDashboardContent() {
                 exit={{ opacity: 0, x: -20 }}
               >
                 <RoleManagementPanel />
+              </motion.div>
+            )}
+
+            {activeTab === "organization" && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <OrganizationPanel />
               </motion.div>
             )}
           </div>
