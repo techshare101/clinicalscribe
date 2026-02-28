@@ -52,10 +52,9 @@ export function LoginPageContent() {
       await setSession(idToken);
       console.log(`✅ Login: Session set successfully, redirecting to ${redirectPath}`);
       
-      // Refresh the router cache so server components re-evaluate the new session cookie,
-      // then replace (not push) so the user can't "back" into the login form.
-      router.refresh();
-      router.replace(redirectPath);
+      // Hard redirect so the browser picks up the new session + role cookies.
+      // router.refresh() + router.replace() can hang in Next.js 15.
+      window.location.href = redirectPath;
     } catch (err: any) {
       console.error('❌ Login: Error occurred:', err);
       
