@@ -229,596 +229,356 @@ export default function SettingsPageInner() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
-          <div className="absolute inset-0 animate-ping rounded-full h-16 w-16 border-2 border-blue-400 opacity-20"></div>
-        </div>
+      <div className="min-h-screen bg-gray-50/80 dark:bg-gray-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 dark:border-gray-700 border-t-blue-600 dark:border-t-blue-400" />
       </div>
     )
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 p-12">
-          <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 rounded-3xl mx-auto mb-6 flex items-center justify-center">
-            <XCircleIcon className="h-10 w-10 text-white" />
+      <div className="min-h-screen bg-gray-50/80 dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm p-8">
+          <div className="w-12 h-12 bg-red-100 dark:bg-red-900/40 rounded-xl mx-auto mb-4 flex items-center justify-center">
+            <XCircleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
           </div>
-          <h1 className="text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-4">Access Denied</h1>
-          <p className="text-gray-600 text-lg">Please log in to access your settings.</p>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">Access Denied</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Please log in to access your settings.</p>
         </div>
       </div>
     )
   }
 
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: UserIcon, gradient: 'from-blue-500 to-indigo-600' },
-    { id: 'subscription', label: 'Subscription', icon: CreditCardIcon, gradient: 'from-emerald-500 to-green-600' },
-    { id: 'security', label: 'Security', icon: ShieldCheckIcon, gradient: 'from-orange-500 to-red-600' },
-    { id: 'notifications', label: 'Notifications', icon: BellIcon, gradient: 'from-purple-500 to-pink-600' }
+    { id: 'profile', label: 'Profile', icon: UserIcon, iconBg: 'bg-blue-100 dark:bg-blue-900/40', iconColor: 'text-blue-600 dark:text-blue-400' },
+    { id: 'subscription', label: 'Subscription', icon: CreditCardIcon, iconBg: 'bg-emerald-100 dark:bg-emerald-900/40', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+    { id: 'security', label: 'Security', icon: ShieldCheckIcon, iconBg: 'bg-orange-100 dark:bg-orange-900/40', iconColor: 'text-orange-600 dark:text-orange-400' },
+    { id: 'notifications', label: 'Notifications', icon: BellIcon, iconBg: 'bg-purple-100 dark:bg-purple-900/40', iconColor: 'text-purple-600 dark:text-purple-400' }
   ]
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Floating Background Elements */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-blue-300/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-purple-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-indigo-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
-      </div>
+  const inputClasses = "w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 dark:focus:ring-blue-400/40 dark:focus:border-blue-400 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
 
-      {/* Animated Success Banner */}
+  return (
+    <div className="min-h-screen bg-gray-50/80 dark:bg-gray-950">
+      {/* Success Banner */}
       <AnimatePresence>
         {showSuccessBanner && (
           <motion.div
-            initial={{ opacity: 0, y: -50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -50, scale: 0.95 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 400, 
-              damping: 25,
-              duration: 0.6 
-            }}
-            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-2xl border-b-4 border-green-400"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-emerald-600 text-white"
           >
-            <div className="max-w-4xl mx-auto px-4 py-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <motion.div
-                    initial={{ rotate: 0, scale: 1 }}
-                    animate={{ 
-                      rotate: [0, 15, -15, 0], 
-                      scale: [1, 1.2, 1.1, 1] 
-                    }}
-                    transition={{ duration: 1.5, repeat: 3 }}
-                    className="text-4xl"
-                  >
-                    🎉
-                  </motion.div>
-                  <div>
-                    <motion.h3 
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.3 }}
-                      className="text-2xl font-bold"
-                    >
-                      Subscription Activated — Welcome to Pro!
-                    </motion.h3>
-                    <motion.p 
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.5 }}
-                      className="text-green-100 text-base mt-1"
-                    >
-                      Your premium features are now unlocked and ready to use. Start creating unlimited SOAP notes!
-                    </motion.p>
-                  </div>
+            <div className="container mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CheckCircleIcon className="w-5 h-5" />
+                <div>
+                  <p className="text-sm font-bold">Subscription Activated — Welcome to Pro!</p>
+                  <p className="text-xs text-emerald-100">Your premium features are now unlocked.</p>
                 </div>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setShowSuccessBanner(false)}
-                  className="text-white hover:text-green-200 transition-colors p-2 rounded-full hover:bg-green-600"
-                >
-                  <XCircleIcon className="w-6 h-6" />
-                </motion.button>
               </div>
+              <button onClick={() => setShowSuccessBanner(false)} className="text-white/70 hover:text-white p-1">
+                <XCircleIcon className="w-4 h-4" />
+              </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="relative container mx-auto py-8 px-4 max-w-7xl">
-        {/* Header */}
+      <div className="container mx-auto px-4 py-8 max-w-5xl space-y-5">
+        {/* Hero Header */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="text-center mb-12"
+          className="relative rounded-2xl shadow-xl overflow-hidden"
         >
-          <motion.div 
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.8, type: "spring", bounce: 0.6 }}
-            className="flex items-center justify-center gap-4 mb-6"
-          >
-            <div className="relative">
-              <div className="p-4 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-700 rounded-3xl shadow-2xl ring-4 ring-indigo-200/50">
-                <Settings className="h-10 w-10 text-white drop-shadow-lg" />
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-700" />
+          <div className="absolute top-0 right-0 w-72 h-72 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-2xl" />
+          <div className="absolute bottom-0 left-0 w-56 h-56 bg-pink-400/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl" />
+
+          <div className="relative px-6 py-6 text-white">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl ring-1 ring-white/25 shadow-lg">
+                  <Settings className="h-6 w-6 drop-shadow" />
+                </div>
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-extrabold leading-tight tracking-tight drop-shadow-sm">Account Settings</h1>
+                  <p className="text-purple-100/70 text-xs sm:text-sm mt-0.5 font-medium">Customize your ClinicalScribe experience</p>
+                </div>
               </div>
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full border-2 border-white animate-pulse" />
-            </div>
-            <div className="text-left">
-              <h1 className="text-5xl font-black bg-gradient-to-r from-gray-900 via-indigo-800 to-purple-900 bg-clip-text text-transparent drop-shadow-sm">
-                Account Settings
-              </h1>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0 shadow-lg">
-                  <UserIcon className="h-3 w-3 mr-1" />
-                  Profile
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className="bg-white/20 text-white border-white/25 text-[10px] shadow-sm backdrop-blur-sm">
+                  <UserIcon className="h-3 w-3 mr-1" /> Profile
                 </Badge>
-                <Badge className="bg-gradient-to-r from-purple-500 to-pink-600 text-white border-0 shadow-lg">
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  Personalization
+                <Badge className="bg-white/20 text-white border-white/25 text-[10px] shadow-sm backdrop-blur-sm">
+                  <Sparkles className="h-3 w-3 mr-1" /> Personalization
                 </Badge>
                 {profile.betaActive && (
-                  <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0 shadow-lg">
-                    <Crown className="h-3 w-3 mr-1" />
-                    Pro Member
+                  <Badge className="bg-white/20 text-white border-white/25 text-[10px] shadow-sm backdrop-blur-sm">
+                    <Crown className="h-3 w-3 mr-1" /> Pro Member
                   </Badge>
                 )}
+                <button onClick={handleLogout} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm rounded-lg text-white text-xs font-semibold transition-all border border-white/20">
+                  <LogOut className="h-3 w-3" /> Sign Out
+                </button>
               </div>
             </div>
-          </motion.div>
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed"
-          >
-            Manage your account preferences, security settings, and 
-            <span className="font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">subscription details</span>
-          </motion.p>
+          </div>
         </motion.div>
 
-        {/* Main Container */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.8 }}
-          className="relative group"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 via-indigo-400/10 to-purple-400/10 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl hover:shadow-3xl border border-white/50 transition-all duration-500 overflow-hidden">
-            
-            {/* Header with Gradient */}
-            <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-700 p-8 relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16 animate-pulse" />
-                <div className="absolute bottom-0 right-0 w-40 h-40 bg-white rounded-full translate-x-20 translate-y-20 animate-pulse" style={{ animationDelay: '1s' }} />
-              </div>
-              
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <motion.div
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ duration: 0.6, delay: 0.8 }}
-                    className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl ring-2 ring-white/30"
-                  >
-                    <Settings className="h-8 w-8 text-white" />
-                  </motion.div>
-                  <div>
-                    <h1 className="text-3xl font-black text-white">Account Settings</h1>
-                    <p className="text-indigo-100 font-medium text-lg">Customize your ClinicalScribe experience</p>
-                  </div>
-                </div>
-                
-                {/* Logout Button */}
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-6 py-3 bg-white/20 backdrop-blur-sm rounded-2xl text-white font-semibold hover:bg-white/30 transition-all duration-300 ring-2 ring-white/30 hover:ring-white/50"
-                >
-                  <LogOut className="h-5 w-5" />
-                  Sign Out
-                </motion.button>
-              </div>
+        {/* Main Layout */}
+        <div className="flex flex-col md:flex-row gap-5">
+          {/* Sidebar */}
+          <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="w-full md:w-56 shrink-0">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm p-3 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-400 to-purple-500 rounded-t-2xl" />
+              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-2 pt-2 pb-2">Settings Menu</p>
+              <nav className="space-y-1">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                        activeTab === tab.id
+                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                          : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-700 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      <span className={`w-7 h-7 rounded-lg ${activeTab === tab.id ? tab.iconBg : 'bg-gray-100 dark:bg-gray-800'} flex items-center justify-center`}>
+                        <Icon className={`w-3.5 h-3.5 ${activeTab === tab.id ? tab.iconColor : 'text-gray-400 dark:text-gray-500'}`} />
+                      </span>
+                      {tab.label}
+                      {activeTab === tab.id && <motion.div layoutId="settingsTab" className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                    </button>
+                  )
+                })}
+              </nav>
             </div>
+          </motion.div>
 
-            <div className="flex">
-              {/* Sidebar Navigation */}
-              <div className="w-80 border-r border-gray-200/50 bg-white/50 backdrop-blur-sm">
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                    <Settings className="w-5 h-5" />
-                    Settings Menu
-                  </h2>
-                  <nav className="space-y-2">
-                    {tabs.map((tab) => {
-                      const Icon = tab.icon
-                      return (
-                        <motion.button
-                          key={tab.id}
-                          whileHover={{ x: 4 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => setActiveTab(tab.id)}
-                          className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all duration-300 ${
-                            activeTab === tab.id 
-                              ? 'bg-gradient-to-r from-white to-white/80 text-gray-900 shadow-lg border border-white' 
-                              : 'text-gray-700 hover:bg-white/70 hover:shadow-md border border-gray-200/50'
-                          }`}
-                        >
-                          <div className={`p-2 rounded-xl transition-colors ${
-                            activeTab === tab.id 
-                              ? 'bg-white/20' 
-                              : 'bg-gray-100 group-hover:bg-gray-200'
+          {/* Content Area */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="flex-1 min-w-0">
+            <AnimatePresence mode="wait">
+              {/* PROFILE TAB */}
+              {activeTab === 'profile' && (
+                <motion.div key="profile" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}
+                  className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-2xl" />
+                  <div className="p-5">
+                    <div className="flex items-center gap-2.5 mb-5">
+                      <span className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                        <UserIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </span>
+                      <div>
+                        <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Profile Information</h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Update your personal details and preferences</p>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 mb-1.5">
+                          <span className="w-2 h-2 bg-blue-500 rounded-full" /> Display Name
+                        </label>
+                        <input type="text" value={formData.displayName} onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))} className={inputClasses} placeholder="e.g. John Doe (optional)" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 mb-1.5">
+                          <Mail className="w-3 h-3 text-gray-400" /> Email Address
+                        </label>
+                        <input type="email" value={formData.email} disabled className={`${inputClasses} bg-gray-50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-500 cursor-not-allowed`} />
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" /> Email cannot be changed for security reasons
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 mb-1.5">
+                          <Crown className="w-3 h-3 text-amber-500" /> Account Status
+                        </label>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge className={`text-[10px] px-2 py-0.5 font-bold border-0 ${
+                            profile.role === 'system-admin' ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white'
+                              : profile.role === 'nurse-admin' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white'
+                              : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
                           }`}>
-                            <Icon className="w-5 h-5" />
-                          </div>
-                          <span className="font-semibold">{tab.label}</span>
-                          {activeTab === tab.id && (
-                            <motion.div
-                              layoutId="activeTab"
-                              className="ml-auto w-2 h-2 bg-white rounded-full"
-                              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                            />
-                          )}
-                        </motion.button>
-                      )
-                    })}
-                  </nav>
-                </div>
-              </div>
-
-              {/* Enhanced Content Area */}
-              <div className="flex-1 p-10">
-                <AnimatePresence mode="wait">
-                  {activeTab === 'profile' && (
-                    <motion.div
-                      key="profile"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.3 }}
-                      className="space-y-8"
-                    >
-                      <div className="flex items-center gap-4 mb-8">
-                        <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl">
-                          <UserIcon className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-black text-gray-900">Profile Information</h2>
-                          <p className="text-gray-600">Update your personal details and preferences</p>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 gap-8">
-                        <div className="space-y-3">
-                          <label className="block text-sm font-bold text-gray-900 flex items-center gap-2">
-                            <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-                            Display Name
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.displayName}
-                            onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-white/70 backdrop-blur-sm"
-                            placeholder="Enter your display name"
-                          />
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <label className="block text-sm font-bold text-gray-900 flex items-center gap-2">
-                            <Mail className="w-4 h-4 text-gray-500" />
-                            Email Address
-                          </label>
-                          <input
-                            type="email"
-                            value={formData.email}
-                            disabled
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl bg-gray-50/70 backdrop-blur-sm text-gray-500 cursor-not-allowed"
-                          />
-                          <p className="text-sm text-gray-500 flex items-center gap-1">
-                            <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
-                            Email cannot be changed for security reasons
-                          </p>
-                        </div>
-
-                        <div className="space-y-3">
-                          <label className="block text-sm font-bold text-gray-900 flex items-center gap-2">
-                            <Crown className="w-4 h-4 text-amber-500" />
-                            Account Status
-                          </label>
-                          <div className="flex items-center gap-3">
-                            <Badge className={`px-4 py-2 text-sm font-bold border-0 ${
-                              profile.role === 'system-admin' 
-                                ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white' 
-                                : profile.role === 'nurse-admin'
-                                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white'
-                                : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
-                            }`}>
-                              {profile.role === 'system-admin' ? '👑 System Administrator' : profile.role === 'nurse-admin' ? '🏥 Nurse Administrator' : '👤 Nurse'}
-                            </Badge>
-                            {profile.betaActive && (
-                              <Badge className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0">
-                                ✨ Beta Access Active
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Language Preference */}
-                        <div className="space-y-3">
-                          <label className="block text-sm font-bold text-gray-900 flex items-center gap-2">
-                            <span className="w-3 h-3 bg-purple-500 rounded-full"></span>
-                            Preferred Language
-                          </label>
-                          <select
-                            value={profile.languagePref || "en"}
-                            onChange={async (e) => {
-                              if (auth.currentUser) {
-                                setSaving(true);
-                                try {
-                                  await updateDoc(doc(db, "profiles", auth.currentUser.uid), {
-                                    languagePref: e.target.value,
-                                    updatedAt: new Date()
-                                  });
-                                  // Update local state to reflect the change
-                                  setFormData(prev => ({ ...prev }));
-                                  setMessage({ type: 'success', text: 'Language preference updated successfully!' });
-                                  
-                                  // Navigate back to the previous page after a short delay
-                                  setTimeout(() => {
-                                    router.back();
-                                  }, 1500);
-                                } catch (error) {
-                                  console.error('Error updating language preference:', error);
-                                  setMessage({ type: 'error', text: 'Failed to update language preference. Please try again.' });
-                                } finally {
-                                  setSaving(false);
-                                }
-                              }
-                            }}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 bg-white/70 backdrop-blur-sm"
-                          >
-                            {patientLanguages.map((lang) => (
-                              <option key={lang.code} value={lang.code}>
-                                {lang.flag} {lang.name}
-                              </option>
-                            ))}
-                          </select>
-                          <p className="text-sm text-gray-500">
-                            Select your preferred language for clinical notes and interface text.
-                          </p>
-                        </div>
-                      </div>
-
-                      <motion.button
-                        onClick={handleSaveProfile}
-                        disabled={saving}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        <SaveIcon className="w-5 h-5" />
-                        {saving ? 'Saving Changes...' : 'Save Changes'}
-                      </motion.button>
-                    </motion.div>
-                  )}
-
-                  {activeTab === 'security' && (
-                    <motion.div
-                      key="security"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.3 }}
-                      className="space-y-8"
-                    >
-                      <div className="flex items-center gap-4 mb-8">
-                        <div className="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl">
-                          <Key className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-black text-gray-900">Security Settings</h2>
-                          <p className="text-gray-600">Update your password and security preferences</p>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 gap-8 max-w-lg">
-                        <div className="space-y-3">
-                          <label className="block text-sm font-bold text-gray-900 flex items-center gap-2">
-                            <span className="w-3 h-3 bg-orange-500 rounded-full"></span>
-                            Current Password
-                          </label>
-                          <input
-                            type="password"
-                            value={formData.currentPassword}
-                            onChange={(e) => setFormData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white/70 backdrop-blur-sm"
-                            placeholder="Enter current password"
-                          />
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <label className="block text-sm font-bold text-gray-900 flex items-center gap-2">
-                            <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                            New Password
-                          </label>
-                          <input
-                            type="password"
-                            value={formData.newPassword}
-                            onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 bg-white/70 backdrop-blur-sm"
-                            placeholder="Enter new password"
-                          />
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <label className="block text-sm font-bold text-gray-900 flex items-center gap-2">
-                            <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-                            Confirm New Password
-                          </label>
-                          <input
-                            type="password"
-                            value={formData.confirmPassword}
-                            onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-white/70 backdrop-blur-sm"
-                            placeholder="Confirm new password"
-                          />
-                        </div>
-                      </div>
-
-                      <motion.button
-                        onClick={handleChangePassword}
-                        disabled={saving || !formData.currentPassword || !formData.newPassword || !formData.confirmPassword}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-2xl hover:from-orange-700 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        <Key className="w-5 h-5" />
-                        {saving ? 'Updating Password...' : 'Update Password'}
-                      </motion.button>
-                    </motion.div>
-                  )}
-
-                  {activeTab === 'subscription' && (
-                    <motion.div
-                      key="subscription"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.3 }}
-                      className="space-y-8"
-                    >
-                      <div className="flex items-center gap-4 mb-8">
-                        <div className="p-3 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl">
-                          <CreditCardIcon className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-black text-gray-900">Subscription Plan</h2>
-                          <p className="text-gray-600">Manage your subscription and billing information</p>
-                        </div>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-200 rounded-3xl p-8">
-                        <div className="flex items-center justify-between mb-6">
-                          <div>
-                            <h3 className="text-2xl font-black bg-gradient-to-r from-emerald-800 to-green-700 bg-clip-text text-transparent">
-                              ClinicalScribe Pro
-                            </h3>
-                            <p className="text-emerald-700 font-medium">Beta Access • Unlimited Usage</p>
-                          </div>
-                          <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white text-lg px-4 py-2 border-0 shadow-lg">
-                            ✨ Active
+                            {profile.role === 'system-admin' ? 'System Administrator' : profile.role === 'nurse-admin' ? 'Nurse Administrator' : 'Nurse'}
                           </Badge>
+                          {profile.betaActive && (
+                            <Badge className="text-[10px] px-2 py-0.5 font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0">Beta Access Active</Badge>
+                          )}
                         </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 mb-1.5">
+                          <span className="w-2 h-2 bg-purple-500 rounded-full" /> Preferred Language
+                        </label>
+                        <select
+                          value={profile.languagePref || "en"}
+                          onChange={async (e) => {
+                            if (auth.currentUser) {
+                              setSaving(true);
+                              try {
+                                await updateDoc(doc(db, "profiles", auth.currentUser.uid), { languagePref: e.target.value, updatedAt: new Date() });
+                                setFormData(prev => ({ ...prev }));
+                                setMessage({ type: 'success', text: 'Language preference updated successfully!' });
+                                setTimeout(() => { router.back(); }, 1500);
+                              } catch (error) {
+                                console.error('Error updating language preference:', error);
+                                setMessage({ type: 'error', text: 'Failed to update language preference. Please try again.' });
+                              } finally { setSaving(false); }
+                            }
+                          }}
+                          className={inputClasses}
+                        >
+                          {patientLanguages.map((lang) => (<option key={lang.code} value={lang.code}>{lang.flag} {lang.name}</option>))}
+                        </select>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Select your preferred language for clinical notes and interface text.</p>
+                      </div>
+                    </div>
+                    {message && (
+                      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                        className={`mt-4 flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg ${message.type === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'}`}>
+                        {message.type === 'success' ? <CheckCircleIcon className="w-3.5 h-3.5" /> : <XCircleIcon className="w-3.5 h-3.5" />}
+                        {message.text}
+                      </motion.div>
+                    )}
+                    <button onClick={handleSaveProfile} disabled={saving}
+                      className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all disabled:opacity-50">
+                      <SaveIcon className="w-4 h-4" />
+                      {saving ? 'Saving...' : 'Save Changes'}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                          <div className="space-y-4">
-                            <h4 className="font-bold text-emerald-900 text-lg">Features Included</h4>
-                            <ul className="space-y-3">
-                              <li className="flex items-center gap-3">
-                                <CheckCircleIcon className="w-5 h-5 text-emerald-600" />
-                                <span className="text-emerald-800">Unlimited SOAP Notes</span>
-                              </li>
-                              <li className="flex items-center gap-3">
-                                <CheckCircleIcon className="w-5 h-5 text-emerald-600" />
-                                <span className="text-emerald-800">Real-time Transcription</span>
-                              </li>
-                              <li className="flex items-center gap-3">
-                                <CheckCircleIcon className="w-5 h-5 text-emerald-600" />
-                                <span className="text-emerald-800">EHR Integration</span>
-                              </li>
-                              <li className="flex items-center gap-3">
-                                <CheckCircleIcon className="w-5 h-5 text-emerald-600" />
-                                <span className="text-emerald-800">Priority Support</span>
-                              </li>
+              {/* SECURITY TAB */}
+              {activeTab === 'security' && (
+                <motion.div key="security" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}
+                  className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-400 to-red-500 rounded-t-2xl" />
+                  <div className="p-5">
+                    <div className="flex items-center gap-2.5 mb-5">
+                      <span className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">
+                        <Key className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                      </span>
+                      <div>
+                        <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Security Settings</h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Update your password and security preferences</p>
+                      </div>
+                    </div>
+                    <div className="space-y-4 max-w-md">
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 mb-1.5">
+                          <span className="w-2 h-2 bg-orange-500 rounded-full" /> Current Password
+                        </label>
+                        <input type="password" value={formData.currentPassword} onChange={(e) => setFormData(prev => ({ ...prev, currentPassword: e.target.value }))} className={inputClasses} placeholder="Enter current password" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 mb-1.5">
+                          <span className="w-2 h-2 bg-emerald-500 rounded-full" /> New Password
+                        </label>
+                        <input type="password" value={formData.newPassword} onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))} className={inputClasses} placeholder="Enter new password" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 mb-1.5">
+                          <span className="w-2 h-2 bg-blue-500 rounded-full" /> Confirm New Password
+                        </label>
+                        <input type="password" value={formData.confirmPassword} onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))} className={inputClasses} placeholder="Confirm new password" />
+                      </div>
+                    </div>
+                    {message && (
+                      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                        className={`mt-4 flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg ${message.type === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'}`}>
+                        {message.type === 'success' ? <CheckCircleIcon className="w-3.5 h-3.5" /> : <XCircleIcon className="w-3.5 h-3.5" />}
+                        {message.text}
+                      </motion.div>
+                    )}
+                    <button onClick={handleChangePassword} disabled={saving || !formData.currentPassword || !formData.newPassword || !formData.confirmPassword}
+                      className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all disabled:opacity-50">
+                      <Key className="w-4 h-4" />
+                      {saving ? 'Updating...' : 'Update Password'}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* SUBSCRIPTION TAB */}
+              {activeTab === 'subscription' && (
+                <motion.div key="subscription" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}
+                  className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-green-500 rounded-t-2xl" />
+                  <div className="p-5">
+                    <div className="flex items-center gap-2.5 mb-5">
+                      <span className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                        <CreditCardIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      </span>
+                      <div>
+                        <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Subscription Plan</h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Manage your subscription and billing information</p>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 dark:from-emerald-950/30 dark:via-green-950/20 dark:to-teal-950/30 border border-emerald-200/60 dark:border-emerald-800/40 rounded-xl p-4 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-200/20 dark:bg-emerald-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl" />
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="text-sm font-bold text-emerald-900 dark:text-emerald-200">ClinicalScribe Pro</h3>
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400">Beta Access &bull; Unlimited Usage</p>
+                          </div>
+                          <Badge className="bg-emerald-600 text-white border-0 text-[10px] px-2 py-0.5">Active</Badge>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                          <div>
+                            <p className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 mb-2">Features Included</p>
+                            <ul className="space-y-1.5">
+                              {['Unlimited SOAP Notes', 'Real-time Transcription', 'EHR Integration', 'Priority Support'].map((f) => (
+                                <li key={f} className="flex items-center gap-1.5">
+                                  <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
+                                  <span className="text-xs text-gray-700 dark:text-gray-300">{f}</span>
+                                </li>
+                              ))}
                             </ul>
                           </div>
-                          
-                          <div className="space-y-4">
-                            <h4 className="font-bold text-emerald-900 text-lg">Billing Information</h4>
-                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-emerald-200">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-emerald-800">Status</span>
-                                <Badge className="bg-emerald-100 text-emerald-800 border-0">Active</Badge>
-                              </div>
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-emerald-800">Next Billing</span>
-                                <span className="font-semibold text-emerald-900">N/A (Beta)</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-emerald-800">Amount</span>
-                                <span className="font-bold text-emerald-900 text-lg">$0.00</span>
-                              </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 mb-2">Billing</p>
+                            <div className="bg-white/60 dark:bg-gray-800/40 rounded-lg p-3 border border-emerald-200/50 dark:border-emerald-800/30 space-y-1.5">
+                              <div className="flex justify-between text-xs"><span className="text-gray-500 dark:text-gray-400">Status</span><span className="font-semibold text-emerald-600 dark:text-emerald-400">Active</span></div>
+                              <div className="flex justify-between text-xs"><span className="text-gray-500 dark:text-gray-400">Next Billing</span><span className="font-semibold text-gray-700 dark:text-gray-300">N/A (Beta)</span></div>
+                              <div className="flex justify-between text-xs"><span className="text-gray-500 dark:text-gray-400">Amount</span><span className="font-bold text-gray-900 dark:text-gray-100">$0.00</span></div>
                             </div>
                           </div>
                         </div>
-
-                        <div className="flex flex-wrap gap-4">
-                          <motion.button
-                            whileHover={{ scale: 1.02, y: -2 }}
-                            whileTap={{ scale: 0.98 }}
+                        <div className="flex flex-wrap gap-2">
+                          <button
                             onClick={async () => {
                               try {
                                 const { handleManageSubscription } = await import("@/lib/subscription");
                                 const result = await handleManageSubscription();
-                                
                                 if (result.noCustomer) {
-                                  toast({
-                                    title: "No active subscription",
-                                    description: "Redirecting to plans page...",
-                                  });
-                                  setTimeout(() => {
-                                    window.location.href = result.url;
-                                  }, 1500);
+                                  toast({ title: "No active subscription", description: "Redirecting to plans page..." });
+                                  setTimeout(() => { window.location.href = result.url; }, 1500);
                                   return;
                                 }
-                                
                                 window.location.href = result.url;
                               } catch (err) {
                                 console.error(err);
-                                toast({
-                                  title: "Error",
-                                  description: "Failed to access subscription settings. Please try again later.",
-                                });
+                                toast({ title: "Error", description: "Failed to access subscription settings." });
                               }
                             }}
-                            className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl font-semibold shadow-lg hover:from-emerald-700 hover:to-green-700 transition-all duration-300"
-                          >
-                            Manage Subscription
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.02, y: -2 }}
-                            whileTap={{ scale: 0.98 }}
+                            className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all"
+                          >Manage Subscription</button>
+                          <button
                             onClick={async () => {
                               try {
-                                const [{ getInvoices }, { InvoiceDialog }] = await Promise.all([
-                                  import("@/lib/subscription"),
-                                  import("@/components/invoice-dialog"),
-                                ]);
+                                const [{ getInvoices }, { InvoiceDialog }] = await Promise.all([import("@/lib/subscription"), import("@/components/invoice-dialog")]);
                                 const response = await getInvoices();
-                                
                                 if (!response.invoices?.length) {
-                                  toast({
-                                    title: "No invoices available",
-                                    description: response.message || "You don't have any invoices yet.",
-                                  });
-                                  
-                                  if (response.redirectUrl) {
-                                    setTimeout(() => {
-                                      window.location.href = response.redirectUrl;
-                                    }, 1500);
-                                  }
+                                  toast({ title: "No invoices available", description: response.message || "You don't have any invoices yet." });
+                                  if (response.redirectUrl) { setTimeout(() => { window.location.href = response.redirectUrl; }, 1500); }
                                   return;
                                 }
-                                
-                                // Render dialog imperatively if there's a portal root
                                 const container = document.createElement("div");
                                 document.body.appendChild(container);
                                 const React = await import("react");
@@ -826,96 +586,69 @@ export default function SettingsPageInner() {
                                 const root = createRoot(container);
                                 const App = () => {
                                   const [open, setOpen] = React.useState(true);
-                                  return (
-                                    <InvoiceDialog 
-                                      isOpen={open} 
-                                      onClose={() => { 
-                                        setOpen(false); 
-                                        setTimeout(() => root.unmount(), 0); 
-                                      }} 
-                                      invoices={response.invoices} 
-                                    />
-                                  );
+                                  return (<InvoiceDialog isOpen={open} onClose={() => { setOpen(false); setTimeout(() => root.unmount(), 0); }} invoices={response.invoices} />);
                                 };
                                 root.render(React.createElement(App));
                               } catch (err) {
                                 console.error(err);
-                                toast({
-                                  title: "Error",
-                                  description: "Failed to load invoices. Please try again later.",
-                                });
+                                toast({ title: "Error", description: "Failed to load invoices." });
                               }
                             }}
-                            className="px-6 py-3 bg-white text-emerald-700 border-2 border-emerald-200 rounded-2xl font-semibold hover:bg-emerald-50 transition-all duration-300"
-                          >
-                            View Invoices
-                          </motion.button>
+                            className="px-4 py-2 bg-white dark:bg-gray-800 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-semibold hover:bg-emerald-50 dark:hover:bg-gray-700 transition-all"
+                          >View Invoices</button>
                         </div>
                       </div>
-                    </motion.div>
-                  )}
+                    </div>
+                    {message && (
+                      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                        className={`mt-4 flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg ${message.type === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'}`}>
+                        {message.type === 'success' ? <CheckCircleIcon className="w-3.5 h-3.5" /> : <XCircleIcon className="w-3.5 h-3.5" />}
+                        {message.text}
+                      </motion.div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
 
-                  {activeTab === 'notifications' && (
-                    <motion.div
-                      key="notifications"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.3 }}
-                      className="space-y-8"
-                    >
-                      <div className="flex items-center gap-4 mb-8">
-                        <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl">
-                          <BellIcon className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-black text-gray-900">Notification Preferences</h2>
-                          <p className="text-gray-600">Customize how and when you receive notifications</p>
-                        </div>
+              {/* NOTIFICATIONS TAB */}
+              {activeTab === 'notifications' && (
+                <motion.div key="notifications" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}
+                  className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-400 to-pink-500 rounded-t-2xl" />
+                  <div className="p-5">
+                    <div className="flex items-center gap-2.5 mb-5">
+                      <span className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
+                        <BellIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      </span>
+                      <div>
+                        <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Notification Preferences</h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Customize how and when you receive notifications</p>
                       </div>
-
-                      <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-2 border-purple-200 rounded-3xl p-8">
-                        <h3 className="text-xl font-bold text-purple-900 mb-6">Email Notifications</h3>
-                        
-                        <div className="space-y-6">
-                          <div className="flex items-center justify-between p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-purple-200">
-                            <div>
-                              <h4 className="font-bold text-purple-900">Account Activity</h4>
-                              <p className="text-purple-700 text-sm">Sign in attempts, password changes</p>
-                            </div>
-                            <div className="relative inline-block w-12 h-6 bg-gray-300 rounded-full">
-                              <div className="absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 transform translate-x-6"></div>
-                            </div>
+                    </div>
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Email Notifications</p>
+                    <div className="space-y-2">
+                      {[
+                        { title: 'Account Activity', desc: 'Sign in attempts, password changes' },
+                        { title: 'Product Updates', desc: 'New features, beta releases' },
+                        { title: 'Weekly Digest', desc: 'Usage reports, tips & tricks' },
+                      ].map((item) => (
+                        <div key={item.title} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/30 border border-gray-100 dark:border-gray-800 rounded-xl">
+                          <div>
+                            <h4 className="text-xs font-bold text-gray-900 dark:text-gray-100">{item.title}</h4>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400">{item.desc}</p>
                           </div>
-                          
-                          <div className="flex items-center justify-between p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-purple-200">
-                            <div>
-                              <h4 className="font-bold text-purple-900">Product Updates</h4>
-                              <p className="text-purple-700 text-sm">New features, beta releases</p>
-                            </div>
-                            <div className="relative inline-block w-12 h-6 bg-gray-300 rounded-full">
-                              <div className="absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 transform translate-x-6"></div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center justify-between p-4 bg-white/70 backdrop-blur-sm rounded-2xl border border-purple-200">
-                            <div>
-                              <h4 className="font-bold text-purple-900">Weekly Digest</h4>
-                              <p className="text-purple-700 text-sm">Usage reports, tips & tricks</p>
-                            </div>
-                            <div className="relative inline-block w-12 h-6 bg-gray-300 rounded-full">
-                              <div className="absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 transform translate-x-6"></div>
-                            </div>
+                          <div className="relative w-9 h-5 bg-emerald-500 rounded-full cursor-pointer">
+                            <div className="absolute top-0.5 right-0.5 bg-white w-4 h-4 rounded-full shadow-sm" />
                           </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
       </div>
     </div>
   )
