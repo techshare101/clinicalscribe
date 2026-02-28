@@ -208,10 +208,10 @@ export default function OrganizationPanel() {
 
   if (loading) {
     return (
-      <div className="p-6 rounded-xl border bg-white/70 shadow-sm backdrop-blur-lg">
+      <div className="p-6 rounded-xl border dark:border-gray-700 bg-white/70 dark:bg-gray-800/50 shadow-sm backdrop-blur-lg">
         <div className="flex items-center gap-2 py-8 justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-          <span className="text-gray-500">Loading organization...</span>
+          <span className="text-gray-500 dark:text-gray-400">Loading organization...</span>
         </div>
       </div>
     );
@@ -220,11 +220,11 @@ export default function OrganizationPanel() {
   // No org yet — show create form
   if (!org) {
     return (
-      <div className="p-6 rounded-xl border bg-white/70 shadow-sm backdrop-blur-lg">
+      <div className="p-6 rounded-xl border dark:border-gray-700 bg-white/70 dark:bg-gray-800/50 shadow-sm backdrop-blur-lg">
         <div className="text-center py-8">
-          <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Organization Yet</h3>
-          <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+          <Building2 className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No Organization Yet</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
             Create an organization to invite team members. Members you invite will automatically 
             get access to ClinicalScribe with their assigned role.
           </p>
@@ -239,7 +239,7 @@ export default function OrganizationPanel() {
           ) : (
             <form onSubmit={createOrg} className="max-w-sm mx-auto space-y-4 text-left">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Organization Name</label>
                 <input
                   type="text"
                   value={orgName}
@@ -247,20 +247,20 @@ export default function OrganizationPanel() {
                   placeholder="e.g. ACME Healthcare"
                   required
                   minLength={2}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Team Seats</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Team Seats</label>
                 <input
                   type="number"
                   value={orgSeats}
                   onChange={(e) => setOrgSeats(Number(e.target.value))}
                   min={1}
                   max={500}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200"
                 />
-                <p className="text-xs text-gray-500 mt-1">Maximum number of team members</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Maximum number of team members</p>
               </div>
               <div className="flex gap-2">
                 <button
@@ -274,7 +274,7 @@ export default function OrganizationPanel() {
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
                 >
                   Cancel
                 </button>
@@ -294,22 +294,22 @@ export default function OrganizationPanel() {
   return (
     <div className="space-y-6">
       {/* Org Header */}
-      <div className="p-6 rounded-xl border bg-white/70 shadow-sm backdrop-blur-lg">
+      <div className="p-6 rounded-xl border dark:border-gray-700 bg-white/70 dark:bg-gray-800/50 shadow-sm backdrop-blur-lg">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-100 rounded-lg">
-              <Building2 className="h-6 w-6 text-indigo-600" />
+            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
+              <Building2 className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">{org.name}</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{org.name}</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {usedSeats} / {org.seats} seats used
               </p>
             </div>
           </div>
           <button
             onClick={loadOrg}
-            className="p-2 text-gray-400 hover:text-gray-600"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             title="Refresh"
           >
             <RefreshCw className="h-5 w-5" />
@@ -317,7 +317,7 @@ export default function OrganizationPanel() {
         </div>
 
         {/* Seat Usage Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
           <div
             className={`h-2 rounded-full transition-all ${
               usedSeats / org.seats > 0.8 ? "bg-red-500" : "bg-indigo-500"
@@ -325,16 +325,16 @@ export default function OrganizationPanel() {
             style={{ width: `${Math.min(100, (usedSeats / org.seats) * 100)}%` }}
           />
         </div>
-        <div className="flex justify-between text-xs text-gray-500">
+        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
           <span>{org.memberCount} members + {pendingInvites.length} pending</span>
           <span>{org.seats - usedSeats} seats available</span>
         </div>
       </div>
 
       {/* Invite Form */}
-      <div className="p-6 rounded-xl border bg-white/70 shadow-sm backdrop-blur-lg">
-        <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <UserPlus className="h-5 w-5 text-indigo-600" />
+      <div className="p-6 rounded-xl border dark:border-gray-700 bg-white/70 dark:bg-gray-800/50 shadow-sm backdrop-blur-lg">
+        <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+          <UserPlus className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
           Invite Team Member
         </h3>
         <form onSubmit={sendInvite} className="flex flex-col sm:flex-row gap-3">
@@ -345,14 +345,14 @@ export default function OrganizationPanel() {
               onChange={(e) => setInviteEmail(e.target.value)}
               placeholder="nurse@company.com"
               required
-              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 dark:text-gray-200"
             />
           </div>
           <div className="relative">
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value)}
-              className="appearance-none px-3 py-2 pr-8 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="appearance-none px-3 py-2 pr-8 border dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               <option value="nurse">Nurse</option>
               <option value="nurse-admin">Nurse Admin</option>
@@ -377,9 +377,9 @@ export default function OrganizationPanel() {
 
       {/* Pending Invites */}
       {pendingInvites.length > 0 && (
-        <div className="p-6 rounded-xl border bg-white/70 shadow-sm backdrop-blur-lg">
-          <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-yellow-600" />
+        <div className="p-6 rounded-xl border dark:border-gray-700 bg-white/70 dark:bg-gray-800/50 shadow-sm backdrop-blur-lg">
+          <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
             Pending Invites ({pendingInvites.length})
           </h3>
           <div className="space-y-3">
@@ -390,13 +390,13 @@ export default function OrganizationPanel() {
               return (
                 <div
                   key={invite.id}
-                  className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg"
                 >
                   <div className="flex items-center gap-3">
                     <Mail className="h-4 w-4 text-yellow-600" />
                     <div>
-                      <p className="text-sm font-medium">{invite.email}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm font-medium dark:text-gray-200">{invite.email}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {roleLabels[invite.role] || invite.role} &middot; Invited{" "}
                         {invite.createdAt
                           ? new Date(invite.createdAt).toLocaleDateString()
@@ -407,7 +407,7 @@ export default function OrganizationPanel() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => copyInviteLink(link)}
-                      className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+                      className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
                       title="Copy invite link"
                     >
                       {copiedLink === link ? (
@@ -433,16 +433,16 @@ export default function OrganizationPanel() {
 
       {/* Accepted / Active Members */}
       {acceptedInvites.length > 0 && (
-        <div className="p-6 rounded-xl border bg-white/70 shadow-sm backdrop-blur-lg">
-          <h3 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Users className="h-5 w-5 text-green-600" />
+        <div className="p-6 rounded-xl border dark:border-gray-700 bg-white/70 dark:bg-gray-800/50 shadow-sm backdrop-blur-lg">
+          <h3 className="text-md font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+            <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
             Team Members ({acceptedInvites.length})
           </h3>
           <div className="space-y-3">
             {acceptedInvites.map((invite) => (
               <div
                 key={invite.id}
-                className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg"
+                className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/50 rounded-lg"
               >
                 <div className="flex items-center gap-3">
                   {invite.role === "nurse-admin" ? (
@@ -451,8 +451,8 @@ export default function OrganizationPanel() {
                     <Shield className="h-4 w-4 text-green-600" />
                   )}
                   <div>
-                    <p className="text-sm font-medium">{invite.email}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-sm font-medium dark:text-gray-200">{invite.email}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       {roleLabels[invite.role] || invite.role} &middot; Joined{" "}
                       {invite.acceptedAt
                         ? new Date(invite.acceptedAt).toLocaleDateString()

@@ -70,10 +70,10 @@ function AdminDashboardContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-indigo-950/20">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-indigo-200 border-t-indigo-600"></div>
-          <p className="text-sm text-gray-500">Loading admin panel...</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Loading admin panel...</p>
         </div>
       </div>
     );
@@ -95,7 +95,7 @@ function AdminDashboardContent() {
       : "Nurse";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-indigo-950/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
         {/* Header */}
         <motion.div
@@ -105,35 +105,35 @@ function AdminDashboardContent() {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl shadow-lg shadow-indigo-200">
+              <div className="p-3 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl shadow-lg shadow-indigo-200 dark:shadow-indigo-900/40">
                 <Settings className="h-7 w-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                   Admin Console
                 </h1>
-                <p className="text-gray-500 text-sm mt-0.5">
+                <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
                   {stats.orgName ? `${stats.orgName} \u2022 ` : ""}
                   {roleDisplay}
                 </p>
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white border rounded-full shadow-sm">
-              <ShieldCheck className="h-4 w-4 text-indigo-600" />
-              <span className="text-xs font-medium text-gray-700">{roleDisplay}</span>
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-full shadow-sm">
+              <ShieldCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{roleDisplay}</span>
             </div>
           </div>
         </motion.div>
 
         {/* Tab Navigation */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200/80 overflow-hidden">
-          <div className="border-b border-gray-100">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200/80 dark:border-gray-700/80 overflow-hidden">
+          <div className="border-b border-gray-100 dark:border-gray-800">
             {/* Mobile dropdown */}
             <div className="sm:hidden p-3">
               <select
                 value={activeTab}
                 onChange={(e) => setActiveTab(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50"
+                className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 dark:text-gray-200"
               >
                 {tabs.map((tab) => (
                   <option key={tab.id} value={tab.id}>
@@ -155,18 +155,18 @@ function AdminDashboardContent() {
                       onClick={() => setActiveTab(tab.id)}
                       className={`relative px-5 py-3.5 text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                         isActive
-                          ? "text-indigo-700"
-                          : "text-gray-500 hover:text-gray-700 hover:bg-gray-50/50"
+                          ? "text-indigo-700 dark:text-indigo-400"
+                          : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <Icon className={`h-4 w-4 ${isActive ? "text-indigo-600" : ""}`} />
+                        <Icon className={`h-4 w-4 ${isActive ? "text-indigo-600 dark:text-indigo-400" : ""}`} />
                         <span>{tab.label}</span>
                       </div>
                       {isActive && (
                         <motion.div
                           layoutId="adminTab"
-                          className="absolute bottom-0 left-2 right-2 h-0.5 bg-indigo-600 rounded-full"
+                          className="absolute bottom-0 left-2 right-2 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-full"
                           transition={{ type: "spring", stiffness: 400, damping: 30 }}
                         />
                       )}
@@ -232,45 +232,45 @@ function AdminDashboardContent() {
                   <HealthcheckWidget />
 
                   {/* Quick Actions */}
-                  <div className="rounded-xl border border-gray-200 p-6">
-                    <h3 className="text-base font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       <button
                         onClick={() => setActiveTab("organization")}
-                        className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all group"
+                        className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-all group"
                       >
-                        <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
+                        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/50 transition-colors">
                           <Building2 className="h-5 w-5 text-indigo-600" />
                         </div>
                         <div className="text-left">
-                          <p className="font-medium text-sm text-gray-900">Manage Organization</p>
-                          <p className="text-xs text-gray-500">Invite members, manage seats</p>
+                          <p className="font-medium text-sm text-gray-900 dark:text-gray-100">Manage Organization</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Invite members, manage seats</p>
                         </div>
                       </button>
 
                       <button
                         onClick={() => setActiveTab("team")}
-                        className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all group"
+                        className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-emerald-200 dark:hover:border-emerald-700 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition-all group"
                       >
-                        <div className="p-2 bg-emerald-100 rounded-lg group-hover:bg-emerald-200 transition-colors">
+                        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/50 transition-colors">
                           <Users className="h-5 w-5 text-emerald-600" />
                         </div>
                         <div className="text-left">
-                          <p className="font-medium text-sm text-gray-900">Team & Access</p>
-                          <p className="text-xs text-gray-500">Roles, permissions, Pro access</p>
+                          <p className="font-medium text-sm text-gray-900 dark:text-gray-100">Team & Access</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Roles, permissions, Pro access</p>
                         </div>
                       </button>
 
                       <button
                         onClick={() => setActiveTab("training")}
-                        className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-violet-200 hover:bg-violet-50/50 transition-all group"
+                        className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-violet-200 dark:hover:border-violet-700 hover:bg-violet-50/50 dark:hover:bg-violet-950/30 transition-all group"
                       >
-                        <div className="p-2 bg-violet-100 rounded-lg group-hover:bg-violet-200 transition-colors">
+                        <div className="p-2 bg-violet-100 dark:bg-violet-900/50 rounded-lg group-hover:bg-violet-200 dark:group-hover:bg-violet-800/50 transition-colors">
                           <GraduationCap className="h-5 w-5 text-violet-600" />
                         </div>
                         <div className="text-left">
-                          <p className="font-medium text-sm text-gray-900">Training Tools</p>
-                          <p className="text-xs text-gray-500">Seed sample data for onboarding</p>
+                          <p className="font-medium text-sm text-gray-900 dark:text-gray-100">Training Tools</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Seed sample data for onboarding</p>
                         </div>
                       </button>
                     </div>

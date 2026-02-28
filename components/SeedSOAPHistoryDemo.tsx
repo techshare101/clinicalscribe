@@ -57,32 +57,32 @@ export default function SeedSOAPHistoryDemo() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Training Tools</h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Training Tools</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Onboard new team members with sample patient data and guided workflows.
         </p>
       </div>
 
       {/* Seed SOAP Card */}
-      <div className="rounded-xl border border-gray-200 p-6">
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-start gap-4">
-          <div className="p-2.5 bg-indigo-100 rounded-xl shrink-0">
+          <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/50 rounded-xl shrink-0">
             <FileText className="h-5 w-5 text-indigo-600" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900">Generate Sample SOAP Notes</h3>
-            <p className="text-sm text-gray-500 mt-1">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Generate Sample SOAP Notes</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Create realistic sample patient notes so your team can explore SOAP History,
               practice exporting, and familiarize themselves with the workflow.
             </p>
             <div className="flex flex-wrap gap-2 mt-3">
-              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
                 Flagged note
               </span>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-700 border border-gray-200">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
                 Standard note
               </span>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                 PDF-ready note
               </span>
             </div>
@@ -95,7 +95,7 @@ export default function SeedSOAPHistoryDemo() {
                 disabled={loading}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   loading
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    ? "bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed"
                     : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
                 }`}
               >
@@ -117,7 +117,7 @@ export default function SeedSOAPHistoryDemo() {
                   initial={{ opacity: 0, x: 10 }}
                   animate={{ opacity: 1, x: 0 }}
                   onClick={resetStatus}
-                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors dark:text-gray-300"
                 >
                   <RefreshCw className="h-4 w-4" />
                   Generate More
@@ -135,8 +135,8 @@ export default function SeedSOAPHistoryDemo() {
           animate={{ opacity: 1, y: 0 }}
           className={`rounded-xl p-4 flex items-start gap-3 ${
             status === "success"
-              ? "bg-emerald-50 border border-emerald-200"
-              : "bg-red-50 border border-red-200"
+              ? "bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800"
+              : "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800"
           }`}
         >
           {status === "success" ? (
@@ -146,19 +146,19 @@ export default function SeedSOAPHistoryDemo() {
           )}
           <div className="flex-1">
             <p className={`font-medium text-sm ${
-              status === "success" ? "text-emerald-900" : "text-red-900"
+              status === "success" ? "text-emerald-900 dark:text-emerald-200" : "text-red-900 dark:text-red-200"
             }`}>
               {status === "success" ? "Sample notes created" : "Something went wrong"}
             </p>
             <p className={`text-sm mt-0.5 ${
-              status === "success" ? "text-emerald-700" : "text-red-700"
+              status === "success" ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"
             }`}>
               {message}
             </p>
             {status === "success" && (
               <a
                 href="/soap-history"
-                className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:text-emerald-800 mt-2 underline underline-offset-2"
+                className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 mt-2 underline underline-offset-2"
               >
                 View in SOAP History &rarr;
               </a>
@@ -168,9 +168,9 @@ export default function SeedSOAPHistoryDemo() {
       )}
 
       {/* Tips */}
-      <div className="rounded-xl border border-gray-200 p-5">
-        <h4 className="font-medium text-gray-900 text-sm mb-3">How it works</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-3">How it works</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600 dark:text-gray-400">
           <div className="flex items-start gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
             <span>Sample notes appear in your SOAP History alongside real records</span>

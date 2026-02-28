@@ -74,8 +74,8 @@ export default function AuditLogPanel() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Audit Log</h2>
-          <p className="text-sm text-gray-500">Track all administrative actions and changes</p>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Audit Log</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Track all administrative actions and changes</p>
         </div>
         <div className="flex items-center gap-3">
           {uniqueActions.length > 1 && (
@@ -84,7 +84,7 @@ export default function AuditLogPanel() {
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="all">All Events</option>
                 {uniqueActions.map((action) => (
@@ -98,7 +98,7 @@ export default function AuditLogPanel() {
           <button
             onClick={fetchLogs}
             disabled={loading}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-800 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -113,33 +113,33 @@ export default function AuditLogPanel() {
         </div>
       ) : filteredLogs.length === 0 ? (
         <div className="text-center py-16">
-          <ScrollText className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">No audit events yet</p>
-          <p className="text-sm text-gray-400 mt-1">
+          <ScrollText className="h-10 w-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-500 dark:text-gray-400 font-medium">No audit events yet</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
             Actions like role changes, invites, and member removals will appear here.
           </p>
         </div>
       ) : (
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <div className="divide-y divide-gray-100">
+        <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
             {filteredLogs.map((log) => {
               const config = actionConfig[log.action] || defaultAction;
               const Icon = config.icon;
               return (
-                <div key={log.id} className="flex items-start gap-4 px-5 py-4 hover:bg-gray-50/50 transition-colors">
+                <div key={log.id} className="flex items-start gap-4 px-5 py-4 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
                   <div className={`p-2 rounded-lg ${config.color} shrink-0 mt-0.5`}>
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm text-gray-900">{config.label}</span>
+                      <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{config.label}</span>
                       {log.role && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                           {log.role}
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500 mt-0.5">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                       by {log.performedByEmail || log.performedBy?.slice(0, 8) + "..."}
                       {log.targetUid && (
                         <span className="text-gray-400"> &middot; target: {log.targetUid.slice(0, 8)}...</span>
@@ -165,7 +165,7 @@ export default function AuditLogPanel() {
       )}
 
       {filteredLogs.length > 0 && (
-        <p className="text-xs text-gray-400 text-center">
+        <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
           Showing {filteredLogs.length} of {logs.length} events
         </p>
       )}
