@@ -28,6 +28,7 @@ import {
   Languages,
   Trash2,
   AlertTriangle,
+  Share2,
 } from 'lucide-react';
 import { formatDate } from '@/lib/formatDate';
 
@@ -76,6 +77,8 @@ export function SOAPGenerator({
   const [patientLanguage, setPatientLanguage] = useState(patientLang);
   const [documentationLanguage, setDocumentationLanguage] = useState(docLang);
   const [restored, setRestored] = useState(false); // Track if SOAP note was restored
+  const [epicSending, setEpicSending] = useState(false);
+  const [epicResult, setEpicResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   // Listen for transcript loading events from Recorder
   useEffect(() => {
@@ -282,6 +285,60 @@ ${soapNote.plan}`;
     URL.revokeObjectURL(url);
   };
 
+  const sendToEpic = async () => {
+    if (!soapNote || epicSending) return;
+    setEpicSending(true);
+    setEpicResult(null);
+
+    try {
+      // Step 1: Build FHIR DocumentReference from the SOAP note
+      const buildRes = await fetch('/api/fhir/document-reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          soap: {
+            subjective: soapNote.subjective,
+            objective: soapNote.objective,
+            assessment: soapNote.assessment,
+            plan: soapNote.plan,
+            patientName: soapNote.patientName || patientNameInput,
+            encounterType: soapNote.encounterType || encounterTypeInput,
+            timestamp: soapNote.timestamp || new Date().toISOString(),
+          },
+        }),
+      });
+
+      if (!buildRes.ok) {
+        const msg = await buildRes.json().catch(() => ({}));
+        throw new Error(msg?.error || 'Failed to build FHIR resource');
+      }
+
+      const docRef = await buildRes.json();
+
+      // Step 2: POST the FHIR DocumentReference to Epic
+      const postRes = await fetch('/api/smart/post-document-reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(docRef),
+      });
+
+      const postData = await postRes.json().catch(() => ({}));
+
+      if (postRes.ok && postData.posted) {
+        setEpicResult({ ok: true, message: `Sent to Epic (ID: ${postData.resourceId || 'N/A'})` });
+      } else if (postRes.status === 401) {
+        setEpicResult({ ok: false, message: 'No active EHR connection. Connect to Epic first via SMART launch.' });
+      } else {
+        throw new Error(postData.message || 'Epic returned an error');
+      }
+    } catch (err) {
+      console.error('Send to Epic error:', err);
+      setEpicResult({ ok: false, message: err instanceof Error ? err.message : 'Failed to send to Epic' });
+    } finally {
+      setEpicSending(false);
+    }
+  };
+
   const clearAll = () => {
     setTranscript('');
     setRawTranscript('');
@@ -452,8 +509,27 @@ ${soapNote.plan}`;
                       <Download className="h-3.5 w-3.5 text-gray-400 dark:text-gray-200" />
                       Export
                     </Button>
+                    <Button
+                      size="sm"
+                      onClick={sendToEpic}
+                      disabled={epicSending}
+                      className="text-xs h-8 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white"
+                    >
+                      {epicSending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Share2 className="h-3.5 w-3.5 mr-1" />}
+                      {epicSending ? 'Sending...' : 'Send to Epic'}
+                    </Button>
                   </div>
                 </div>
+                {epicResult && (
+                  <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
+                    epicResult.ok
+                      ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800'
+                      : 'bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800'
+                  }`}>
+                    {epicResult.ok ? <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />}
+                    {epicResult.message}
+                  </div>
+                )}
               </div>
             </div>
 
