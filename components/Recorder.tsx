@@ -769,20 +769,20 @@ export default function Recorder({
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3">
+        <div className="p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-2xl flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
           <div>
-            <h4 className="font-semibold text-red-800">Recording Error</h4>
-            <p className="text-red-700 text-sm">{error}</p>
+            <h4 className="font-semibold text-red-800 dark:text-red-300">Recording Error</h4>
+            <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
           </div>
         </div>
       )}
 
       {/* Transcript Display */}
       {transcript && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></div>
               Transcribed Text
             </h3>
@@ -801,27 +801,27 @@ export default function Recorder({
             </Button>
           </div>
           <div className="max-h-[180px] overflow-y-auto">
-            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{transcript}</p>
+            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{transcript}</p>
           </div>
         </div>
       )}
       
       {/* Show recordings list when we have multiple recordings */}
       {recordings.length > 1 && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <h3 className="font-bold text-gray-900 mb-3">Recordings ({recordings.length})</h3>
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+          <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-3">Recordings ({recordings.length})</h3>
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {recordings.map((recording, index) => (
-              <div key={recording.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                <span className="text-sm text-gray-600">Recording {index + 1}</span>
-                <span className="text-xs text-gray-500">
+              <div key={recording.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <span className="text-sm text-gray-600 dark:text-gray-300">Recording {index + 1}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {recording.timestamp.toLocaleTimeString()}
                 </span>
               </div>
             ))}
           </div>
-          <div className="mt-3 text-xs text-gray-500">
-            Combine all recordings into a single SOAP note using the "Combine into Final SOAP" button above.
+          <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+            Combine all recordings into a single SOAP note using the &quot;Combine into Final SOAP&quot; button above.
           </div>
         </div>
       )}

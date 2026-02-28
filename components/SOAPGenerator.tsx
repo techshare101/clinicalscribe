@@ -304,7 +304,7 @@ ${soapNote.plan}`;
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl"
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl"
           >
             <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
             <span className="text-sm text-amber-800">
@@ -316,16 +316,16 @@ ${soapNote.plan}`;
 
       {/* Transcript Display */}
       {(rawTranscript || transcript) && (
-        <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl overflow-hidden relative shadow-sm">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-2xl" />
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Languages className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-semibold text-gray-900">
+                <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   {showRaw ? 'Raw Transcript' : 'Translated Transcript'}
                 </span>
-                <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-blue-50 text-blue-600">
+                <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
                   {showRaw ? (patientLanguage === "auto" ? "Auto" : patientLanguage.toUpperCase()) : documentationLanguage.toUpperCase()}
                 </span>
               </div>
@@ -337,14 +337,14 @@ ${soapNote.plan}`;
                   </Button>
                 )}
                 <Button variant="outline" size="sm" onClick={() => copyToClipboard(showRaw ? rawTranscript : transcript, showRaw ? 'raw' : 'translated')} className="text-xs h-7 px-2.5">
-                  {copied === (showRaw ? 'raw' : 'translated') ? <CheckCircle className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                  {copied === (showRaw ? 'raw' : 'translated') ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                 </Button>
               </div>
             </div>
             <Textarea
               value={showRaw ? rawTranscript : transcript}
               onChange={(e) => { showRaw ? setRawTranscript(e.target.value) : setTranscript(e.target.value); }}
-              className="min-h-[100px] max-h-[200px] bg-gray-50/50 resize-none border-gray-200 focus:border-blue-300 focus:ring-blue-200 text-sm"
+              className="min-h-[100px] max-h-[200px] bg-gray-50/50 dark:bg-gray-800/50 resize-none border-gray-200 dark:border-gray-700 focus:border-blue-300 focus:ring-blue-200 text-sm"
               placeholder={showRaw ? "Raw transcript..." : "Translated transcript..."}
             />
           </div>
@@ -352,29 +352,29 @@ ${soapNote.plan}`;
       )}
 
       {/* Patient Info — inline compact row */}
-      <div className="bg-white border border-gray-200/80 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl p-4 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-t-2xl" />
         <div className="flex items-center gap-2 mb-3">
           <User className="h-4 w-4 text-emerald-600" />
-          <span className="text-sm font-semibold text-gray-900">Patient Information</span>
+          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Patient Information</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-gray-600">Patient Name</Label>
+            <Label className="text-xs font-medium text-gray-600 dark:text-gray-400">Patient Name</Label>
             <Input
               value={patientNameInput}
               onChange={(e) => setPatientNameInput(e.target.value)}
               placeholder="Enter patient name"
-              className="h-9 text-sm bg-gray-50/50 border-gray-200 focus:border-emerald-300 focus:ring-emerald-200"
+              className="h-9 text-sm bg-gray-50/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:border-emerald-300 focus:ring-emerald-200"
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-gray-600">Encounter Type</Label>
+            <Label className="text-xs font-medium text-gray-600 dark:text-gray-400">Encounter Type</Label>
             <Input
               value={encounterTypeInput}
               onChange={(e) => setEncounterTypeInput(e.target.value)}
               placeholder="e.g., Initial Consultation"
-              className="h-9 text-sm bg-gray-50/50 border-gray-200 focus:border-emerald-300 focus:ring-emerald-200"
+              className="h-9 text-sm bg-gray-50/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:border-emerald-300 focus:ring-emerald-200"
             />
           </div>
         </div>
@@ -398,7 +398,7 @@ ${soapNote.plan}`;
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl">
           <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
           <span className="text-sm text-red-800">{error}</span>
         </div>
@@ -414,29 +414,29 @@ ${soapNote.plan}`;
             className="space-y-4"
           >
             {/* Success header bar */}
-            <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl overflow-hidden relative shadow-sm">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 rounded-t-2xl" />
               <div className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-100 rounded-xl">
+                    <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl">
                       <CheckCircle className="h-4 w-4 text-emerald-600" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900">SOAP Note Generated</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">SOAP Note Generated</h3>
                       <div className="flex items-center gap-3 mt-0.5">
                         {soapNote.patientName && (
-                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                             <User className="h-3 w-3" /> {soapNote.patientName}
                           </span>
                         )}
                         {soapNote.encounterType && (
-                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                             <Calendar className="h-3 w-3" /> {soapNote.encounterType}
                           </span>
                         )}
                         {generationTime && (
-                          <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-emerald-50 text-emerald-600">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">
                             {(generationTime / 1000).toFixed(1)}s
                           </span>
                         )}
@@ -445,11 +445,11 @@ ${soapNote.plan}`;
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={copyFullSOAP} className="text-xs h-8">
-                      {copied === 'full' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
+                      {copied === 'full' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400 dark:text-gray-200" />}
                       Copy All
                     </Button>
                     <Button variant="outline" size="sm" onClick={exportSOAP} className="text-xs h-8">
-                      <Download className="h-3.5 w-3.5 mr-1" />
+                      <Download className="h-3.5 w-3.5 text-gray-400 dark:text-gray-200" />
                       Export
                     </Button>
                   </div>
@@ -460,70 +460,70 @@ ${soapNote.plan}`;
             {/* SOAP Sections — 2x2 grid with colored accent tops */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Subjective */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-blue-600 rounded-t-2xl" />
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Eye className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-semibold text-gray-900">Subjective</span>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Subjective</span>
                     </div>
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(soapNote.subjective, 'subjective')}>
-                      {copied === 'subjective' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
+                      {copied === 'subjective' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400 dark:text-gray-200" />}
                     </Button>
                   </div>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{soapNote.subjective}</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{soapNote.subjective}</p>
                 </div>
               </div>
 
               {/* Objective */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-t-2xl" />
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Stethoscope className="h-4 w-4 text-emerald-600" />
-                      <span className="text-sm font-semibold text-gray-900">Objective</span>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Objective</span>
                     </div>
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(soapNote.objective, 'objective')}>
-                      {copied === 'objective' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
+                      {copied === 'objective' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400 dark:text-gray-200" />}
                     </Button>
                   </div>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{soapNote.objective}</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{soapNote.objective}</p>
                 </div>
               </div>
 
               {/* Assessment */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-amber-600 rounded-t-2xl" />
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Brain className="h-4 w-4 text-amber-600" />
-                      <span className="text-sm font-semibold text-gray-900">Assessment</span>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Assessment</span>
                     </div>
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(soapNote.assessment, 'assessment')}>
-                      {copied === 'assessment' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
+                      {copied === 'assessment' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400 dark:text-gray-200" />}
                     </Button>
                   </div>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{soapNote.assessment}</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{soapNote.assessment}</p>
                 </div>
               </div>
 
               {/* Plan */}
-              <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-shadow">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-t-2xl" />
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Clipboard className="h-4 w-4 text-indigo-600" />
-                      <span className="text-sm font-semibold text-gray-900">Plan</span>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Plan</span>
                     </div>
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(soapNote.plan, 'plan')}>
-                      {copied === 'plan' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
+                      {copied === 'plan' ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-400 dark:text-gray-200" />}
                     </Button>
                   </div>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{soapNote.plan}</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{soapNote.plan}</p>
                 </div>
               </div>
             </div>

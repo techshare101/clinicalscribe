@@ -158,7 +158,7 @@ function TranscriptionPageClient() {
   if (!hydrated) return null
 
   return (
-    <div className="min-h-screen bg-gray-50/80">
+    <div className="min-h-screen bg-gray-50/80 dark:bg-gray-950">
       <div className="container mx-auto px-4 py-6 max-w-4xl space-y-5">
         {/* Header */}
         <motion.div
@@ -218,7 +218,7 @@ function TranscriptionPageClient() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
         >
-          <div className="bg-white border border-gray-200/80 rounded-2xl shadow-md p-5 relative overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-md p-5 relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-400 via-violet-400 to-indigo-500 rounded-t-2xl" />
 
             <div className="flex items-center gap-2.5 mb-4 mt-1">
@@ -226,23 +226,23 @@ function TranscriptionPageClient() {
                 <Languages className="h-4 w-4 text-purple-600" />
               </span>
               <div>
-                <h2 className="text-sm font-bold text-gray-900">Language Preferences</h2>
-                <p className="text-[11px] text-gray-500">Synced with your Settings profile</p>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Language Preferences</h2>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">Synced with your Settings profile</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Patient Language */}
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
-                  <span className="w-6 h-6 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <Globe className="h-3.5 w-3.5 text-purple-600" />
+                <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                  <span className="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
+                    <Globe className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
                   </span>
                   Patient Language
                 </label>
 
                 {detectedLanguage && patientLanguage === "auto" && (
-                  <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <div className="flex items-center gap-2 p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg">
                     <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                     <span className="text-[11px] font-semibold text-emerald-800">Detected:</span>
                     <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold">
@@ -252,19 +252,19 @@ function TranscriptionPageClient() {
                 )}
 
                 <Select value={patientLanguage} onValueChange={handlePatientLanguageChange}>
-                  <SelectTrigger className="w-full h-10 bg-gray-50/80 border-gray-200 focus:border-purple-400 focus:ring-purple-200 rounded-lg text-sm font-medium">
+                  <SelectTrigger className="w-full h-10 bg-gray-50/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 focus:border-purple-400 focus:ring-purple-200 rounded-lg text-sm font-medium">
                     <span className="flex items-center gap-2">
                       <span className="text-base leading-none">{patientLanguages.find(l => l.code === patientLanguage)?.flag}</span>
                       <span>{patientLanguages.find(l => l.code === patientLanguage)?.name || "Select patient language"}</span>
                       {patientLanguage === "auto" && <Badge className="text-[8px] bg-purple-100 text-purple-700 border-purple-200 py-0 px-1.5">Recommended</Badge>}
                     </span>
                   </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-200">
+                  <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                     {patientLanguages.map((lang) => (
                       <SelectItem key={lang.code} value={lang.code}>
                         <div className="flex items-center gap-2">
                           <span>{lang.flag}</span>
-                          <span className="font-medium text-gray-900 text-sm">{lang.name}</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{lang.name}</span>
                           {lang.code === "auto" && (
                             <Badge className="ml-1 text-[9px] bg-purple-100 text-purple-700 border-purple-200">
                               Recommended
@@ -282,27 +282,27 @@ function TranscriptionPageClient() {
 
               {/* Documentation Language */}
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
-                  <span className="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center">
-                    <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                  <span className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
+                    <FileText className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                   </span>
                   Documentation Language
                 </label>
 
                 <Select value={docLanguage} onValueChange={handleDocLanguageChange}>
-                  <SelectTrigger className="w-full h-10 bg-gray-50/80 border-gray-200 focus:border-indigo-400 focus:ring-indigo-200 rounded-lg text-sm font-medium">
+                  <SelectTrigger className="w-full h-10 bg-gray-50/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 focus:border-indigo-400 focus:ring-indigo-200 rounded-lg text-sm font-medium">
                     <span className="flex items-center gap-2">
                       <span className="text-base leading-none">{docLanguages.find(l => l.code === docLanguage)?.flag}</span>
                       <span>{docLanguages.find(l => l.code === docLanguage)?.name || "Select documentation language"}</span>
                       {docLanguage === "en" && <Badge className="text-[8px] bg-indigo-100 text-indigo-700 border-indigo-200 py-0 px-1.5">Default</Badge>}
                     </span>
                   </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-200">
+                  <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                     {docLanguages.map((lang) => (
                       <SelectItem key={lang.code} value={lang.code}>
                         <div className="flex items-center gap-2">
                           <span>{lang.flag}</span>
-                          <span className="font-medium text-gray-900 text-sm">{lang.name}</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{lang.name}</span>
                           {lang.code === "en" && (
                             <Badge className="ml-1 text-[9px] bg-indigo-100 text-indigo-700 border-indigo-200">
                               Default
@@ -327,16 +327,16 @@ function TranscriptionPageClient() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <div className="bg-white border border-gray-200/80 rounded-2xl shadow-md overflow-hidden relative">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-md overflow-hidden relative">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-400 via-pink-500 to-fuchsia-500 rounded-t-2xl" />
             <div className="p-5">
               <div className="flex items-center gap-2.5 mb-4">
-                <span className="w-7 h-7 rounded-lg bg-rose-100 flex items-center justify-center">
-                  <Mic className="h-4 w-4 text-rose-600" />
+                <span className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center">
+                  <Mic className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                 </span>
                 <div>
-                  <h2 className="text-sm font-bold text-gray-900">Live Transcription &amp; SOAP Note Generation</h2>
-                  <p className="text-[11px] text-gray-500">Record your session and we'll transcribe it in real-time</p>
+                  <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Live Transcription &amp; SOAP Note Generation</h2>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Record your session and we'll transcribe it in real-time</p>
                 </div>
                 <Badge className="ml-auto bg-rose-50 text-rose-700 border-rose-200 text-[9px] font-bold uppercase tracking-wide">
                   <Mic className="h-3 w-3 mr-0.5" /> Live Audio

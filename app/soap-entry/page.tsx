@@ -42,7 +42,7 @@ export default function SoapEntryPage() {
   const active = DISCIPLINES.find((d) => d.key === discipline) || DISCIPLINES[0]
 
   return (
-    <div className="min-h-screen bg-gray-50/80">
+    <div className="min-h-screen bg-gray-50/80 dark:bg-gray-950">
       <div className="container mx-auto px-4 py-6 max-w-4xl space-y-5">
         {/* Header — z-50 so dropdown floats above everything */}
         <div className="relative z-50">
@@ -117,8 +117,8 @@ export default function SoapEntryPage() {
                 {showPicker && (
                   <>
                     <div className="fixed inset-0 z-[60]" onClick={() => setShowPicker(false)} />
-                    <div className="absolute top-full left-0 mt-2 z-[70] bg-white rounded-xl shadow-2xl border border-gray-200 py-1.5 min-w-[260px]">
-                      <div className="px-3 py-1.5 mb-1 border-b border-gray-100">
+                    <div className="absolute top-full left-0 mt-2 z-[70] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-1.5 min-w-[260px]">
+                      <div className="px-3 py-1.5 mb-1 border-b border-gray-100 dark:border-gray-700">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Discipline</p>
                       </div>
                       {DISCIPLINES.map((d) => (
@@ -128,7 +128,7 @@ export default function SoapEntryPage() {
                           className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-all ${
                             discipline === d.key
                               ? `${d.dropBg} ${d.dropText} font-semibold`
-                              : 'text-gray-600 hover:bg-gray-50'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                           }`}
                         >
                           <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${

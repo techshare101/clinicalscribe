@@ -25,7 +25,7 @@ export function DashboardCard({
 
   return (
     <Card className={cn(
-      "h-fit bg-white border border-gray-200/80 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden relative",
+      "h-fit bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden relative",
       className
     )}>
       {accent && (
@@ -38,12 +38,12 @@ export function DashboardCard({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className={cn(
-              "text-base font-semibold text-gray-900",
+              "text-base font-semibold text-gray-900 dark:text-gray-100",
               isHero && "text-white"
             )}>{title}</CardTitle>
             {description && (
               <CardDescription className={cn(
-                "mt-0.5 text-sm text-gray-500",
+                "mt-0.5 text-sm text-gray-500 dark:text-gray-400",
                 isHero && "text-white/70"
               )}>{description}</CardDescription>
             )}

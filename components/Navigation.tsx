@@ -5,7 +5,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useProfile } from '@/hooks/useProfile'
 import { useAuth } from '@/hooks/useAuth'
 import { useEffect, useState } from 'react'
-import { ChevronDownIcon, UserIcon, CogIcon, LogOutIcon, Sparkles, Lock } from 'lucide-react'
+import { ChevronDownIcon, UserIcon, CogIcon, LogOutIcon, Sparkles, Lock, Sun, Moon } from 'lucide-react'
+import { useTheme } from '@/components/ThemeProvider'
 
 // Define all navigation items
 const allNavItems = [
@@ -31,6 +32,7 @@ export default function Navigation() {
   const [isHydrated, setIsHydrated] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
+  const { theme, resolvedTheme, setTheme } = useTheme()
 
   // Debug logging
   useEffect(() => {
@@ -115,7 +117,7 @@ export default function Navigation() {
   const visibleNavItems = getVisibleNavItems()
 
   return (
-    <header className="w-full border-b bg-white">
+    <header className="w-full border-b bg-white dark:bg-gray-900 dark:border-gray-800">
       <nav className="container mx-auto flex items-center justify-between px-4 py-3">
         {/* Logo and Admin Panel */}
         <div className="font-semibold flex items-center gap-3">
@@ -181,8 +183,8 @@ export default function Navigation() {
                     isActive 
                       ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl transform hover:scale-105' 
                       : isLocked 
-                        ? 'text-gray-500 hover:text-gray-600 bg-gray-100/50 hover:bg-gray-100/70 border border-gray-200/50 opacity-75 cursor-pointer'
-                        : 'text-gray-700 hover:text-indigo-600 bg-white/70 hover:bg-white/90 border border-white/50 hover:border-indigo-200 shadow-sm hover:shadow-md transform hover:scale-105'
+                        ? 'text-gray-500 dark:text-gray-400 hover:text-gray-600 bg-gray-100/50 dark:bg-gray-800/50 hover:bg-gray-100/70 border border-gray-200/50 dark:border-gray-700/50 opacity-75 cursor-pointer'
+                        : 'text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white/70 dark:bg-gray-800/70 hover:bg-white/90 dark:hover:bg-gray-700/90 border border-white/50 dark:border-gray-700/50 hover:border-indigo-200 dark:hover:border-indigo-500 shadow-sm hover:shadow-md transform hover:scale-105'
                   }`}
                 >
                   <span>{item.label}</span>
@@ -210,8 +212,16 @@ export default function Navigation() {
           })}
         </div>
 
-        {/* Profile Menu or Login */}
-        <div className="flex items-center">
+        {/* Theme Toggle + Profile Menu */}
+        <div className="flex items-center gap-2">
+          {/* Dark mode toggle */}
+          <button
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+            title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
           {isHydrated && !isLoading ? (
             profile ? (
               <div className="relative">
@@ -220,7 +230,7 @@ export default function Navigation() {
                     e.stopPropagation()
                     setShowProfileMenu(!showProfileMenu)
                   }}
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   <UserIcon className="w-4 h-4" />
                   <span>{profile.displayName || profile.email || 'User'}</span>
@@ -228,10 +238,10 @@ export default function Navigation() {
                 </button>
                 
                 {showProfileMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
                     <Link
                       href="/settings"
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       onClick={() => setShowProfileMenu(false)}
                     >
                       <CogIcon className="w-4 h-4" />
@@ -239,7 +249,7 @@ export default function Navigation() {
                     </Link>
                     <button
                       onClick={handleLogout}
-                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
                     >
                       <LogOutIcon className="w-4 h-4" />
                       Logout
@@ -251,7 +261,7 @@ export default function Navigation() {
               <div className="flex items-center gap-3">
                 <Link
                   href="/auth/login"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 rounded-xl border border-gray-300 hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-300"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl border border-gray-300 dark:border-gray-600 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950 transition-all duration-300"
                 >
                   Sign In
                 </Link>

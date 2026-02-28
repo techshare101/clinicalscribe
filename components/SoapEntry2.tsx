@@ -410,13 +410,13 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
   return (
     <div className="space-y-4">
       {/* Client & Session Info */}
-      <div className="bg-white border border-gray-200/80 rounded-2xl shadow-md p-5 relative overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-md p-5 relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 rounded-t-2xl" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-1">
           {/* Client Name */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
-              <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center">
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+              <span className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
                 <User className="h-3.5 w-3.5 text-emerald-600" />
               </span>
               Client / Patient
@@ -424,7 +424,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
             <div className="relative">
               <Input
                 placeholder="Search or enter client name..."
-                className="h-10 text-sm bg-gray-50/80 border-gray-200 focus:border-emerald-400 focus:ring-emerald-200 rounded-lg pl-3 font-medium"
+                className="h-10 text-sm bg-gray-50/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 focus:border-emerald-400 focus:ring-emerald-200 rounded-lg pl-3 font-medium"
                 value={patientName}
                 onChange={(e) => { setPatientName(e.target.value); setPatientId(undefined) }}
               />
@@ -437,15 +437,15 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
                 </button>
               )}
               {!patientId && patientName.trim().length >= 2 && patientSuggestions.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl max-h-40 overflow-y-auto">
+                <div className="absolute z-10 mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl max-h-40 overflow-y-auto">
                   {patientSuggestions.map((p: { id: string; name: string; mrn?: string }) => (
                     <button
                       key={p.id}
                       type="button"
-                      className="w-full text-left px-3 py-2.5 hover:bg-emerald-50 text-sm transition-colors border-b border-gray-50 last:border-0"
+                      className="w-full text-left px-3 py-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-sm transition-colors border-b border-gray-50 dark:border-gray-700 last:border-0"
                       onClick={() => { setPatientName(p.name); setPatientId(p.id) }}
                     >
-                      <span className="font-semibold text-gray-900">{p.name}</span>
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{p.name}</span>
                       {p.mrn && <span className="text-[10px] text-gray-400 ml-2 bg-gray-100 px-1.5 py-0.5 rounded">MRN: {p.mrn}</span>}
                     </button>
                   ))}
@@ -461,15 +461,15 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
 
           {/* Encounter Type */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
-              <span className="w-6 h-6 rounded-lg bg-teal-100 flex items-center justify-center">
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+              <span className="w-6 h-6 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center">
                 <Stethoscope className="h-3.5 w-3.5 text-teal-600" />
               </span>
               Session Type
             </label>
             <Input
               placeholder="e.g. Initial Visit, Deep Tissue..."
-              className="h-10 text-sm bg-gray-50/80 border-gray-200 focus:border-teal-400 focus:ring-teal-200 rounded-lg pl-3 font-medium"
+              className="h-10 text-sm bg-gray-50/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 focus:border-teal-400 focus:ring-teal-200 rounded-lg pl-3 font-medium"
               value={encounterType}
               onChange={(e) => setEncounterType(e.target.value)}
             />
@@ -482,7 +482,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
                   className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all ${
                     encounterType === preset.value
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800 border border-gray-200/60'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-800 border border-gray-200/60 dark:border-gray-700'
                   }`}
                 >
                   {preset.label}
@@ -493,9 +493,9 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
         </div>
 
         {/* Pain Level */}
-        <div className="mt-5 pt-4 border-t border-gray-100 space-y-2">
-          <label className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wide">
-            <span className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
+        <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
+          <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+            <span className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
               <Gauge className="h-3.5 w-3.5 text-amber-600" />
             </span>
             Pain / Discomfort Level
@@ -513,7 +513,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
                         : i + 1 <= 6
                           ? 'bg-amber-500 text-white shadow-sm'
                           : 'bg-red-500 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                 >
                   {i + 1}
@@ -536,7 +536,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
       </div>
 
       {/* Body Map — Primary Differentiator */}
-      <div className="bg-white border-2 border-cyan-200/60 rounded-2xl shadow-sm overflow-hidden relative">
+      <div className="bg-white dark:bg-gray-900 border-2 border-cyan-200/60 dark:border-cyan-800/40 rounded-2xl shadow-sm overflow-hidden relative">
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 rounded-t-2xl" />
         <div className="p-5">
           <div className="flex items-center gap-2.5 mb-3">
@@ -544,8 +544,8 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
               <Target className="h-5 w-5 text-cyan-700" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">{bodyMapCopy.title}</h3>
-              <p className="text-[11px] text-gray-500">{bodyMapCopy.subtitle}</p>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{bodyMapCopy.title}</h3>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">{bodyMapCopy.subtitle}</p>
             </div>
             <Badge className="ml-auto bg-cyan-50 text-cyan-700 border-cyan-200 text-[9px] font-bold uppercase tracking-wide">
               <MapPin className="h-3 w-3 mr-0.5" /> Interactive
@@ -558,7 +558,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
       {/* SOAP Sections */}
       <div className="space-y-3">
         {soapSections.map((section) => (
-          <div key={section.key} className="bg-white border border-gray-200/80 rounded-2xl shadow-sm overflow-hidden relative">
+          <div key={section.key} className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm overflow-hidden relative">
             <div className={`absolute top-0 left-0 w-1 h-full ${section.borderColor}`} />
             <div className="p-4 pl-5">
               {/* Section header */}
@@ -582,12 +582,12 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
                   )}
                 </button>
               </div>
-              <p className="text-[11px] text-gray-500 mb-2.5 ml-8">{section.description}</p>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2.5 ml-8">{section.description}</p>
               <Textarea
                 value={soapValues[section.key]}
                 onChange={(e) => setters[section.key](e.target.value)}
                 placeholder={section.placeholder}
-                className="min-h-[100px] text-sm bg-gray-50/50 border-gray-200 focus:border-gray-300 resize-y"
+                className="min-h-[100px] text-sm bg-gray-50/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:border-gray-300 resize-y"
               />
             </div>
           </div>
@@ -595,16 +595,16 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
       </div>
 
       {/* AI Clinical Analysis */}
-      <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm overflow-hidden relative">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm overflow-hidden relative">
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded-t-2xl" />
         <div className="p-5">
           <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 bg-amber-100 rounded-lg">
-              <Sparkles className="h-4 w-4 text-amber-700" />
+            <div className="p-1.5 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
+              <Sparkles className="h-4 w-4 text-amber-700 dark:text-amber-400" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">AI Clinical Analysis</h3>
-              <p className="text-[11px] text-gray-500">Red flag detection & clinical insights powered by GPT-4o</p>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">AI Clinical Analysis</h3>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">Red flag detection & clinical insights powered by GPT-4o</p>
             </div>
           </div>
 
@@ -668,7 +668,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm"
+            className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-sm"
           >
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
             <span>{error}</span>
@@ -682,7 +682,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm"
+            className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-700 dark:text-emerald-400 text-sm"
           >
             <CheckCircle className="h-4 w-4 flex-shrink-0" />
             <span>Session note saved successfully! PDF will be available in SOAP History.</span>

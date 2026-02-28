@@ -1,0 +1,20 @@
+========== START DEBUG DATA ==========
+UID: Hk91wQ9i1aW3bfahiMU0x9zVHeV2
+Email: undefined
+betaActive: false
+subscriptionStatus: cancelled
+planId: undefined
+stripeCustomerId: cus_SxHLyJmpTQVMMu
+currentPeriodEnd: undefined
+updatedAt: Thu Nov 27 2025 01:58:58 GMT-0600 (Central Standard Time)
+--------------------------------------------------
+UID: cKqluS0jgLQyFPu9MYkKO3OUK5z1
+Email: caresim360@gmail.com
+betaActive: true
+subscriptionStatus: undefined
+planId: undefined
+stripeCustomerId: undefined
+currentPeriodEnd: undefined
+updatedAt: Sun Nov 09 2025 09:31:48 GMT-0600 (Central Standard Time)
+--------------------------------------------------
+========== END DEBUG DATA ==========
