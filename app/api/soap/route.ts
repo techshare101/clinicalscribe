@@ -2,11 +2,23 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'edge';
 
+// Language code to name map (duplicated from translate.ts since edge runtime can't import node modules)
+const LANG_NAMES: Record<string, string> = {
+  en: "English", es: "Spanish", so: "Somali", hmn: "Hmong", sw: "Swahili",
+  fr: "French", ar: "Arabic", zh: "Chinese (Mandarin)", vi: "Vietnamese",
+  tl: "Tagalog", pt: "Portuguese", hi: "Hindi", ru: "Russian", am: "Amharic",
+  ko: "Korean", ja: "Japanese", de: "German", it: "Italian", tr: "Turkish",
+  nl: "Dutch", pl: "Polish", sv: "Swedish", th: "Thai", fa: "Persian",
+  uk: "Ukrainian", ro: "Romanian", cs: "Czech", hu: "Hungarian", el: "Greek",
+  he: "Hebrew", bn: "Bengali",
+};
+
 interface SOAPRequest {
   transcript: string;
   patientName?: string;
   encounterType?: string;
-  language?: string;
+  patientLang?: string;
+  docLang?: string;
 }
 
 interface SOAPResponse {
@@ -22,7 +34,8 @@ interface SOAPResponse {
 export async function POST(req: Request) {
   try {
     const body: SOAPRequest = await req.json();
-    const { transcript, patientName, encounterType } = body;
+    const { transcript, patientName, encounterType, docLang } = body;
+    const docLanguageName = LANG_NAMES[docLang || 'en'] || 'English';
 
     if (!transcript || transcript.trim().length === 0) {
       return NextResponse.json({ error: 'Transcript is required' }, { status: 400 });
@@ -31,6 +44,9 @@ export async function POST(req: Request) {
     console.log('[SOAP API] Received transcript length:', transcript.trim().length, 'chars');
 
     // Construct the clinical prompt for GPT-4
+    const languageInstruction = docLang && docLang !== 'en'
+      ? `\n- IMPORTANT: Write the ENTIRE SOAP note in ${docLanguageName}. All section content must be in ${docLanguageName}.`
+      : '';
     const clinicalPrompt = `You are an experienced clinical documentation specialist. Convert the following medical transcript into a structured SOAP note format. Be precise, professional, and clinically accurate.
 
 INSTRUCTIONS:
@@ -40,7 +56,7 @@ INSTRUCTIONS:
 - If the transcript discusses a patient case (even as a teaching example or presentation), treat it as the patient encounter and extract all relevant details
 - For any section where information is limited, summarize what IS available rather than saying "not provided"
 - Only write "Information not provided in the transcript" if there is truly zero relevant content for that section
-- Maintain patient confidentiality standards
+- Maintain patient confidentiality standards${languageInstruction}
 
 TRANSCRIPT:
 "${transcript}"

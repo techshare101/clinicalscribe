@@ -89,11 +89,18 @@ export async function POST(req: Request) {
           
           fullRawText += chunkTranscription.text + " ";
           
-          // Translate if needed
+          // Translate if doc language differs from transcribed language
           let chunkTranslatedText = chunkTranscription.text;
-          if (patientLang !== "auto" && patientLang !== docLang) {
+          if (docLang !== "en" || (patientLang !== "auto" && patientLang !== "en" && patientLang !== docLang)) {
             try {
               chunkTranslatedText = await translateText(chunkTranscription.text, docLang);
+            } catch (translationError) {
+              console.error("Translation failed for chunk:", translationError);
+            }
+          } else if (patientLang !== "auto" && patientLang !== "en" && docLang === "en") {
+            // Patient speaks non-English, doc is English — translate to English
+            try {
+              chunkTranslatedText = await translateText(chunkTranscription.text, "en");
             } catch (translationError) {
               console.error("Translation failed for chunk:", translationError);
             }
@@ -119,11 +126,14 @@ export async function POST(req: Request) {
       fullText = transcription.text;
 
       // Translate to documentation language if needed
-      if (patientLang !== "auto" && patientLang !== docLang) {
-        console.log(`Translating from ${patientLang} to ${docLang}`);
+      // Case 1: docLang is not English — always translate (Whisper outputs in detected lang)
+      // Case 2: patient explicitly non-English, doc is English — translate to English
+      const needsTranslation = docLang !== "en" || (patientLang !== "auto" && patientLang !== "en");
+      if (needsTranslation) {
+        console.log(`Translating to ${docLang} (patientLang=${patientLang})`);
         try {
           fullText = await translateText(transcription.text, docLang);
-          console.log("Translation completed:", fullText);
+          console.log("Translation completed:", fullText.substring(0, 100) + "...");
         } catch (translationError) {
           console.error("Translation failed:", translationError);
         }

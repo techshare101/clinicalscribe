@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import Recorder from "@/components/Recorder"
 import { SOAPGenerator } from "@/components/SOAPGenerator"
 import { createPatientSession } from "@/lib/createPatientSession"
@@ -252,7 +252,11 @@ function TranscriptionPageClient() {
 
                 <Select value={patientLanguage} onValueChange={handlePatientLanguageChange}>
                   <SelectTrigger className="w-full h-10 bg-gray-50/80 border-gray-200 focus:border-purple-400 focus:ring-purple-200 rounded-lg text-sm font-medium">
-                    <SelectValue placeholder="Select patient language" />
+                    <span className="flex items-center gap-2">
+                      <span className="text-base leading-none">{patientLanguages.find(l => l.code === patientLanguage)?.flag}</span>
+                      <span>{patientLanguages.find(l => l.code === patientLanguage)?.name || "Select patient language"}</span>
+                      {patientLanguage === "auto" && <Badge className="text-[8px] bg-purple-100 text-purple-700 border-purple-200 py-0 px-1.5">Recommended</Badge>}
+                    </span>
                   </SelectTrigger>
                   <SelectContent className="bg-white border border-gray-200">
                     {patientLanguages.map((lang) => (
@@ -286,7 +290,11 @@ function TranscriptionPageClient() {
 
                 <Select value={docLanguage} onValueChange={handleDocLanguageChange}>
                   <SelectTrigger className="w-full h-10 bg-gray-50/80 border-gray-200 focus:border-indigo-400 focus:ring-indigo-200 rounded-lg text-sm font-medium">
-                    <SelectValue placeholder="Select documentation language" />
+                    <span className="flex items-center gap-2">
+                      <span className="text-base leading-none">{docLanguages.find(l => l.code === docLanguage)?.flag}</span>
+                      <span>{docLanguages.find(l => l.code === docLanguage)?.name || "Select documentation language"}</span>
+                      {docLanguage === "en" && <Badge className="text-[8px] bg-indigo-100 text-indigo-700 border-indigo-200 py-0 px-1.5">Default</Badge>}
+                    </span>
                   </SelectTrigger>
                   <SelectContent className="bg-white border border-gray-200">
                     {docLanguages.map((lang) => (
