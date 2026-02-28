@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,10 @@ import {
   Copy,
   Loader2,
   Gauge,
+  MapPin,
+  Target,
 } from 'lucide-react'
+import type { Discipline } from '@/app/soap-entry/page'
 import { motion, AnimatePresence } from 'framer-motion'
 import BodyMap from '@/components/body-map/BodyMap'
 import { usePatientsSearch } from '@/hooks/use-patients-search'
@@ -51,74 +54,157 @@ interface GPTAnalysis {
   recommendation: string
 }
 
-const ENCOUNTER_PRESETS = [
-  { label: 'Initial Visit', value: 'Initial Visit' },
-  { label: 'Follow-Up', value: 'Follow-Up' },
-  { label: 'Adjustment', value: 'Chiropractic Adjustment' },
-  { label: 'Deep Tissue', value: 'Deep Tissue Massage' },
-  { label: 'Sports Massage', value: 'Sports Massage' },
-  { label: 'Yoga Session', value: 'Yoga Therapy Session' },
-  { label: 'PT Eval', value: 'Physical Therapy Evaluation' },
-  { label: 'Rehab', value: 'Rehabilitation Session' },
-  { label: 'Wellness Check', value: 'Wellness Assessment' },
-]
+function getEncounterPresets(discipline: Discipline) {
+  const common = [
+    { label: 'Initial Visit', value: 'Initial Visit' },
+    { label: 'Follow-Up', value: 'Follow-Up' },
+  ]
+  const byDiscipline: Record<string, { label: string; value: string }[]> = {
+    general: [
+      { label: 'Adjustment', value: 'Chiropractic Adjustment' },
+      { label: 'Deep Tissue', value: 'Deep Tissue Massage' },
+      { label: 'Yoga Session', value: 'Yoga Therapy Session' },
+      { label: 'PT Eval', value: 'Physical Therapy Evaluation' },
+      { label: 'Wellness Check', value: 'Wellness Assessment' },
+    ],
+    chiropractic: [
+      { label: 'Adjustment', value: 'Chiropractic Adjustment' },
+      { label: 'Spinal Screen', value: 'Spinal Screening' },
+      { label: 'Re-Exam', value: 'Progress Re-Examination' },
+      { label: 'Maintenance', value: 'Maintenance Visit' },
+      { label: 'X-Ray Review', value: 'X-Ray Review' },
+    ],
+    massage: [
+      { label: 'Deep Tissue', value: 'Deep Tissue Massage' },
+      { label: 'Sports', value: 'Sports Massage' },
+      { label: 'Swedish', value: 'Swedish Massage' },
+      { label: 'Prenatal', value: 'Prenatal Massage' },
+      { label: 'Trigger Point', value: 'Trigger Point Therapy' },
+    ],
+    yoga: [
+      { label: 'Yoga Therapy', value: 'Yoga Therapy Session' },
+      { label: 'Private', value: 'Private Yoga Session' },
+      { label: 'Group Assess', value: 'Group Assessment' },
+      { label: 'Breathwork', value: 'Breathwork Session' },
+      { label: 'Mobility', value: 'Mobility & Flexibility' },
+    ],
+    pt: [
+      { label: 'PT Eval', value: 'Physical Therapy Evaluation' },
+      { label: 'Rehab', value: 'Rehabilitation Session' },
+      { label: 'Post-Op', value: 'Post-Operative Rehab' },
+      { label: 'Gait Analysis', value: 'Gait Analysis' },
+      { label: 'Discharge', value: 'Discharge Evaluation' },
+    ],
+    clinical: [
+      { label: 'Triage', value: 'Triage Assessment' },
+      { label: 'Rounds', value: 'Patient Rounds' },
+      { label: 'Discharge', value: 'Discharge Summary' },
+      { label: 'Consult', value: 'Consultation' },
+      { label: 'Procedure', value: 'Procedure Note' },
+    ],
+  }
+  return [...common, ...(byDiscipline[discipline] || byDiscipline.general)]
+}
 
-const SOAP_SECTIONS = [
-  {
-    key: 'subjective' as const,
-    letter: 'S',
-    label: 'Subjective',
-    icon: Eye,
-    color: 'blue',
-    description: "Client's own words — what they report feeling",
-    placeholder: 'e.g. Client reports sharp pain in left shoulder when reaching overhead. Pain began 3 days ago after gardening. Rates discomfort as 7/10.',
-    borderColor: 'border-l-blue-500',
-    bgColor: 'bg-blue-50',
-    textColor: 'text-blue-800',
-    letterBg: 'bg-blue-200 text-blue-800',
+const SECTION_COPY: Record<string, { description: Record<string, string>; placeholder: Record<string, string> }> = {
+  subjective: {
+    description: {
+      general: "Client's own words — what they report feeling",
+      chiropractic: "Patient's reported symptoms — pain location, onset, aggravating factors",
+      massage: "Client's goals for this session — areas of tension, pain, or stress",
+      yoga: "Client's current state — energy level, areas of tightness, recent activity",
+      pt: "Patient's functional complaints — pain, limitations, progress since last visit",
+      clinical: "Patient's chief complaint — history of present illness in their own words",
+    },
+    placeholder: {
+      general: 'e.g. Client reports sharp pain in left shoulder when reaching overhead. Pain began 3 days ago. Rates discomfort 7/10.',
+      chiropractic: 'e.g. Patient reports low back pain radiating to left leg, worse after sitting >30 min. Onset 1 week ago lifting furniture. Pain 6/10.',
+      massage: 'e.g. Client requests focus on upper back and neck tension. Reports stress-related tightness, difficulty sleeping. Rates tension 8/10.',
+      yoga: 'e.g. Client reports tight hamstrings and hip flexors limiting forward folds. Recent increase in running. Energy level moderate.',
+      pt: 'e.g. Patient reports improved knee flexion since last visit. Still has difficulty with stairs. Pain 4/10 down from 7/10 at initial eval.',
+      clinical: 'e.g. Patient presents with 3-day history of productive cough, low-grade fever 100.2F. Reports fatigue and body aches.',
+    },
   },
-  {
-    key: 'objective' as const,
-    letter: 'O',
-    label: 'Objective',
-    icon: Stethoscope,
-    color: 'emerald',
-    description: "Your observations — palpation, ROM, posture findings",
-    placeholder: 'e.g. Posture shows forward head and rounded shoulders. Limited active ROM in cervical spine. Palpation reveals tenderness and trigger points in left trapezius.',
-    borderColor: 'border-l-emerald-500',
-    bgColor: 'bg-emerald-50',
-    textColor: 'text-emerald-800',
-    letterBg: 'bg-emerald-200 text-emerald-800',
+  objective: {
+    description: {
+      general: 'Your observations — palpation, ROM, posture findings',
+      chiropractic: 'Include spinal palpation, ROM, orthopedic tests, subluxation findings',
+      massage: 'Include tissue quality, trigger points, adhesions, postural observations',
+      yoga: 'Include ROM assessment, alignment observations, breath patterns',
+      pt: 'Include ROM measurements, strength testing (MMT), functional tests, gait',
+      clinical: 'Include vitals, physical exam findings, relevant lab/imaging results',
+    },
+    placeholder: {
+      general: 'e.g. Posture shows forward head and rounded shoulders. Limited active ROM in cervical spine. Palpation reveals tenderness in left trapezius.',
+      chiropractic: 'e.g. T4-T6 fixation noted on motion palpation. Positive Kemp\'s test left. Cervical ROM: flexion 40° (N=50°). Paravertebral muscle spasm bilateral.',
+      massage: 'e.g. Hypertonic tissue noted in bilateral upper trapezius. Active trigger point left levator scapulae. Adhesion present in right IT band. Forward head posture.',
+      yoga: 'e.g. Forward fold limited to mid-shin. Hip external rotation restricted bilaterally. Breath shallow, chest-dominant pattern. Shoulder elevation during movement.',
+      pt: 'e.g. Knee flexion AROM 110° (goal 130°). Quad strength 4/5 MMT. Single leg stance 15 sec (N=30). Gait: antalgic pattern, decreased stance phase right.',
+      clinical: 'e.g. T 100.4F, HR 88, BP 128/82, RR 18, SpO2 97%. Lungs: bilateral rhonchi, decreased breath sounds right base. No wheezing.',
+    },
   },
-  {
-    key: 'assessment' as const,
-    letter: 'A',
-    label: 'Assessment',
-    icon: Brain,
-    color: 'amber',
-    description: "Clinical interpretation — diagnosis or working hypothesis",
-    placeholder: 'e.g. Myofascial pain syndrome in left trapezius. Restricted cervical mobility contributing to symptoms. Postural dysfunction noted.',
-    borderColor: 'border-l-amber-500',
-    bgColor: 'bg-amber-50',
-    textColor: 'text-amber-800',
-    letterBg: 'bg-amber-200 text-amber-800',
+  assessment: {
+    description: {
+      general: 'Clinical interpretation — diagnosis or working hypothesis',
+      chiropractic: 'Diagnosis — subluxation complex, differential, clinical impression',
+      massage: 'Clinical impression — primary dysfunction, contributing factors',
+      yoga: 'Movement assessment — imbalances, compensations, priorities',
+      pt: 'Diagnosis & prognosis — ICD code, functional limitations, rehab potential',
+      clinical: 'Assessment — differential diagnosis, problem list, clinical reasoning',
+    },
+    placeholder: {
+      general: 'e.g. Myofascial pain syndrome in left trapezius. Restricted cervical mobility contributing to symptoms. Postural dysfunction.',
+      chiropractic: 'e.g. Thoracic segmental dysfunction T4-T6. Cervical radiculopathy left C5-C6. Postural syndrome with upper crossed pattern.',
+      massage: 'e.g. Upper crossed syndrome with chronic tension in cervicothoracic region. Myofascial trigger points contributing to referral pain pattern.',
+      yoga: 'e.g. Posterior chain tightness limiting hip hinge mechanics. Compensatory lumbar flexion during forward folds. Breath pattern dysfunction.',
+      pt: 'e.g. S/P right TKA 4 weeks. Progressing well. Limited knee flexion and quad weakness. Good rehab potential for full functional recovery.',
+      clinical: 'e.g. 1. Community-acquired pneumonia, right lower lobe. 2. Dehydration, mild. 3. Hypertension, controlled.',
+    },
   },
-  {
-    key: 'plan' as const,
-    letter: 'P',
-    label: 'Plan',
-    icon: Clipboard,
-    color: 'indigo',
-    description: "Treatment plan — what you'll do and next steps",
-    placeholder: 'e.g. Apply trigger point therapy to trapezius 2x/week for 3 weeks. Prescribe cervical mobility exercises. Home stretching routine. Reassess in 2 weeks.',
-    borderColor: 'border-l-indigo-500',
-    bgColor: 'bg-indigo-50',
-    textColor: 'text-indigo-800',
-    letterBg: 'bg-indigo-200 text-indigo-800',
+  plan: {
+    description: {
+      general: "Treatment plan — what you'll do and next steps",
+      chiropractic: 'Adjustment plan — technique, frequency, home exercises, referrals',
+      massage: 'Treatment plan — techniques used, home care, follow-up schedule',
+      yoga: 'Practice plan — prescribed poses, breathwork, frequency, modifications',
+      pt: 'Treatment plan — interventions, HEP, goals, visit frequency, discharge criteria',
+      clinical: 'Plan — orders, medications, referrals, follow-up, patient education',
+    },
+    placeholder: {
+      general: 'e.g. Apply trigger point therapy 2x/week for 3 weeks. Prescribe cervical mobility exercises. Reassess in 2 weeks.',
+      chiropractic: 'e.g. Diversified adjustment T4-T6 and cervical spine. Cox flexion-distraction L4-L5. E-stim 15 min. 2x/week for 4 weeks, then re-eval. Home: cat-cow stretch 2x/day.',
+      massage: 'e.g. 60-min session: myofascial release upper back, trigger point therapy levator scap, Swedish effleurage for relaxation. Home: tennis ball self-release, heat 15 min daily. Rebook 2 weeks.',
+      yoga: 'e.g. Prescribe hip opener sequence (pigeon, lizard, 90/90) 3x/week. Diaphragmatic breathing 5 min daily. Modify forward folds with bent knees. Reassess in 4 sessions.',
+      pt: 'e.g. Continue quad strengthening (SLR, mini squats, step-ups). Add stationary bike 15 min. Progress to single leg balance. HEP updated. 2x/week, reassess in 2 weeks. Goal: 130° flexion by week 8.',
+      clinical: 'e.g. 1. Start azithromycin 500mg day 1, then 250mg x4 days. 2. IV fluids 1L NS bolus. 3. Chest X-ray PA/lateral. 4. Follow up 48-72 hrs. 5. Return precautions reviewed.',
+    },
   },
-]
+}
 
-export default function SoapEntry2() {
+function getSoapSections(discipline: Discipline) {
+  const base = [
+    { key: 'subjective' as const, letter: 'S', label: 'Subjective', icon: Eye, borderColor: 'border-l-blue-500', textColor: 'text-blue-800', letterBg: 'bg-blue-200 text-blue-800' },
+    { key: 'objective' as const, letter: 'O', label: 'Objective', icon: Stethoscope, borderColor: 'border-l-emerald-500', textColor: 'text-emerald-800', letterBg: 'bg-emerald-200 text-emerald-800' },
+    { key: 'assessment' as const, letter: 'A', label: 'Assessment', icon: Brain, borderColor: 'border-l-amber-500', textColor: 'text-amber-800', letterBg: 'bg-amber-200 text-amber-800' },
+    { key: 'plan' as const, letter: 'P', label: 'Plan', icon: Clipboard, borderColor: 'border-l-indigo-500', textColor: 'text-indigo-800', letterBg: 'bg-indigo-200 text-indigo-800' },
+  ]
+  return base.map((s) => ({
+    ...s,
+    description: SECTION_COPY[s.key].description[discipline] || SECTION_COPY[s.key].description.general,
+    placeholder: SECTION_COPY[s.key].placeholder[discipline] || SECTION_COPY[s.key].placeholder.general,
+  }))
+}
+
+const BODY_MAP_COPY: Record<string, { title: string; subtitle: string }> = {
+  general: { title: 'Interactive Body Map', subtitle: 'Tap areas to mark pain and discomfort zones — builds visual documentation' },
+  chiropractic: { title: 'Pain & Subluxation Map', subtitle: 'Mark spinal segments, pain referral patterns, and areas of dysfunction' },
+  massage: { title: 'Tension & Trigger Point Map', subtitle: 'Identify areas of tension, adhesions, and trigger points to guide treatment' },
+  yoga: { title: 'Mobility & Restriction Map', subtitle: 'Map areas of tightness, restriction, and imbalance to guide practice' },
+  pt: { title: 'Functional Pain Map', subtitle: 'Document pain sites, injury areas, and movement limitations for rehab tracking' },
+  clinical: { title: 'Physical Exam Body Map', subtitle: 'Mark areas of concern, tenderness, or abnormal findings from examination' },
+}
+
+export default function SoapEntry2({ discipline = 'general' }: { discipline?: Discipline }) {
   const [user, setUser] = useState<any>(null)
   const [subjective, setSubjective] = useState('')
   const [objective, setObjective] = useState('')
@@ -143,6 +229,10 @@ export default function SoapEntry2() {
     assessment: setAssessment,
     plan: setPlan,
   }
+
+  const encounterPresets = useMemo(() => getEncounterPresets(discipline), [discipline])
+  const soapSections = useMemo(() => getSoapSections(discipline), [discipline])
+  const bodyMapCopy = BODY_MAP_COPY[discipline] || BODY_MAP_COPY.general
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -356,7 +446,7 @@ export default function SoapEntry2() {
               onChange={(e) => setEncounterType(e.target.value)}
             />
             <div className="flex flex-wrap gap-1 mt-1">
-              {ENCOUNTER_PRESETS.map((preset) => (
+              {encounterPresets.map((preset) => (
                 <button
                   key={preset.value}
                   type="button"
@@ -419,17 +509,29 @@ export default function SoapEntry2() {
         </div>
       </div>
 
-      {/* Body Map */}
-      <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm overflow-hidden relative">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-t-2xl" />
+      {/* Body Map — Primary Differentiator */}
+      <div className="bg-white border-2 border-cyan-200/60 rounded-2xl shadow-sm overflow-hidden relative">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 rounded-t-2xl" />
         <div className="p-5">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="p-2 bg-cyan-100 rounded-xl">
+              <Target className="h-5 w-5 text-cyan-700" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">{bodyMapCopy.title}</h3>
+              <p className="text-[11px] text-gray-500">{bodyMapCopy.subtitle}</p>
+            </div>
+            <Badge className="ml-auto bg-cyan-50 text-cyan-700 border-cyan-200 text-[9px] font-bold uppercase tracking-wide">
+              <MapPin className="h-3 w-3 mr-0.5" /> Interactive
+            </Badge>
+          </div>
           <BodyMap />
         </div>
       </div>
 
       {/* SOAP Sections */}
       <div className="space-y-3">
-        {SOAP_SECTIONS.map((section) => (
+        {soapSections.map((section) => (
           <div key={section.key} className="bg-white border border-gray-200/80 rounded-2xl shadow-sm overflow-hidden relative">
             <div className={`absolute top-0 left-0 w-1 h-full ${section.borderColor}`} />
             <div className="p-4 pl-5">
