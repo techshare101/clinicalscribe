@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,6 +62,7 @@ export function SOAPGenerator({
 }: SOAPGeneratorProps) {
   const [transcript, setTranscript] = useState(initialTranscript);
   const [rawTranscript, setRawTranscript] = useState(initialRawTranscript);
+  const transcriptRef = useRef(initialTranscript);
   const [patientNameInput, setPatientNameInput] = useState(patientName);
   const [encounterTypeInput, setEncounterTypeInput] = useState(encounterType);
   const [soapNote, setSOAPNote] = useState<SOAPNote | null>(null);
@@ -104,6 +105,7 @@ export function SOAPGenerator({
   // Sync props to internal state unconditionally so parent changes always flow through
   useEffect(() => {
     setTranscript(initialTranscript);
+    transcriptRef.current = initialTranscript;
   }, [initialTranscript]);
 
   useEffect(() => {
@@ -125,6 +127,11 @@ export function SOAPGenerator({
   useEffect(() => {
     if (docLang) setDocumentationLanguage(docLang);
   }, [docLang]);
+
+  // Keep ref in sync whenever internal state changes
+  useEffect(() => {
+    transcriptRef.current = transcript;
+  }, [transcript]);
 
   // Load SOAP note from localStorage on component mount
   useEffect(() => {
@@ -156,8 +163,9 @@ export function SOAPGenerator({
   }, [soapNote, patientNameInput, encounterTypeInput]);
 
   const generateSOAP = async () => {
-    // Always use the translated transcript for SOAP generation
-    const transcriptToUse = transcript;
+    // Use ref to guarantee we read the latest transcript (avoids stale closure issues)
+    const transcriptToUse = transcriptRef.current || transcript || initialTranscript;
+    console.log('[SOAP] generateSOAP called, transcript length:', transcriptToUse.length);
     
     if (!transcriptToUse.trim()) {
       setError('Please enter a transcript to generate SOAP note');

@@ -28,14 +28,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Transcript is required' }, { status: 400 });
     }
 
+    console.log('[SOAP API] Received transcript length:', transcript.trim().length, 'chars');
+
     // Construct the clinical prompt for GPT-4
     const clinicalPrompt = `You are an experienced clinical documentation specialist. Convert the following medical transcript into a structured SOAP note format. Be precise, professional, and clinically accurate.
 
 INSTRUCTIONS:
-- Extract only information explicitly mentioned in the transcript
+- Extract ALL available clinical information from the transcript
 - Use proper medical terminology
 - Be concise but comprehensive
-- If information is missing for a section, note it appropriately
+- If the transcript discusses a patient case (even as a teaching example or presentation), treat it as the patient encounter and extract all relevant details
+- For any section where information is limited, summarize what IS available rather than saying "not provided"
+- Only write "Information not provided in the transcript" if there is truly zero relevant content for that section
 - Maintain patient confidentiality standards
 
 TRANSCRIPT:
@@ -65,15 +69,15 @@ Focus on clinical accuracy and professional medical documentation standards.`;
         messages: [
           {
             role: 'system',
-            content: 'You are a clinical documentation specialist. Generate accurate, professional SOAP notes from medical transcripts. Always respond with valid JSON format.'
+            content: 'You are a clinical documentation specialist. Generate accurate, professional SOAP notes from medical transcripts. Extract all available clinical information. Always respond with valid JSON format.'
           },
           {
             role: 'user',
             content: clinicalPrompt
           }
         ],
-        temperature: 0.3, // Lower temperature for more consistent clinical output
-        max_tokens: 1500,
+        temperature: 0.3,
+        max_tokens: 2000,
         response_format: { type: "json_object" }
       }),
     });
