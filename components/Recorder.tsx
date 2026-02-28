@@ -250,21 +250,22 @@ export default function Recorder({
       segmentTranscripts.current = [];
       pendingTranscriptions.current = 0;
 
-      // ── STREAMING TRANSCRIPTION (optimized) ──
-      // Each 30s segment is transcribed in parallel as it arrives.
-      // Retry once on failure. Live transcript updates during recording.
-      // At 64kbps each segment is ~240KB (well under Vercel's 4.5MB limit).
-      recorder.ondataavailable = async (event) => {
-        if (event.data.size > 0) {
-          audioChunks.current.push(event.data);
+      // ── SEQUENTIAL TRANSCRIPTION QUEUE ──
+      // Segments are queued as they arrive and processed ONE AT A TIME
+      // to avoid overwhelming Vercel serverless functions with parallel requests.
+      // Each segment retries once on failure. Live UI updates as text completes.
+      const segmentQueue: { idx: number; blob: Blob }[] = [];
+      let queueProcessing = false;
 
-          const segIdx = segmentIndexRef.current++;
-          const segmentBlob = new Blob([event.data], { type: mimeType });
+      const processQueue = async () => {
+        if (queueProcessing) return; // already running
+        queueProcessing = true;
+
+        while (segmentQueue.length > 0) {
+          const { idx: segIdx, blob: segmentBlob } = segmentQueue.shift()!;
           const sizeMB = (segmentBlob.size / (1024 * 1024)).toFixed(2);
-          console.log(`🎤 Segment ${segIdx} ready (${sizeMB} MB) — sending to transcribe`);
+          console.log(`🎤 Processing segment ${segIdx} (${sizeMB} MB)`);
           setProgressMessage(`🎤 Transcribing segment ${segIdx + 1}...`);
-
-          pendingTranscriptions.current++;
 
           // Transcribe with 1 retry on failure
           let result: { transcript: string; rawTranscript: string } | null = null;
@@ -276,9 +277,9 @@ export default function Recorder({
             } catch (segErr) {
               if (attempt === 0) {
                 console.warn(`⚠️ Segment ${segIdx} attempt 1 failed, retrying...`, segErr);
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, 1500));
               } else {
-                console.error(`❌ Segment ${segIdx} transcription failed after retry:`, segErr);
+                console.error(`❌ Segment ${segIdx} failed after retry:`, segErr);
               }
             }
           }
@@ -291,16 +292,15 @@ export default function Recorder({
             });
             console.log(`✅ Segment ${segIdx} transcribed (${result.transcript.length} chars)`);
 
-            // Live transcript: stitch all completed segments and display immediately
+            // Live transcript display: stitch completed segments and show in UI
             const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
             const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
             const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
             setTranscript(liveText);
             setRawTranscript(liveRaw);
-            // Also push to parent so SOAPGenerator textarea updates live
-            onTranscriptGenerated?.(liveText, liveRaw, patientLanguage !== "auto" ? patientLanguage : undefined);
           } else {
             segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
+            console.warn(`⚠️ Segment ${segIdx} produced no text`);
           }
 
           const completed = segmentTranscripts.current.filter(s => s.transcript).length;
@@ -314,6 +314,21 @@ export default function Recorder({
               console.error('Audio upload failed:', err)
             );
           }
+        }
+
+        queueProcessing = false;
+      };
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.current.push(event.data);
+          const segIdx = segmentIndexRef.current++;
+          const segmentBlob = new Blob([event.data], { type: mimeType });
+          pendingTranscriptions.current++;
+
+          // Queue the segment for sequential processing
+          segmentQueue.push({ idx: segIdx, blob: segmentBlob });
+          processQueue(); // start processing if not already running
         }
       };
 
@@ -334,11 +349,13 @@ export default function Recorder({
         setLoading(true);
         setProgressMessage('Finalizing transcription...');
 
-        // Wait for any in-flight segment transcriptions to finish (max 30s)
+        // Wait for the sequential queue to drain (max 120s for long recordings)
         const waitStart = Date.now();
-        while (pendingTranscriptions.current > 0 && Date.now() - waitStart < 30000) {
+        while (pendingTranscriptions.current > 0 && Date.now() - waitStart < 120000) {
           await new Promise(r => setTimeout(r, 500));
-          setProgressMessage(`Waiting for ${pendingTranscriptions.current} segment(s)...`);
+          const completed = segmentTranscripts.current.filter(s => s.transcript).length;
+          const total = segmentIndexRef.current;
+          setProgressMessage(`⏳ Finishing transcription... ${completed}/${total} segments done`);
         }
 
         // Stitch all segment transcripts in order
