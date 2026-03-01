@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { transcribeAudio } from '@/lib/utils';
 import { auth, db } from '@/lib/firebase';
@@ -74,10 +74,8 @@ export default function Recorder({
   const segmentIndexRef = useRef(0);
   const segmentTranscripts = useRef<{ index: number; transcript: string; rawTranscript: string }[]>([]);
   const mimeTypeRef = useRef("audio/webm;codecs=opus");
-  // Promise-based tracking: each segment gets a promise. onstop does Promise.all().
-  // Sequential chaining: queueTail is always the last promise — next segment awaits it.
+  // Promise-based tracking: each segment gets a promise. onstop does Promise.allSettled().
   const segmentPromises = useRef<Promise<void>[]>([]);
-  const queueTail = useRef<Promise<void>>(Promise.resolve());
   const [recordingTime, setRecordingTime] = useState(0); // Track recording time
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -253,12 +251,34 @@ export default function Recorder({
       segmentIndexRef.current = 0;
       segmentTranscripts.current = [];
       segmentPromises.current = [];
-      queueTail.current = Promise.resolve();
+
+      let flushing = false;
+
+      const updateUI = () => {
+        if (flushing) return;
+        flushing = true;
+        try {
+          const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
+          const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
+          const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
+          const completed = segmentTranscripts.current.filter(s => s.transcript).length;
+          const total = segmentIndexRef.current;
+          console.log(`🔄 Live stitch: ${liveText.length} chars from ${completed}/${total} segments`);
+          flushSync(() => {
+            setTranscript(liveText);
+            setRawTranscript(liveRaw);
+            setProgressMessage(`✅ ${completed}/${total} segments transcribed`);
+          });
+        } catch (e) {
+          console.error('flushSync error:', e);
+        } finally {
+          flushing = false;
+        }
+      };
 
       const transcribeSegment = async (segIdx: number, segmentBlob: Blob) => {
         const sizeMB = (segmentBlob.size / (1024 * 1024)).toFixed(2);
-        console.log(`🎤 Processing segment ${segIdx} (${sizeMB} MB)`);
-        setProgressMessage(`🎤 Transcribing segment ${segIdx + 1}...`);
+        console.log(`🎤 Transcribing segment ${segIdx} (${sizeMB} MB) — PARALLEL`);
 
         let result: { transcript: string; rawTranscript: string } | null = null;
         for (let attempt = 0; attempt < 2; attempt++) {
@@ -282,25 +302,14 @@ export default function Recorder({
             transcript: result.transcript,
             rawTranscript: result.rawTranscript,
           });
-          console.log(`✅ Segment ${segIdx} transcribed (${result.transcript.length} chars)`);
+          console.log(`✅ Segment ${segIdx} done (${result.transcript.length} chars)`);
         } else {
           segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
           console.warn(`⚠️ Segment ${segIdx} produced no text`);
         }
 
-        const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
-        const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
-        const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
-        const completed = segmentTranscripts.current.filter(s => s.transcript).length;
-        const total = segmentIndexRef.current;
-
-        console.log(`🔄 Live stitch: ${liveText.length} chars from ${completed}/${total} segments`);
-
-        flushSync(() => {
-          setTranscript(liveText);
-          setRawTranscript(liveRaw);
-          setProgressMessage(`✅ ${completed}/${total} segments transcribed`);
-        });
+        // Update UI after each segment completes (whichever order)
+        updateUI();
 
         if (sessionId) {
           uploadAudioFile(segmentBlob, sessionId).catch(err =>
@@ -314,9 +323,12 @@ export default function Recorder({
           audioChunks.current.push(event.data);
           const segIdx = segmentIndexRef.current++;
           const segmentBlob = new Blob([event.data], { type: mimeType });
+          console.log(`📦 Segment ${segIdx} captured (${(event.data.size/1024).toFixed(0)} KB) — launching parallel transcription`);
 
-          const segmentPromise = queueTail.current.then(() => transcribeSegment(segIdx, segmentBlob));
-          queueTail.current = segmentPromise.catch(() => {}); 
+          // Fire immediately — no chaining, no queue, just go
+          const segmentPromise = transcribeSegment(segIdx, segmentBlob).catch(err => {
+            console.error(`💥 Segment ${segIdx} promise rejected:`, err);
+          });
           segmentPromises.current.push(segmentPromise);
         }
       };
@@ -336,13 +348,30 @@ export default function Recorder({
         setLoading(true);
         setProgressMessage('⏳ Waiting for all segments to finish transcribing...');
 
+        // CRITICAL: recorder.stop() fires a final ondataavailable with remaining
+        // buffered audio, then fires onstop. These are both queued as DOM events.
+        // We yield to the event loop so the final ondataavailable fires and pushes
+        // its promise BEFORE we snapshot the array for Promise.allSettled.
+        await new Promise(r => setTimeout(r, 200));
+
+        const totalSegments = segmentIndexRef.current;
+        const totalPromises = segmentPromises.current.length;
+        console.log(`⏳ onstop: waiting for ${totalPromises} promises (${totalSegments} segments indexed)`);
+
+        // Await ALL segment promises — parallel mode, so they're all in-flight
         await Promise.allSettled(segmentPromises.current);
+
+        // Double-check: if any late promises snuck in after the snapshot, await again
+        if (segmentPromises.current.length > totalPromises) {
+          console.log(`⏳ onstop: ${segmentPromises.current.length - totalPromises} late promises detected, awaiting...`);
+          await Promise.allSettled(segmentPromises.current);
+        }
 
         const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
         const stitchedTranscript = ordered.map(s => s.transcript).filter(Boolean).join(' ');
         const stitchedRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
 
-        console.log(`📋 Final stitch: ${ordered.length} segments → ${stitchedTranscript.length} chars`);
+        console.log(`📋 Final stitch: ${ordered.length} segments → ${stitchedTranscript.length} chars (${totalSegments} total indexed)`);
 
         flushSync(() => {
           setTranscript(stitchedTranscript);
