@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { transcribeAudio } from '@/lib/utils';
 import { auth, db } from '@/lib/firebase';
 import { uploadAudioFile } from '@/lib/audioUpload';
@@ -72,13 +73,11 @@ export default function Recorder({
   // Streaming transcription state — transcribe each 30s segment as it arrives
   const segmentIndexRef = useRef(0);
   const segmentTranscripts = useRef<{ index: number; transcript: string; rawTranscript: string }[]>([]);
-  const pendingTranscriptions = useRef(0);
   const mimeTypeRef = useRef("audio/webm;codecs=opus");
-  // Live transcript refs — React state updates inside async loops are unreliable,
-  // so we store the stitched text in refs and use a counter to force re-renders.
-  const liveTranscriptRef = useRef('');
-  const liveRawRef = useRef('');
-  const [segmentCompletedCount, setSegmentCompletedCount] = useState(0);
+  // Promise-based tracking: each segment gets a promise. onstop does Promise.all().
+  // Sequential chaining: queueTail is always the last promise — next segment awaits it.
+  const segmentPromises = useRef<Promise<void>[]>([]);
+  const queueTail = useRef<Promise<void>>(Promise.resolve());
   const [recordingTime, setRecordingTime] = useState(0); // Track recording time
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -136,17 +135,6 @@ export default function Recorder({
       }
     };
   }, []);
-
-  // Sync live transcript refs → React state when a segment completes.
-  // Direct setTranscript() inside async while loops gets swallowed by React batching.
-  // This useEffect fires reliably because segmentCompletedCount is a proper state update.
-  useEffect(() => {
-    if (segmentCompletedCount > 0 && liveTranscriptRef.current) {
-      setTranscript(liveTranscriptRef.current);
-      setRawTranscript(liveRawRef.current);
-      console.log(`🔄 Synced transcript to UI: ${liveTranscriptRef.current.length} chars (segment ${segmentCompletedCount})`);
-    }
-  }, [segmentCompletedCount]);
 
   // Reset all state when parent triggers a clear
   useEffect(() => {
@@ -264,100 +252,75 @@ export default function Recorder({
       mimeTypeRef.current = mimeType;
       segmentIndexRef.current = 0;
       segmentTranscripts.current = [];
-      pendingTranscriptions.current = 0;
-      liveTranscriptRef.current = '';
-      liveRawRef.current = '';
-      setSegmentCompletedCount(0);
+      segmentPromises.current = [];
+      queueTail.current = Promise.resolve();
 
-      // ── SEQUENTIAL TRANSCRIPTION QUEUE ──
-      // Segments are queued as they arrive and processed ONE AT A TIME
-      // to avoid overwhelming Vercel serverless functions with parallel requests.
-      // Each segment retries once on failure. Live UI updates as text completes.
-      const segmentQueue: { idx: number; blob: Blob }[] = [];
-      let queueProcessing = false;
+      const transcribeSegment = async (segIdx: number, segmentBlob: Blob) => {
+        const sizeMB = (segmentBlob.size / (1024 * 1024)).toFixed(2);
+        console.log(`🎤 Processing segment ${segIdx} (${sizeMB} MB)`);
+        setProgressMessage(`🎤 Transcribing segment ${segIdx + 1}...`);
 
-      const processQueue = async () => {
-        if (queueProcessing) return; // already running
-        queueProcessing = true;
-
-        while (segmentQueue.length > 0) {
-          const { idx: segIdx, blob: segmentBlob } = segmentQueue.shift()!;
-          const sizeMB = (segmentBlob.size / (1024 * 1024)).toFixed(2);
-          console.log(`🎤 Processing segment ${segIdx} (${sizeMB} MB)`);
-          setProgressMessage(`🎤 Transcribing segment ${segIdx + 1}...`);
-
-          // Transcribe with 1 retry on failure
-          let result: { transcript: string; rawTranscript: string } | null = null;
-          for (let attempt = 0; attempt < 2; attempt++) {
-            try {
-              const res = await transcribeAudio(segmentBlob, patientLanguage, docLanguage, segIdx);
-              result = { transcript: res.transcript, rawTranscript: res.rawTranscript };
-              break;
-            } catch (segErr) {
-              if (attempt === 0) {
-                console.warn(`⚠️ Segment ${segIdx} attempt 1 failed, retrying...`, segErr);
-                await new Promise(r => setTimeout(r, 1500));
-              } else {
-                console.error(`❌ Segment ${segIdx} failed after retry:`, segErr);
-              }
+        let result: { transcript: string; rawTranscript: string } | null = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const res = await transcribeAudio(segmentBlob, patientLanguage, docLanguage, segIdx);
+            result = { transcript: res.transcript, rawTranscript: res.rawTranscript };
+            break;
+          } catch (segErr) {
+            if (attempt === 0) {
+              console.warn(`⚠️ Segment ${segIdx} attempt 1 failed, retrying...`, segErr);
+              await new Promise(r => setTimeout(r, 1500));
+            } else {
+              console.error(`❌ Segment ${segIdx} failed after retry:`, segErr);
             }
           }
-
-          if (result && result.transcript) {
-            segmentTranscripts.current.push({
-              index: segIdx,
-              transcript: result.transcript,
-              rawTranscript: result.rawTranscript,
-            });
-            console.log(`✅ Segment ${segIdx} transcribed (${result.transcript.length} chars)`);
-          } else {
-            segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
-            console.warn(`⚠️ Segment ${segIdx} produced no text`);
-          }
-
-          // Stitch all completed segments in order and write to REFS (not state)
-          const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
-          liveTranscriptRef.current = ordered.map(s => s.transcript).filter(Boolean).join(' ');
-          liveRawRef.current = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
-
-          const completed = segmentTranscripts.current.filter(s => s.transcript).length;
-          const total = segmentIndexRef.current;
-
-          // Increment counter to trigger useEffect which syncs refs → React state
-          // This is the ONLY reliable way to update UI from inside an async while loop.
-          setSegmentCompletedCount(prev => prev + 1);
-          setProgressMessage(`✅ ${completed}/${total} segments transcribed`);
-          pendingTranscriptions.current--;
-
-          // Upload audio to Firebase Storage in background
-          if (sessionId) {
-            uploadAudioFile(segmentBlob, sessionId).catch(err =>
-              console.error('Audio upload failed:', err)
-            );
-          }
-
-          // Yield to React so state updates flush to the DOM between segments
-          await new Promise(r => setTimeout(r, 50));
         }
 
-        queueProcessing = false;
+        if (result && result.transcript) {
+          segmentTranscripts.current.push({
+            index: segIdx,
+            transcript: result.transcript,
+            rawTranscript: result.rawTranscript,
+          });
+          console.log(`✅ Segment ${segIdx} transcribed (${result.transcript.length} chars)`);
+        } else {
+          segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
+          console.warn(`⚠️ Segment ${segIdx} produced no text`);
+        }
+
+        const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
+        const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
+        const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
+        const completed = segmentTranscripts.current.filter(s => s.transcript).length;
+        const total = segmentIndexRef.current;
+
+        console.log(`🔄 Live stitch: ${liveText.length} chars from ${completed}/${total} segments`);
+
+        flushSync(() => {
+          setTranscript(liveText);
+          setRawTranscript(liveRaw);
+          setProgressMessage(`✅ ${completed}/${total} segments transcribed`);
+        });
+
+        if (sessionId) {
+          uploadAudioFile(segmentBlob, sessionId).catch(err =>
+            console.error('Audio upload failed:', err)
+          );
+        }
       };
 
-      recorder.ondataavailable = (event) => {
+      recorder.ondataavailable = (event: BlobEvent) => {
         if (event.data.size > 0) {
           audioChunks.current.push(event.data);
           const segIdx = segmentIndexRef.current++;
           const segmentBlob = new Blob([event.data], { type: mimeType });
-          pendingTranscriptions.current++;
 
-          // Queue the segment for sequential processing
-          segmentQueue.push({ idx: segIdx, blob: segmentBlob });
-          processQueue(); // start processing if not already running
+          const segmentPromise = queueTail.current.then(() => transcribeSegment(segIdx, segmentBlob));
+          queueTail.current = segmentPromise.catch(() => {}); 
+          segmentPromises.current.push(segmentPromise);
         }
       };
 
-      // ── ON STOP: stitch segment transcripts together ──
-      // No giant blob is ever sent to the API — only small 30s segments.
       recorder.onstop = async () => {
         if (recordingTimerRef.current) {
           clearInterval(recordingTimerRef.current);
@@ -371,27 +334,20 @@ export default function Recorder({
         }
 
         setLoading(true);
-        setProgressMessage('Finalizing transcription...');
+        setProgressMessage('⏳ Waiting for all segments to finish transcribing...');
 
-        // Wait for the sequential queue to drain (max 120s for long recordings)
-        const waitStart = Date.now();
-        while (pendingTranscriptions.current > 0 && Date.now() - waitStart < 120000) {
-          await new Promise(r => setTimeout(r, 500));
-          const completed = segmentTranscripts.current.filter(s => s.transcript).length;
-          const total = segmentIndexRef.current;
-          setProgressMessage(`⏳ Finishing transcription... ${completed}/${total} segments done`);
-        }
+        await Promise.allSettled(segmentPromises.current);
 
-        // Stitch all segment transcripts in order
         const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
         const stitchedTranscript = ordered.map(s => s.transcript).filter(Boolean).join(' ');
         const stitchedRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
 
-        console.log(`📋 Stitched ${ordered.length} segments → ${stitchedTranscript.length} chars`);
+        console.log(`📋 Final stitch: ${ordered.length} segments → ${stitchedTranscript.length} chars`);
 
-        // Force final transcript into UI state (processQueue live updates may have missed segments)
-        setTranscript(() => stitchedTranscript);
-        setRawTranscript(() => stitchedRaw);
+        flushSync(() => {
+          setTranscript(stitchedTranscript);
+          setRawTranscript(stitchedRaw);
+        });
 
         if (!stitchedTranscript.trim()) {
           setError('No speech detected in this recording. Please try again.');
