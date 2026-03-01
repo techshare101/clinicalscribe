@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { flushSync } from 'react-dom';
 import { transcribeAudio } from '@/lib/utils';
 import { auth, db } from '@/lib/firebase';
 import { uploadAudioFile } from '@/lib/audioUpload';
@@ -90,6 +89,12 @@ export default function Recorder({
   const transcriptChunksRef = useRef<TranscriptChunk[]>([]); // Ref mirror to avoid stale reads
   const [progressMessage, setProgressMessage] = useState<string>(""); // Progress feedback message
   
+  // Live refs for polling pattern — written by async transcription, polled to state by setInterval
+  const liveTextRef = useRef('');
+  const liveRawRef = useRef('');
+  const liveProgressRef = useRef('');
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Waveform visualization refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -133,6 +138,27 @@ export default function Recorder({
       }
     };
   }, []);
+
+  // Poll live refs → React state every 500ms while recording or loading
+  // This replaces flushSync which silently fails inside Promise/microtask contexts
+  useEffect(() => {
+    if (isRecording || loading) {
+      pollIntervalRef.current = setInterval(() => {
+        const text = liveTextRef.current;
+        const raw = liveRawRef.current;
+        const progress = liveProgressRef.current;
+        setTranscript(prev => prev !== text ? text : prev);
+        setRawTranscript(prev => prev !== raw ? raw : prev);
+        if (progress) setProgressMessage(prev => prev !== progress ? progress : prev);
+      }, 500);
+      return () => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+      };
+    }
+  }, [isRecording, loading]);
 
   // Reset all state when parent triggers a clear
   useEffect(() => {
@@ -251,6 +277,9 @@ export default function Recorder({
       segmentIndexRef.current = 0;
       segmentTranscripts.current = [];
       segmentPromises.current = [];
+      liveTextRef.current = '';
+      liveRawRef.current = '';
+      liveProgressRef.current = '';
 
       // ── SEMAPHORE-CONTROLLED CONCURRENCY ──
       // Process max 2 segments at a time. Fast (~30s for 10 segments)
@@ -260,21 +289,16 @@ export default function Recorder({
       const pendingQueue: Array<{ segIdx: number; blob: Blob; resolve: () => void }> = [];
 
       const updateUI = () => {
-        try {
-          const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
-          const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
-          const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
-          const completed = segmentTranscripts.current.filter(s => s.transcript).length;
-          const total = segmentIndexRef.current;
-          console.log(`🔄 Live stitch: ${liveText.length} chars from ${completed}/${total} segments`);
-          flushSync(() => {
-            setTranscript(liveText);
-            setRawTranscript(liveRaw);
-            setProgressMessage(`✅ ${completed}/${total} segments transcribed`);
-          });
-        } catch (e) {
-          console.error('flushSync error:', e);
-        }
+        const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
+        const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
+        const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
+        const completed = segmentTranscripts.current.filter(s => s.transcript).length;
+        const total = segmentIndexRef.current;
+        console.log(`🔄 Live stitch: ${liveText.length} chars from ${completed}/${total} segments`);
+        // Write to refs — the polling useEffect (every 500ms) syncs these to React state
+        liveTextRef.current = liveText;
+        liveRawRef.current = liveRaw;
+        liveProgressRef.current = `✅ ${completed}/${total} segments transcribed`;
       };
 
       const processNext = () => {
@@ -396,10 +420,11 @@ export default function Recorder({
 
         console.log(`📋 Final stitch: ${ordered.length} segments → ${stitchedTranscript.length} chars (${totalSegments} total indexed)`);
 
-        flushSync(() => {
-          setTranscript(stitchedTranscript);
-          setRawTranscript(stitchedRaw);
-        });
+        // Final update: write to refs AND directly set state
+        liveTextRef.current = stitchedTranscript;
+        liveRawRef.current = stitchedRaw;
+        setTranscript(stitchedTranscript);
+        setRawTranscript(stitchedRaw);
 
         if (!stitchedTranscript.trim()) {
           setError('No speech detected in this recording. Please try again.');
