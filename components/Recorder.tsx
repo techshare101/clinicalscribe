@@ -74,6 +74,11 @@ export default function Recorder({
   const segmentTranscripts = useRef<{ index: number; transcript: string; rawTranscript: string }[]>([]);
   const pendingTranscriptions = useRef(0);
   const mimeTypeRef = useRef("audio/webm;codecs=opus");
+  // Live transcript refs — React state updates inside async loops are unreliable,
+  // so we store the stitched text in refs and use a counter to force re-renders.
+  const liveTranscriptRef = useRef('');
+  const liveRawRef = useRef('');
+  const [segmentCompletedCount, setSegmentCompletedCount] = useState(0);
   const [recordingTime, setRecordingTime] = useState(0); // Track recording time
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -131,6 +136,17 @@ export default function Recorder({
       }
     };
   }, []);
+
+  // Sync live transcript refs → React state when a segment completes.
+  // Direct setTranscript() inside async while loops gets swallowed by React batching.
+  // This useEffect fires reliably because segmentCompletedCount is a proper state update.
+  useEffect(() => {
+    if (segmentCompletedCount > 0 && liveTranscriptRef.current) {
+      setTranscript(liveTranscriptRef.current);
+      setRawTranscript(liveRawRef.current);
+      console.log(`🔄 Synced transcript to UI: ${liveTranscriptRef.current.length} chars (segment ${segmentCompletedCount})`);
+    }
+  }, [segmentCompletedCount]);
 
   // Reset all state when parent triggers a clear
   useEffect(() => {
@@ -249,6 +265,9 @@ export default function Recorder({
       segmentIndexRef.current = 0;
       segmentTranscripts.current = [];
       pendingTranscriptions.current = 0;
+      liveTranscriptRef.current = '';
+      liveRawRef.current = '';
+      setSegmentCompletedCount(0);
 
       // ── SEQUENTIAL TRANSCRIPTION QUEUE ──
       // Segments are queued as they arrive and processed ONE AT A TIME
@@ -296,17 +315,17 @@ export default function Recorder({
             console.warn(`⚠️ Segment ${segIdx} produced no text`);
           }
 
-          // Stitch all completed segments in order and update UI
+          // Stitch all completed segments in order and write to REFS (not state)
           const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
-          const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
-          const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
-
-          // Use functional updates to avoid stale closures
-          setTranscript(() => liveText);
-          setRawTranscript(() => liveRaw);
+          liveTranscriptRef.current = ordered.map(s => s.transcript).filter(Boolean).join(' ');
+          liveRawRef.current = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
 
           const completed = segmentTranscripts.current.filter(s => s.transcript).length;
           const total = segmentIndexRef.current;
+
+          // Increment counter to trigger useEffect which syncs refs → React state
+          // This is the ONLY reliable way to update UI from inside an async while loop.
+          setSegmentCompletedCount(prev => prev + 1);
           setProgressMessage(`✅ ${completed}/${total} segments transcribed`);
           pendingTranscriptions.current--;
 
