@@ -291,17 +291,19 @@ export default function Recorder({
               rawTranscript: result.rawTranscript,
             });
             console.log(`✅ Segment ${segIdx} transcribed (${result.transcript.length} chars)`);
-
-            // Live transcript display: stitch completed segments and show in UI
-            const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
-            const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
-            const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
-            setTranscript(liveText);
-            setRawTranscript(liveRaw);
           } else {
             segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
             console.warn(`⚠️ Segment ${segIdx} produced no text`);
           }
+
+          // Stitch all completed segments in order and update UI
+          const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
+          const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
+          const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
+
+          // Use functional updates to avoid stale closures
+          setTranscript(() => liveText);
+          setRawTranscript(() => liveRaw);
 
           const completed = segmentTranscripts.current.filter(s => s.transcript).length;
           const total = segmentIndexRef.current;
@@ -314,6 +316,9 @@ export default function Recorder({
               console.error('Audio upload failed:', err)
             );
           }
+
+          // Yield to React so state updates flush to the DOM between segments
+          await new Promise(r => setTimeout(r, 50));
         }
 
         queueProcessing = false;
@@ -364,6 +369,10 @@ export default function Recorder({
         const stitchedRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
 
         console.log(`📋 Stitched ${ordered.length} segments → ${stitchedTranscript.length} chars`);
+
+        // Force final transcript into UI state (processQueue live updates may have missed segments)
+        setTranscript(() => stitchedTranscript);
+        setRawTranscript(() => stitchedRaw);
 
         if (!stitchedTranscript.trim()) {
           setError('No speech detected in this recording. Please try again.');
