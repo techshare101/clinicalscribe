@@ -244,7 +244,7 @@ export default function Recorder({
       const bitsPerSecond = isProduction ? 64000 : 128000;
       
       console.log(`🎙️ Recording at ${bitsPerSecond / 1000}kbps (${isProduction ? 'production' : 'development'} mode)`);
-      
+
       const recorder = new MediaRecorder(stream, { mimeType, bitsPerSecond });
       audioChunks.current = [];
       mimeTypeRef.current = mimeType;
@@ -252,11 +252,14 @@ export default function Recorder({
       segmentTranscripts.current = [];
       segmentPromises.current = [];
 
-      let flushing = false;
+      // ── SEMAPHORE-CONTROLLED CONCURRENCY ──
+      // Process max 2 segments at a time. Fast (~30s for 10 segments)
+      // but doesn't overwhelm Vercel's serverless function limits.
+      const MAX_CONCURRENT = 2;
+      let activeCount = 0;
+      const pendingQueue: Array<{ segIdx: number; blob: Blob; resolve: () => void }> = [];
 
       const updateUI = () => {
-        if (flushing) return;
-        flushing = true;
         try {
           const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
           const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
@@ -271,50 +274,70 @@ export default function Recorder({
           });
         } catch (e) {
           console.error('flushSync error:', e);
-        } finally {
-          flushing = false;
+        }
+      };
+
+      const processNext = () => {
+        while (activeCount < MAX_CONCURRENT && pendingQueue.length > 0) {
+          const next = pendingQueue.shift()!;
+          next.resolve(); // unblock the waiting transcribeSegment
         }
       };
 
       const transcribeSegment = async (segIdx: number, segmentBlob: Blob) => {
-        const sizeMB = (segmentBlob.size / (1024 * 1024)).toFixed(2);
-        console.log(`🎤 Transcribing segment ${segIdx} (${sizeMB} MB) — PARALLEL`);
+        // Wait for a semaphore slot
+        if (activeCount >= MAX_CONCURRENT) {
+          console.log(`⏳ Segment ${segIdx} queued (${activeCount}/${MAX_CONCURRENT} active)`);
+          await new Promise<void>(resolve => {
+            pendingQueue.push({ segIdx, blob: segmentBlob, resolve });
+          });
+        }
+        activeCount++;
 
-        let result: { transcript: string; rawTranscript: string } | null = null;
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            const res = await transcribeAudio(segmentBlob, patientLanguage, docLanguage, segIdx);
-            result = { transcript: res.transcript, rawTranscript: res.rawTranscript };
-            break;
-          } catch (segErr) {
-            if (attempt === 0) {
-              console.warn(`⚠️ Segment ${segIdx} attempt 1 failed, retrying...`, segErr);
-              await new Promise(r => setTimeout(r, 1500));
-            } else {
-              console.error(`❌ Segment ${segIdx} failed after retry:`, segErr);
+        const sizeMB = (segmentBlob.size / (1024 * 1024)).toFixed(2);
+        console.log(`🎤 Transcribing segment ${segIdx} (${sizeMB} MB) — active: ${activeCount}/${MAX_CONCURRENT}`);
+        setProgressMessage(`🎤 Transcribing segment ${segIdx + 1}...`);
+
+        try {
+          let result: { transcript: string; rawTranscript: string } | null = null;
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              const res = await transcribeAudio(segmentBlob, patientLanguage, docLanguage, segIdx);
+              result = { transcript: res.transcript, rawTranscript: res.rawTranscript };
+              break;
+            } catch (segErr) {
+              if (attempt === 0) {
+                console.warn(`⚠️ Segment ${segIdx} attempt 1 failed, retrying...`, segErr);
+                await new Promise(r => setTimeout(r, 1500));
+              } else {
+                console.error(`❌ Segment ${segIdx} failed after retry:`, segErr);
+              }
             }
           }
-        }
 
-        if (result && result.transcript) {
-          segmentTranscripts.current.push({
-            index: segIdx,
-            transcript: result.transcript,
-            rawTranscript: result.rawTranscript,
-          });
-          console.log(`✅ Segment ${segIdx} done (${result.transcript.length} chars)`);
-        } else {
-          segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
-          console.warn(`⚠️ Segment ${segIdx} produced no text`);
-        }
+          if (result && result.transcript) {
+            segmentTranscripts.current.push({
+              index: segIdx,
+              transcript: result.transcript,
+              rawTranscript: result.rawTranscript,
+            });
+            console.log(`✅ Segment ${segIdx} done (${result.transcript.length} chars)`);
+          } else {
+            segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
+            console.warn(`⚠️ Segment ${segIdx} produced no text`);
+          }
 
-        // Update UI after each segment completes (whichever order)
-        updateUI();
+          // Update UI after each segment completes
+          updateUI();
 
-        if (sessionId) {
-          uploadAudioFile(segmentBlob, sessionId).catch(err =>
-            console.error('Audio upload failed:', err)
-          );
+          if (sessionId) {
+            uploadAudioFile(segmentBlob, sessionId).catch(err =>
+              console.error('Audio upload failed:', err)
+            );
+          }
+        } finally {
+          activeCount--;
+          processNext(); // release slot for next queued segment
         }
       };
 
@@ -323,9 +346,9 @@ export default function Recorder({
           audioChunks.current.push(event.data);
           const segIdx = segmentIndexRef.current++;
           const segmentBlob = new Blob([event.data], { type: mimeType });
-          console.log(`📦 Segment ${segIdx} captured (${(event.data.size/1024).toFixed(0)} KB) — launching parallel transcription`);
+          console.log(`📦 Segment ${segIdx} captured (${(event.data.size/1024).toFixed(0)} KB)`);
 
-          // Fire immediately — no chaining, no queue, just go
+          // Enqueue — semaphore controls how many run at once
           const segmentPromise = transcribeSegment(segIdx, segmentBlob).catch(err => {
             console.error(`💥 Segment ${segIdx} promise rejected:`, err);
           });
