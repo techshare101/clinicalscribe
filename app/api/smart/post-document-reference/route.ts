@@ -129,40 +129,16 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
-      // Only hard-require subject (patient). Author and encounter are best-effort:
-      // Epic sandbox standalone launch often omits practitioner/encounter from the
-      // token response, so we warn but still attempt the POST and let Epic decide.
-      const hasValidSubjectRef = !!fhirDocRef?.subject?.reference
-      const hasValidAuthorRef = Array.isArray(fhirDocRef?.author)
-        && fhirDocRef.author.some((a: any) => !!a?.reference)
-      const hasValidEncounterRef = Array.isArray(fhirDocRef?.context?.encounter)
-        && fhirDocRef.context.encounter.some((e: any) => !!e?.reference)
-
+      // Log SMART context diagnostics — never block the POST. Let Epic decide
+      // what references are required and return its own OperationOutcome if missing.
       const smartContextSummary = {
         patient: smartPatient || null,
         practitioner: smartPractitioner || null,
         encounter: smartEncounter || null,
         fhirUser: smartFhirUser || null,
-      }
-
-      if (!hasValidSubjectRef) {
-        return NextResponse.json(
-          {
-            ok: false,
-            status: 400,
-            message: 'Missing required patient reference (subject). Reconnect to Epic from an active patient encounter and try again.',
-            smartContext: smartContextSummary,
-          },
-          { status: 400 }
-        )
-      }
-
-      // Log warnings for missing optional context (don't block the POST)
-      if (!hasValidAuthorRef) {
-        console.warn('[post-document-reference] No author reference available — Epic may reject', smartContextSummary)
-      }
-      if (!hasValidEncounterRef) {
-        console.warn('[post-document-reference] No encounter reference available — Epic may reject', smartContextSummary)
+        hasSubjectRef: !!fhirDocRef?.subject?.reference,
+        hasAuthorRef: Array.isArray(fhirDocRef?.author) && fhirDocRef.author.some((a: any) => !!a?.reference),
+        hasEncounterRef: Array.isArray(fhirDocRef?.context?.encounter) && fhirDocRef.context.encounter.some((e: any) => !!e?.reference),
       }
       console.log('[post-document-reference] SMART context:', smartContextSummary)
     } else if (body?.reportId) {
@@ -233,6 +209,7 @@ export async function POST(req: NextRequest) {
     }
 
     const outcomeMessage = parseOperationOutcomeMessage(bodyText)
+    console.error('[post-document-reference] Epic rejected:', { status, outcomeMessage, bodyText: bodyText?.slice(0, 500) })
     return NextResponse.json(
       {
         ok: false,
@@ -242,6 +219,12 @@ export async function POST(req: NextRequest) {
         operationOutcome: bodyText,
         wwwAuthenticate: wwwAuth,
         base,
+        smartContext: {
+          patient: smartPatient || null,
+          practitioner: smartPractitioner || null,
+          encounter: smartEncounter || null,
+          fhirUser: smartFhirUser || null,
+        },
       },
       { status }
     )
