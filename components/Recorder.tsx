@@ -73,6 +73,7 @@ export default function Recorder({
   const segmentIndexRef = useRef(0);
   const segmentTranscripts = useRef<{ index: number; transcript: string; rawTranscript: string }[]>([]);
   const mimeTypeRef = useRef("audio/webm;codecs=opus");
+  const initChunkRef = useRef<Blob | null>(null);
   // Promise-based tracking: each segment gets a promise. onstop does Promise.allSettled().
   const segmentPromises = useRef<Promise<void>[]>([]);
   const [recordingTime, setRecordingTime] = useState(0); // Track recording time
@@ -277,6 +278,7 @@ export default function Recorder({
       segmentIndexRef.current = 0;
       segmentTranscripts.current = [];
       segmentPromises.current = [];
+      initChunkRef.current = null;
       liveTextRef.current = '';
       liveRawRef.current = '';
       liveProgressRef.current = '';
@@ -314,7 +316,18 @@ export default function Recorder({
             let result: { transcript: string; rawTranscript: string } | null = null;
             for (let attempt = 0; attempt < 2; attempt++) {
               try {
-                const res = await transcribeAudio(blob, patientLanguage, docLanguage, segIdx);
+                let blobToTranscribe = blob;
+                if (attempt === 1) {
+                  // Retry decode failures by prepending initialization bytes from chunk 0.
+                  // Some MediaRecorder timeslice chunks are not independently decodable.
+                  const initChunk = initChunkRef.current;
+                  if (initChunk && segIdx > 0) {
+                    blobToTranscribe = new Blob([initChunk, blob], { type: mimeType.split(';')[0] });
+                    console.warn(`🔁 Segment ${segIdx} retry with init-chunk prefix (${(blobToTranscribe.size / 1024).toFixed(0)} KB)`);
+                  }
+                }
+
+                const res = await transcribeAudio(blobToTranscribe, patientLanguage, docLanguage, segIdx);
                 result = { transcript: res.transcript, rawTranscript: res.rawTranscript };
                 break;
               } catch (segErr) {
@@ -363,6 +376,12 @@ export default function Recorder({
           audioChunks.current.push(event.data);
           const segIdx = segmentIndexRef.current++;
           const segmentBlob = new Blob([event.data], { type: mimeType });
+
+          if (segIdx === 0) {
+            // Keep a small initialization slice for decode-error recovery on later segments.
+            initChunkRef.current = segmentBlob.slice(0, 64 * 1024, mimeType.split(';')[0]);
+          }
+
           console.log(`📦 Segment ${segIdx} captured (${(event.data.size/1024).toFixed(0)} KB)`);
 
           const segmentPromise = new Promise<void>((resolve) => {

@@ -86,7 +86,7 @@ export async function POST(req: Request) {
           });
         } catch (err: any) {
           const message = err?.message || '';
-          if (/Invalid file format/i.test(message)) {
+          if (/Invalid file format|could not be decoded|format is not supported/i.test(message)) {
             lastInvalidFormatError = err;
             continue;
           }
