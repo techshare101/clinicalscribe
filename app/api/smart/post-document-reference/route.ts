@@ -29,52 +29,55 @@ function normalizeAuthorRef(ref?: string | null): string | undefined {
 
 /**
  * Query Epic FHIR for the most recent active encounter for a patient.
- * Returns an Encounter reference string like "Encounter/e123" or undefined.
+ * Returns { ref, diagnostics } — ref is like "Encounter/e123" or undefined.
  */
 async function fetchActiveEncounter(
   fhirBase: string,
   patientId: string,
   accessToken: string
-): Promise<string | undefined> {
+): Promise<{ ref?: string; diagnostics: any }> {
+  const diag: any = { patientId, attempts: [] }
   try {
+    // Attempt 1: active encounters
     const url = `${fhirBase}/Encounter?patient=${patientId}&status=planned,arrived,in-progress,triaged&_sort=-date&_count=1`
     console.log('[post-document-reference] Fetching active encounter:', url)
     const res = await fetch(url, {
-      headers: {
-        Accept: 'application/fhir+json',
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers: { Accept: 'application/fhir+json', Authorization: `Bearer ${accessToken}` },
     })
-    if (!res.ok) {
-      console.warn('[post-document-reference] Encounter search failed:', res.status)
-      return undefined
+    const resBody = await res.text().catch(() => '')
+    diag.attempts.push({ url, status: res.status, bodySnippet: resBody.slice(0, 300) })
+    if (res.ok) {
+      const bundle = JSON.parse(resBody)
+      const entry = bundle?.entry?.[0]?.resource
+      if (entry?.resourceType === 'Encounter' && entry?.id) {
+        diag.found = `Encounter/${entry.id}`
+        return { ref: `Encounter/${entry.id}`, diagnostics: diag }
+      }
     }
-    const bundle = await res.json()
-    const entry = bundle?.entry?.[0]?.resource
-    if (entry?.resourceType === 'Encounter' && entry?.id) {
-      console.log('[post-document-reference] Found active encounter:', entry.id)
-      return `Encounter/${entry.id}`
-    }
-    // Fallback: try finished encounters if no active ones
+
+    // Attempt 2: any recent encounter
     const fallbackUrl = `${fhirBase}/Encounter?patient=${patientId}&_sort=-date&_count=1`
-    console.log('[post-document-reference] No active encounter, trying most recent:', fallbackUrl)
+    console.log('[post-document-reference] Trying most recent encounter:', fallbackUrl)
     const fallbackRes = await fetch(fallbackUrl, {
-      headers: {
-        Accept: 'application/fhir+json',
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers: { Accept: 'application/fhir+json', Authorization: `Bearer ${accessToken}` },
     })
-    if (!fallbackRes.ok) return undefined
-    const fallbackBundle = await fallbackRes.json()
-    const fallbackEntry = fallbackBundle?.entry?.[0]?.resource
-    if (fallbackEntry?.resourceType === 'Encounter' && fallbackEntry?.id) {
-      console.log('[post-document-reference] Found recent encounter:', fallbackEntry.id)
-      return `Encounter/${fallbackEntry.id}`
+    const fallbackBody = await fallbackRes.text().catch(() => '')
+    diag.attempts.push({ url: fallbackUrl, status: fallbackRes.status, bodySnippet: fallbackBody.slice(0, 300) })
+    if (fallbackRes.ok) {
+      const fallbackBundle = JSON.parse(fallbackBody)
+      const fallbackEntry = fallbackBundle?.entry?.[0]?.resource
+      if (fallbackEntry?.resourceType === 'Encounter' && fallbackEntry?.id) {
+        diag.found = `Encounter/${fallbackEntry.id}`
+        return { ref: `Encounter/${fallbackEntry.id}`, diagnostics: diag }
+      }
     }
-    return undefined
-  } catch (err) {
+
+    diag.found = null
+    return { ref: undefined, diagnostics: diag }
+  } catch (err: any) {
+    diag.error = err?.message
     console.warn('[post-document-reference] Encounter lookup error:', err)
-    return undefined
+    return { ref: undefined, diagnostics: diag }
   }
 }
 
@@ -156,10 +159,12 @@ export async function POST(req: NextRequest) {
       }
 
       // If no encounter reference from cookies or client, try fetching one from Epic
+      let encounterFetchDiag: any = null
       if (normalizedEncounter.length === 0) {
         const patientId = fhirDocRef?.subject?.reference?.replace('Patient/', '')
         if (patientId && token) {
-          const fetchedEncounter = await fetchActiveEncounter(base, patientId, token)
+          const { ref: fetchedEncounter, diagnostics } = await fetchActiveEncounter(base, patientId, token)
+          encounterFetchDiag = diagnostics
           if (fetchedEncounter) {
             normalizedEncounter.push({ reference: fetchedEncounter })
           }
@@ -191,18 +196,21 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
-      // Log SMART context diagnostics — never block the POST. Let Epic decide
-      // what references are required and return its own OperationOutcome if missing.
+      // Log SMART context diagnostics
       const smartContextSummary = {
         patient: smartPatient || null,
         practitioner: smartPractitioner || null,
         encounter: smartEncounter || null,
         fhirUser: smartFhirUser || null,
         hasSubjectRef: !!fhirDocRef?.subject?.reference,
+        subjectRef: fhirDocRef?.subject?.reference || null,
         hasAuthorRef: Array.isArray(fhirDocRef?.author) && fhirDocRef.author.some((a: any) => !!a?.reference),
         hasEncounterRef: Array.isArray(fhirDocRef?.context?.encounter) && fhirDocRef.context.encounter.some((e: any) => !!e?.reference),
+        encounterRefs: fhirDocRef?.context?.encounter || null,
+        encounterFetchDiag,
       }
-      console.log('[post-document-reference] SMART context:', smartContextSummary)
+      console.log('[post-document-reference] SMART context:', JSON.stringify(smartContextSummary, null, 2))
+      console.log('[post-document-reference] Final payload:', JSON.stringify(fhirDocRef, null, 2).slice(0, 1000))
     } else if (body?.reportId) {
       // Legacy path: look up the report from Firestore and build the resource
       const reportSnap = await adminDb.collection('reports').doc(body.reportId).get()
@@ -281,6 +289,7 @@ export async function POST(req: NextRequest) {
         operationOutcome: bodyText,
         wwwAuthenticate: wwwAuth,
         base,
+        sentPayload: JSON.parse(JSON.stringify(fhirDocRef)),
         smartContext: {
           patient: smartPatient || null,
           practitioner: smartPractitioner || null,

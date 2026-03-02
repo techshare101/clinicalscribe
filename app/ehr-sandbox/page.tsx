@@ -173,6 +173,8 @@ export default function EHRExportSandboxPage() {
           description: `DocumentReference created successfully (ID: ${json.resourceId || 'N/A'})`,
         })
       } else {
+        // Show full diagnostic response for debugging
+        setPostResult(JSON.stringify(json, null, 2))
         throw new Error(json.message || `Epic returned status ${json.status}`)
       }
     } catch (e: any) {
