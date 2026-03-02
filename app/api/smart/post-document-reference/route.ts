@@ -4,6 +4,25 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase-admin'
 
+function normalizeRef(ref?: string | null, resourceType?: string): string | undefined {
+  if (!ref) return undefined
+  if (!resourceType) return ref
+  return ref.includes('/') ? ref : `${resourceType}/${ref}`
+}
+
+function parseOperationOutcomeMessage(bodyText: string): string | null {
+  try {
+    const parsed = JSON.parse(bodyText)
+    if (parsed?.resourceType !== 'OperationOutcome' || !Array.isArray(parsed?.issue)) return null
+    const parts = parsed.issue
+      .map((i: any) => i?.diagnostics || i?.details?.text)
+      .filter(Boolean)
+    return parts.length ? parts.join(' | ') : null
+  } catch {
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -16,6 +35,10 @@ export async function POST(req: NextRequest) {
       process.env.SMART_FHIR_BASE ||
       'https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4'
     ).replace(/\/$/, '')
+    const smartPatient = cookieStore.get('smart_patient')?.value
+    const smartPractitioner = cookieStore.get('smart_practitioner')?.value
+    const smartEncounter = cookieStore.get('smart_encounter')?.value
+    const smartFhirUser = cookieStore.get('smart_fhir_user')?.value
 
     if (!token) {
       return NextResponse.json(
@@ -30,6 +53,45 @@ export async function POST(req: NextRequest) {
     if (body?.resourceType === 'DocumentReference') {
       // Client already built the resource (sent by ExportToEHR component)
       fhirDocRef = body
+
+      // Fill in SMART launch context references if client left required fields blank.
+      const patientRef = normalizeRef(smartPatient, 'Patient')
+      const practitionerRef = normalizeRef(smartPractitioner, 'Practitioner') ||
+        (smartFhirUser?.startsWith('Practitioner/') ? smartFhirUser : undefined)
+      const encounterRef = normalizeRef(smartEncounter, 'Encounter')
+
+      if (!fhirDocRef.subject?.reference && patientRef) {
+        fhirDocRef.subject = { ...(fhirDocRef.subject || {}), reference: patientRef }
+      }
+      if ((!Array.isArray(fhirDocRef.author) || fhirDocRef.author.length === 0) && practitionerRef) {
+        fhirDocRef.author = [{ reference: practitionerRef }]
+      }
+      if (encounterRef) {
+        const currentEncounter = Array.isArray(fhirDocRef?.context?.encounter)
+          ? fhirDocRef.context.encounter
+          : []
+        if (!currentEncounter.some((e: any) => e?.reference)) {
+          fhirDocRef.context = {
+            ...(fhirDocRef.context || {}),
+            encounter: [...currentEncounter, { reference: encounterRef }],
+          }
+        }
+      }
+
+      // Epic profile-safe defaults
+      if (!fhirDocRef?.type?.coding?.length) {
+        fhirDocRef.type = {
+          ...(fhirDocRef.type || {}),
+          coding: [{ system: 'http://loinc.org', code: '11506-3', display: 'SOAP note' }],
+          text: fhirDocRef?.type?.text || 'SOAP note',
+        }
+      }
+      if (!Array.isArray(fhirDocRef?.content) || fhirDocRef.content.length === 0) {
+        return NextResponse.json(
+          { ok: false, status: 400, message: 'DocumentReference.content is required before sending to Epic' },
+          { status: 400 }
+        )
+      }
     } else if (body?.reportId) {
       // Legacy path: look up the report from Firestore and build the resource
       const reportSnap = await adminDb.collection('reports').doc(body.reportId).get()
@@ -97,12 +159,14 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const outcomeMessage = parseOperationOutcomeMessage(bodyText)
     return NextResponse.json(
       {
         ok: false,
         posted: false,
         status,
-        message: bodyText || 'Epic returned error',
+        message: outcomeMessage || bodyText || 'Epic returned error',
+        operationOutcome: bodyText,
         wwwAuthenticate: wwwAuth,
         base,
       },
