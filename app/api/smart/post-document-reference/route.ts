@@ -60,12 +60,23 @@ export async function POST(req: NextRequest) {
         (smartFhirUser?.startsWith('Practitioner/') ? smartFhirUser : undefined)
       const encounterRef = normalizeRef(smartEncounter, 'Encounter')
 
-      if (!fhirDocRef.subject?.reference && patientRef) {
+      const normalizedSubjectRef = normalizeRef(fhirDocRef?.subject?.reference, 'Patient')
+      if (normalizedSubjectRef) {
+        fhirDocRef.subject = { ...(fhirDocRef.subject || {}), reference: normalizedSubjectRef }
+      } else if (patientRef) {
         fhirDocRef.subject = { ...(fhirDocRef.subject || {}), reference: patientRef }
       }
-      if ((!Array.isArray(fhirDocRef.author) || fhirDocRef.author.length === 0) && practitionerRef) {
+
+      const currentAuthor = Array.isArray(fhirDocRef.author) ? fhirDocRef.author : []
+      const normalizedAuthor = currentAuthor
+        .map((a: any) => ({ ...a, reference: normalizeRef(a?.reference, 'Practitioner') }))
+        .filter((a: any) => !!a?.reference)
+      if (normalizedAuthor.length > 0) {
+        fhirDocRef.author = normalizedAuthor
+      } else if (practitionerRef) {
         fhirDocRef.author = [{ reference: practitionerRef }]
       }
+
       const currentEncounter = Array.isArray(fhirDocRef?.context?.encounter)
         ? fhirDocRef.context.encounter
         : []
@@ -102,14 +113,22 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
+      const hasValidSubjectRef = !!fhirDocRef?.subject?.reference
+      const hasValidAuthorRef = Array.isArray(fhirDocRef?.author)
+        && fhirDocRef.author.some((a: any) => !!a?.reference)
       const hasValidEncounterRef = Array.isArray(fhirDocRef?.context?.encounter)
         && fhirDocRef.context.encounter.some((e: any) => !!e?.reference)
-      if (!hasValidEncounterRef) {
+      const missingRequiredRefs: string[] = []
+      if (!hasValidSubjectRef) missingRequiredRefs.push('subject (Patient/{id})')
+      if (!hasValidAuthorRef) missingRequiredRefs.push('author (Practitioner/{id})')
+      if (!hasValidEncounterRef) missingRequiredRefs.push('context.encounter (Encounter/{id})')
+
+      if (missingRequiredRefs.length > 0) {
         return NextResponse.json(
           {
             ok: false,
             status: 400,
-            message: 'Valid encounter required. Reconnect to Epic from an active patient encounter and try again.',
+            message: `Missing required Epic references: ${missingRequiredRefs.join(', ')}. Reconnect to Epic from an active patient encounter and try again.`,
           },
           { status: 400 }
         )
