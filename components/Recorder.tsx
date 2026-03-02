@@ -430,8 +430,36 @@ export default function Recorder({
         }
 
         const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
-        const stitchedTranscript = ordered.map(s => s.transcript).filter(Boolean).join(' ');
-        const stitchedRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
+
+        // Remove chunk-boundary overlap: compare tail of previous segment with head of current
+        const deoverlapSegments = (segments: typeof ordered, key: 'transcript' | 'rawTranscript') => {
+          const parts: string[] = [];
+          for (let i = 0; i < segments.length; i++) {
+            let text = segments[i][key] || '';
+            if (!text) continue;
+            if (i > 0 && parts.length > 0) {
+              const prevWords = parts[parts.length - 1].split(/\s+/);
+              const currWords = text.split(/\s+/);
+              const tailWindow = prevWords.slice(-20);
+              let bestOverlap = 0;
+              for (let len = Math.min(tailWindow.length, currWords.length); len >= 3; len--) {
+                if (tailWindow.slice(-len).join(' ').toLowerCase() === currWords.slice(0, len).join(' ').toLowerCase()) {
+                  bestOverlap = len;
+                  break;
+                }
+              }
+              if (bestOverlap > 0) {
+                console.log(`🔗 Removed ${bestOverlap}-word overlap between segment ${i-1} and ${i}`);
+                text = currWords.slice(bestOverlap).join(' ');
+              }
+            }
+            if (text.trim()) parts.push(text.trim());
+          }
+          return parts.join(' ');
+        };
+
+        const stitchedTranscript = deoverlapSegments(ordered, 'transcript');
+        const stitchedRaw = deoverlapSegments(ordered, 'rawTranscript');
 
         console.log(`ðŸ“‹ Final stitch: ${ordered.length} segments â†’ ${stitchedTranscript.length} chars (${totalSegments} total indexed)`);
 

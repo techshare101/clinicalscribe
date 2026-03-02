@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { translateText } from "@/lib/translate";
 import { adminDb } from '@/lib/firebase-admin'; // Import Firebase Admin for Firestore
+import { deduplicateTranscript, applyMedicalCorrections } from '@/lib/medical-normalize';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -83,6 +84,8 @@ export async function POST(req: Request) {
             file: candidateFile,
             model: "whisper-1",
             language: patientLang === "auto" ? undefined : patientLang,
+            temperature: 0,
+            prompt: "Medical clinical encounter transcription. Use standard medical terminology: AFib, RVR, NSVT, MRSA, CHF, HFrEF, TTE, TEE, EKG, ICU, IV, BP, HR, SpO2. Preserve exact phrasing. Do not summarize.",
           });
         } catch (err: any) {
           const message = err?.message || '';
@@ -180,7 +183,11 @@ export async function POST(req: Request) {
       console.log("Transcription completed:", transcription.text);
 
       fullRawText = transcription.text;
-      fullText = transcription.text;
+
+      // Medical ASR post-processing: de-duplicate and normalize terminology
+      fullText = deduplicateTranscript(transcription.text);
+      fullText = applyMedicalCorrections(fullText);
+      console.log("Medical normalization applied");
 
       // Translate to documentation language if needed
       // Case 1: docLang is not English — always translate (Whisper outputs in detected lang)
