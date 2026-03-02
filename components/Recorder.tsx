@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import { transcribeAudio } from '@/lib/utils';
@@ -69,7 +69,7 @@ export default function Recorder({
   const audioChunks = useRef<Blob[]>([]);
   const [recordings, setRecordings] = useState<RecordingChunk[]>([]); // Store multiple recordings
   
-  // Streaming transcription state — transcribe each 30s segment as it arrives
+  // Streaming transcription state â€” transcribe each 30s segment as it arrives
   const segmentIndexRef = useRef(0);
   const segmentTranscripts = useRef<{ index: number; transcript: string; rawTranscript: string }[]>([]);
   const mimeTypeRef = useRef("audio/webm;codecs=opus");
@@ -89,7 +89,7 @@ export default function Recorder({
   const transcriptChunksRef = useRef<TranscriptChunk[]>([]); // Ref mirror to avoid stale reads
   const [progressMessage, setProgressMessage] = useState<string>(""); // Progress feedback message
   
-  // Live refs for polling pattern — written by async transcription, polled to state by setInterval
+  // Live refs for polling pattern â€” written by async transcription, polled to state by setInterval
   const liveTextRef = useRef('');
   const liveRawRef = useRef('');
   const liveProgressRef = useRef('');
@@ -139,7 +139,7 @@ export default function Recorder({
     };
   }, []);
 
-  // Poll live refs → React state every 500ms while recording or loading
+  // Poll live refs â†’ React state every 500ms while recording or loading
   // This replaces flushSync which silently fails inside Promise/microtask contexts
   useEffect(() => {
     if (isRecording || loading) {
@@ -269,7 +269,7 @@ export default function Recorder({
       const isProduction = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
       const bitsPerSecond = isProduction ? 64000 : 128000;
       
-      console.log(`🎙️ Recording at ${bitsPerSecond / 1000}kbps (${isProduction ? 'production' : 'development'} mode)`);
+      console.log(`ðŸŽ™ï¸ Recording at ${bitsPerSecond / 1000}kbps (${isProduction ? 'production' : 'development'} mode)`);
 
       const recorder = new MediaRecorder(stream, { mimeType, bitsPerSecond });
       audioChunks.current = [];
@@ -281,12 +281,12 @@ export default function Recorder({
       liveRawRef.current = '';
       liveProgressRef.current = '';
 
-      // ── SEMAPHORE-CONTROLLED CONCURRENCY ──
-      // Process max 2 segments at a time. Fast (~30s for 10 segments)
-      // but doesn't overwhelm Vercel's serverless function limits.
-      const MAX_CONCURRENT = 2;
-      let activeCount = 0;
-      const pendingQueue: Array<{ segIdx: number; blob: Blob; resolve: () => void }> = [];
+      // ── SEQUENTIAL QUEUE ──
+      // Process segments ONE AT A TIME to avoid overwhelming Vercel.
+      // Segments queue up as they arrive (every 30s) and are transcribed in order.
+      // Each completed segment updates liveRefs → polling syncs to UI every 500ms.
+      const segmentQueue: Array<{ segIdx: number; blob: Blob }> = [];
+      let isProcessing = false;
 
       const updateUI = () => {
         const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
@@ -294,75 +294,66 @@ export default function Recorder({
         const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
         const completed = segmentTranscripts.current.filter(s => s.transcript).length;
         const total = segmentIndexRef.current;
-        console.log(`🔄 Live stitch: ${liveText.length} chars from ${completed}/${total} segments`);
-        // Write to refs — the polling useEffect (every 500ms) syncs these to React state
+        console.log(`�� Live stitch: ${liveText.length} chars from ${completed}/${total} segments`);
         liveTextRef.current = liveText;
         liveRawRef.current = liveRaw;
         liveProgressRef.current = `✅ ${completed}/${total} segments transcribed`;
       };
 
-      const processNext = () => {
-        while (activeCount < MAX_CONCURRENT && pendingQueue.length > 0) {
-          const next = pendingQueue.shift()!;
-          next.resolve(); // unblock the waiting transcribeSegment
-        }
-      };
+      const processQueue = async () => {
+        if (isProcessing) return;
+        isProcessing = true;
 
-      const transcribeSegment = async (segIdx: number, segmentBlob: Blob) => {
-        // Wait for a semaphore slot
-        if (activeCount >= MAX_CONCURRENT) {
-          console.log(`⏳ Segment ${segIdx} queued (${activeCount}/${MAX_CONCURRENT} active)`);
-          await new Promise<void>(resolve => {
-            pendingQueue.push({ segIdx, blob: segmentBlob, resolve });
-          });
-        }
-        activeCount++;
+        while (segmentQueue.length > 0) {
+          const { segIdx, blob } = segmentQueue.shift()!;
+          const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+          console.log(`🎤 Transcribing segment ${segIdx} (${sizeMB} MB) — queue: ${segmentQueue.length} remaining`);
+          liveProgressRef.current = `🎤 Transcribing segment ${segIdx + 1}...`;
 
-        const sizeMB = (segmentBlob.size / (1024 * 1024)).toFixed(2);
-        console.log(`🎤 Transcribing segment ${segIdx} (${sizeMB} MB) — active: ${activeCount}/${MAX_CONCURRENT}`);
-        setProgressMessage(`🎤 Transcribing segment ${segIdx + 1}...`);
-
-        try {
-          let result: { transcript: string; rawTranscript: string } | null = null;
-          for (let attempt = 0; attempt < 2; attempt++) {
-            try {
-              const res = await transcribeAudio(segmentBlob, patientLanguage, docLanguage, segIdx);
-              result = { transcript: res.transcript, rawTranscript: res.rawTranscript };
-              break;
-            } catch (segErr) {
-              if (attempt === 0) {
-                console.warn(`⚠️ Segment ${segIdx} attempt 1 failed, retrying...`, segErr);
-                await new Promise(r => setTimeout(r, 1500));
-              } else {
-                console.error(`❌ Segment ${segIdx} failed after retry:`, segErr);
+          try {
+            let result: { transcript: string; rawTranscript: string } | null = null;
+            for (let attempt = 0; attempt < 2; attempt++) {
+              try {
+                const res = await transcribeAudio(blob, patientLanguage, docLanguage, segIdx);
+                result = { transcript: res.transcript, rawTranscript: res.rawTranscript };
+                break;
+              } catch (segErr) {
+                if (attempt === 0) {
+                  console.warn(`⚠️ Segment ${segIdx} attempt 1 failed, retrying...`, segErr);
+                  await new Promise(r => setTimeout(r, 1500));
+                } else {
+                  console.error(`❌ Segment ${segIdx} failed after retry:`, segErr);
+                }
               }
             }
-          }
 
-          if (result && result.transcript) {
-            segmentTranscripts.current.push({
-              index: segIdx,
-              transcript: result.transcript,
-              rawTranscript: result.rawTranscript,
-            });
-            console.log(`✅ Segment ${segIdx} done (${result.transcript.length} chars)`);
-          } else {
+            if (result && result.transcript) {
+              segmentTranscripts.current.push({
+                index: segIdx,
+                transcript: result.transcript,
+                rawTranscript: result.rawTranscript,
+              });
+              console.log(`✅ Segment ${segIdx} done (${result.transcript.length} chars)`);
+            } else {
+              segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
+              console.warn(`⚠️ Segment ${segIdx} produced no text`);
+            }
+
+            updateUI();
+
+            if (sessionId) {
+              uploadAudioFile(blob, sessionId).catch(err =>
+                console.error('Audio upload failed:', err)
+              );
+            }
+          } catch (err) {
+            console.error(`💥 Segment ${segIdx} failed:`, err);
             segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
-            console.warn(`⚠️ Segment ${segIdx} produced no text`);
+            updateUI();
           }
-
-          // Update UI after each segment completes
-          updateUI();
-
-          if (sessionId) {
-            uploadAudioFile(segmentBlob, sessionId).catch(err =>
-              console.error('Audio upload failed:', err)
-            );
-          }
-        } finally {
-          activeCount--;
-          processNext(); // release slot for next queued segment
         }
+
+        isProcessing = false;
       };
 
       recorder.ondataavailable = (event: BlobEvent) => {
@@ -372,11 +363,11 @@ export default function Recorder({
           const segmentBlob = new Blob([event.data], { type: mimeType });
           console.log(`📦 Segment ${segIdx} captured (${(event.data.size/1024).toFixed(0)} KB)`);
 
-          // Enqueue — semaphore controls how many run at once
-          const segmentPromise = transcribeSegment(segIdx, segmentBlob).catch(err => {
-            console.error(`💥 Segment ${segIdx} promise rejected:`, err);
+          segmentQueue.push({ segIdx, blob: segmentBlob });
+          const p = processQueue().catch(err => {
+            console.error(`💥 Queue error:`, err);
           });
-          segmentPromises.current.push(segmentPromise);
+          segmentPromises.current.push(p);
         }
       };
 
@@ -393,7 +384,7 @@ export default function Recorder({
         }
 
         setLoading(true);
-        setProgressMessage('⏳ Waiting for all segments to finish transcribing...');
+        setProgressMessage('â³ Waiting for all segments to finish transcribing...');
 
         // CRITICAL: recorder.stop() fires a final ondataavailable with remaining
         // buffered audio, then fires onstop. These are both queued as DOM events.
@@ -403,14 +394,14 @@ export default function Recorder({
 
         const totalSegments = segmentIndexRef.current;
         const totalPromises = segmentPromises.current.length;
-        console.log(`⏳ onstop: waiting for ${totalPromises} promises (${totalSegments} segments indexed)`);
+        console.log(`â³ onstop: waiting for ${totalPromises} promises (${totalSegments} segments indexed)`);
 
-        // Await ALL segment promises — parallel mode, so they're all in-flight
+        // Await ALL segment promises â€” parallel mode, so they're all in-flight
         await Promise.allSettled(segmentPromises.current);
 
         // Double-check: if any late promises snuck in after the snapshot, await again
         if (segmentPromises.current.length > totalPromises) {
-          console.log(`⏳ onstop: ${segmentPromises.current.length - totalPromises} late promises detected, awaiting...`);
+          console.log(`â³ onstop: ${segmentPromises.current.length - totalPromises} late promises detected, awaiting...`);
           await Promise.allSettled(segmentPromises.current);
         }
 
@@ -418,7 +409,7 @@ export default function Recorder({
         const stitchedTranscript = ordered.map(s => s.transcript).filter(Boolean).join(' ');
         const stitchedRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
 
-        console.log(`📋 Final stitch: ${ordered.length} segments → ${stitchedTranscript.length} chars (${totalSegments} total indexed)`);
+        console.log(`ðŸ“‹ Final stitch: ${ordered.length} segments â†’ ${stitchedTranscript.length} chars (${totalSegments} total indexed)`);
 
         // Final update: write to refs AND directly set state
         liveTextRef.current = stitchedTranscript;
@@ -433,7 +424,7 @@ export default function Recorder({
         }
 
         try {
-          setProgressMessage(`✅ Chunk ${currentChunk}/4 complete`);
+          setProgressMessage(`âœ… Chunk ${currentChunk}/4 complete`);
 
           const newChunk: TranscriptChunk = {
             index: currentChunk,
@@ -505,13 +496,13 @@ export default function Recorder({
           if (currentChunk < 4) {
             setShowNextChunkPrompt(true);
           } else {
-            setProgressMessage("🎉 All chunks processed! Generating final transcript...");
+            setProgressMessage("ðŸŽ‰ All chunks processed! Generating final transcript...");
             setTimeout(() => { combineRecordings(); }, 1500);
           }
         } catch (err) {
           console.error('Transcription stitching error:', err);
           setError(err instanceof Error ? err.message : 'Transcription failed');
-          setProgressMessage(`⚠️ Chunk ${currentChunk} failed`);
+          setProgressMessage(`âš ï¸ Chunk ${currentChunk} failed`);
 
           const failedChunk: TranscriptChunk = {
             index: currentChunk, transcript: '', rawTranscript: '',
@@ -528,7 +519,7 @@ export default function Recorder({
           if (currentChunk < 4) {
             setShowNextChunkPrompt(true);
           } else {
-            setProgressMessage("⚠️ Some chunks failed, generating partial transcript...");
+            setProgressMessage("âš ï¸ Some chunks failed, generating partial transcript...");
             setTimeout(() => { combineRecordings(); }, 1500);
           }
         } finally {
@@ -536,7 +527,7 @@ export default function Recorder({
         }
       };
 
-      // Fire ondataavailable every 30 seconds — each segment is ~240KB at 64kbps
+      // Fire ondataavailable every 30 seconds â€” each segment is ~240KB at 64kbps
       recorder.start(30000);
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
@@ -605,9 +596,9 @@ export default function Recorder({
 
   // Function to combine all recordings into a single transcript
   const combineRecordings = async () => {
-    // Use ref to avoid stale React state — ref is updated synchronously in setTranscriptChunks callback
+    // Use ref to avoid stale React state â€” ref is updated synchronously in setTranscriptChunks callback
     const chunks = transcriptChunksRef.current;
-    console.log(`📋 combineRecordings called — ${chunks.length} chunk(s) in ref`);
+    console.log(`ðŸ“‹ combineRecordings called â€” ${chunks.length} chunk(s) in ref`);
     const successfulChunks = chunks
       .filter(chunk => chunk.success)
       .sort((a, b) => a.index - b.index);
@@ -667,7 +658,7 @@ export default function Recorder({
           height={80}
         />
         
-        {/* Language + Chunk progress — compact row */}
+        {/* Language + Chunk progress â€” compact row */}
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px] px-1.5 py-0">
             Patient: {languageNames[patientLanguage] || patientLanguage.toUpperCase()}
@@ -676,7 +667,7 @@ export default function Recorder({
             Doc: {languageNames[docLanguage] || docLanguage.toUpperCase()}
           </Badge>
           <span className="ml-auto text-[10px] font-medium text-gray-500">
-            Chunk {currentChunk}/4 · {formatTime(recordingTime)}
+            Chunk {currentChunk}/4 Â· {formatTime(recordingTime)}
           </span>
         </div>
         <Progress value={chunkProgress} className="h-1.5 mt-1.5" />
