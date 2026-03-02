@@ -10,6 +10,23 @@ function normalizeRef(ref?: string | null, resourceType?: string): string | unde
   return ref.includes('/') ? ref : `${resourceType}/${ref}`
 }
 
+function normalizeAuthorRef(ref?: string | null): string | undefined {
+  if (!ref) return undefined
+  if (ref.includes('/')) {
+    const resourceType = ref.split('/')[0]
+    const allowedAuthorTypes = new Set([
+      'Practitioner',
+      'PractitionerRole',
+      'Organization',
+      'Patient',
+      'RelatedPerson',
+      'Device',
+    ])
+    return allowedAuthorTypes.has(resourceType) ? ref : undefined
+  }
+  return `Practitioner/${ref}`
+}
+
 function parseOperationOutcomeMessage(bodyText: string): string | null {
   try {
     const parsed = JSON.parse(bodyText)
@@ -56,8 +73,7 @@ export async function POST(req: NextRequest) {
 
       // Fill in SMART launch context references if client left required fields blank.
       const patientRef = normalizeRef(smartPatient, 'Patient')
-      const practitionerRef = normalizeRef(smartPractitioner, 'Practitioner') ||
-        (smartFhirUser?.startsWith('Practitioner/') ? smartFhirUser : undefined)
+      const practitionerRef = normalizeRef(smartPractitioner, 'Practitioner') || normalizeAuthorRef(smartFhirUser)
       const encounterRef = normalizeRef(smartEncounter, 'Encounter')
 
       const normalizedSubjectRef = normalizeRef(fhirDocRef?.subject?.reference, 'Patient')
@@ -69,7 +85,7 @@ export async function POST(req: NextRequest) {
 
       const currentAuthor = Array.isArray(fhirDocRef.author) ? fhirDocRef.author : []
       const normalizedAuthor = currentAuthor
-        .map((a: any) => ({ ...a, reference: normalizeRef(a?.reference, 'Practitioner') }))
+        .map((a: any) => ({ ...a, reference: normalizeAuthorRef(a?.reference) }))
         .filter((a: any) => !!a?.reference)
       if (normalizedAuthor.length > 0) {
         fhirDocRef.author = normalizedAuthor
@@ -124,11 +140,18 @@ export async function POST(req: NextRequest) {
       if (!hasValidEncounterRef) missingRequiredRefs.push('context.encounter (Encounter/{id})')
 
       if (missingRequiredRefs.length > 0) {
+        const smartContextSummary = {
+          patient: !!smartPatient,
+          practitioner: !!smartPractitioner,
+          encounter: !!smartEncounter,
+          fhirUser: smartFhirUser ? smartFhirUser.split('/')[0] : null,
+        }
         return NextResponse.json(
           {
             ok: false,
             status: 400,
             message: `Missing required Epic references: ${missingRequiredRefs.join(', ')}. Reconnect to Epic from an active patient encounter and try again.`,
+            smartContext: smartContextSummary,
           },
           { status: 400 }
         )
