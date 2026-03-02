@@ -66,16 +66,26 @@ export async function POST(req: NextRequest) {
       if ((!Array.isArray(fhirDocRef.author) || fhirDocRef.author.length === 0) && practitionerRef) {
         fhirDocRef.author = [{ reference: practitionerRef }]
       }
-      if (encounterRef) {
-        const currentEncounter = Array.isArray(fhirDocRef?.context?.encounter)
-          ? fhirDocRef.context.encounter
-          : []
-        if (!currentEncounter.some((e: any) => e?.reference)) {
-          fhirDocRef.context = {
-            ...(fhirDocRef.context || {}),
-            encounter: [...currentEncounter, { reference: encounterRef }],
-          }
+      const currentEncounter = Array.isArray(fhirDocRef?.context?.encounter)
+        ? fhirDocRef.context.encounter
+        : []
+      const normalizedEncounter = currentEncounter
+        .map((e: any) => ({ ...e, reference: normalizeRef(e?.reference, 'Encounter') }))
+        .filter((e: any) => !!e?.reference)
+
+      if (encounterRef && !normalizedEncounter.some((e: any) => e.reference === encounterRef)) {
+        normalizedEncounter.unshift({ reference: encounterRef })
+      }
+
+      if (normalizedEncounter.length > 0) {
+        fhirDocRef.context = {
+          ...(fhirDocRef.context || {}),
+          encounter: normalizedEncounter,
         }
+      } else if (fhirDocRef?.context?.encounter) {
+        const contextWithoutEncounter = { ...(fhirDocRef.context || {}) }
+        delete contextWithoutEncounter.encounter
+        fhirDocRef.context = Object.keys(contextWithoutEncounter).length ? contextWithoutEncounter : undefined
       }
 
       // Epic profile-safe defaults
@@ -89,6 +99,18 @@ export async function POST(req: NextRequest) {
       if (!Array.isArray(fhirDocRef?.content) || fhirDocRef.content.length === 0) {
         return NextResponse.json(
           { ok: false, status: 400, message: 'DocumentReference.content is required before sending to Epic' },
+          { status: 400 }
+        )
+      }
+      const hasValidEncounterRef = Array.isArray(fhirDocRef?.context?.encounter)
+        && fhirDocRef.context.encounter.some((e: any) => !!e?.reference)
+      if (!hasValidEncounterRef) {
+        return NextResponse.json(
+          {
+            ok: false,
+            status: 400,
+            message: 'Valid encounter required. Reconnect to Epic from an active patient encounter and try again.',
+          },
           { status: 400 }
         )
       }
