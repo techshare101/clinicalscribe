@@ -40,10 +40,17 @@ const nextConfig = {
     };
 
     // Allow loading of .wasm files
-    config.module.rules.push({
+    // Some Next build phases may provide partial webpack config objects.
+    const moduleConfig = config.module || {};
+    const existingRules = Array.isArray(moduleConfig.rules) ? moduleConfig.rules : [];
+    existingRules.push({
       test: /\.wasm$/,
       type: "webassembly/async",
     });
+    config.module = {
+      ...moduleConfig,
+      rules: existingRules,
+    };
 
     return config;
   },
