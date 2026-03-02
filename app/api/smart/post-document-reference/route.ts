@@ -27,6 +27,57 @@ function normalizeAuthorRef(ref?: string | null): string | undefined {
   return `Practitioner/${ref}`
 }
 
+/**
+ * Query Epic FHIR for the most recent active encounter for a patient.
+ * Returns an Encounter reference string like "Encounter/e123" or undefined.
+ */
+async function fetchActiveEncounter(
+  fhirBase: string,
+  patientId: string,
+  accessToken: string
+): Promise<string | undefined> {
+  try {
+    const url = `${fhirBase}/Encounter?patient=${patientId}&status=planned,arrived,in-progress,triaged&_sort=-date&_count=1`
+    console.log('[post-document-reference] Fetching active encounter:', url)
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/fhir+json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+    if (!res.ok) {
+      console.warn('[post-document-reference] Encounter search failed:', res.status)
+      return undefined
+    }
+    const bundle = await res.json()
+    const entry = bundle?.entry?.[0]?.resource
+    if (entry?.resourceType === 'Encounter' && entry?.id) {
+      console.log('[post-document-reference] Found active encounter:', entry.id)
+      return `Encounter/${entry.id}`
+    }
+    // Fallback: try finished encounters if no active ones
+    const fallbackUrl = `${fhirBase}/Encounter?patient=${patientId}&_sort=-date&_count=1`
+    console.log('[post-document-reference] No active encounter, trying most recent:', fallbackUrl)
+    const fallbackRes = await fetch(fallbackUrl, {
+      headers: {
+        Accept: 'application/fhir+json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+    if (!fallbackRes.ok) return undefined
+    const fallbackBundle = await fallbackRes.json()
+    const fallbackEntry = fallbackBundle?.entry?.[0]?.resource
+    if (fallbackEntry?.resourceType === 'Encounter' && fallbackEntry?.id) {
+      console.log('[post-document-reference] Found recent encounter:', fallbackEntry.id)
+      return `Encounter/${fallbackEntry.id}`
+    }
+    return undefined
+  } catch (err) {
+    console.warn('[post-document-reference] Encounter lookup error:', err)
+    return undefined
+  }
+}
+
 function parseOperationOutcomeMessage(bodyText: string): string | null {
   try {
     const parsed = JSON.parse(bodyText)
@@ -102,6 +153,17 @@ export async function POST(req: NextRequest) {
 
       if (encounterRef && !normalizedEncounter.some((e: any) => e.reference === encounterRef)) {
         normalizedEncounter.unshift({ reference: encounterRef })
+      }
+
+      // If no encounter reference from cookies or client, try fetching one from Epic
+      if (normalizedEncounter.length === 0) {
+        const patientId = fhirDocRef?.subject?.reference?.replace('Patient/', '')
+        if (patientId && token) {
+          const fetchedEncounter = await fetchActiveEncounter(base, patientId, token)
+          if (fetchedEncounter) {
+            normalizedEncounter.push({ reference: fetchedEncounter })
+          }
+        }
       }
 
       if (normalizedEncounter.length > 0) {
