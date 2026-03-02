@@ -129,33 +129,42 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
+      // Only hard-require subject (patient). Author and encounter are best-effort:
+      // Epic sandbox standalone launch often omits practitioner/encounter from the
+      // token response, so we warn but still attempt the POST and let Epic decide.
       const hasValidSubjectRef = !!fhirDocRef?.subject?.reference
       const hasValidAuthorRef = Array.isArray(fhirDocRef?.author)
         && fhirDocRef.author.some((a: any) => !!a?.reference)
       const hasValidEncounterRef = Array.isArray(fhirDocRef?.context?.encounter)
         && fhirDocRef.context.encounter.some((e: any) => !!e?.reference)
-      const missingRequiredRefs: string[] = []
-      if (!hasValidSubjectRef) missingRequiredRefs.push('subject (Patient/{id})')
-      if (!hasValidAuthorRef) missingRequiredRefs.push('author (Practitioner/{id})')
-      if (!hasValidEncounterRef) missingRequiredRefs.push('context.encounter (Encounter/{id})')
 
-      if (missingRequiredRefs.length > 0) {
-        const smartContextSummary = {
-          patient: !!smartPatient,
-          practitioner: !!smartPractitioner,
-          encounter: !!smartEncounter,
-          fhirUser: smartFhirUser ? smartFhirUser.split('/')[0] : null,
-        }
+      const smartContextSummary = {
+        patient: smartPatient || null,
+        practitioner: smartPractitioner || null,
+        encounter: smartEncounter || null,
+        fhirUser: smartFhirUser || null,
+      }
+
+      if (!hasValidSubjectRef) {
         return NextResponse.json(
           {
             ok: false,
             status: 400,
-            message: `Missing required Epic references: ${missingRequiredRefs.join(', ')}. Reconnect to Epic from an active patient encounter and try again.`,
+            message: 'Missing required patient reference (subject). Reconnect to Epic from an active patient encounter and try again.',
             smartContext: smartContextSummary,
           },
           { status: 400 }
         )
       }
+
+      // Log warnings for missing optional context (don't block the POST)
+      if (!hasValidAuthorRef) {
+        console.warn('[post-document-reference] No author reference available — Epic may reject', smartContextSummary)
+      }
+      if (!hasValidEncounterRef) {
+        console.warn('[post-document-reference] No encounter reference available — Epic may reject', smartContextSummary)
+      }
+      console.log('[post-document-reference] SMART context:', smartContextSummary)
     } else if (body?.reportId) {
       // Legacy path: look up the report from Firestore and build the resource
       const reportSnap = await adminDb.collection('reports').doc(body.reportId).get()

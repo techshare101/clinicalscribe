@@ -61,6 +61,11 @@ export async function GET(req: NextRequest) {
       expiresIn: token.expires_in,
       hasRefreshToken: !!token.refresh_token,
       hasPatient: !!token.patient,
+      patient: token.patient || null,
+      practitioner: (token as any).practitioner || null,
+      encounter: token.encounter || null,
+      fhirUser: (token as any).fhirUser || null,
+      tokenKeys: Object.keys(token),
     })
         
     // Prefer the fhir base captured at launch time; fallback to env
