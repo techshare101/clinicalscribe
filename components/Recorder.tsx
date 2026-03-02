@@ -285,7 +285,7 @@ export default function Recorder({
       // Process segments ONE AT A TIME to avoid overwhelming Vercel.
       // Segments queue up as they arrive (every 30s) and are transcribed in order.
       // Each completed segment updates liveRefs → polling syncs to UI every 500ms.
-      const segmentQueue: Array<{ segIdx: number; blob: Blob }> = [];
+      const segmentQueue: Array<{ segIdx: number; blob: Blob; done: () => void }> = [];
       let isProcessing = false;
 
       const updateUI = () => {
@@ -305,7 +305,7 @@ export default function Recorder({
         isProcessing = true;
 
         while (segmentQueue.length > 0) {
-          const { segIdx, blob } = segmentQueue.shift()!;
+          const { segIdx, blob, done } = segmentQueue.shift()!;
           const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
           console.log(`🎤 Transcribing segment ${segIdx} (${sizeMB} MB) — queue: ${segmentQueue.length} remaining`);
           liveProgressRef.current = `🎤 Transcribing segment ${segIdx + 1}...`;
@@ -350,6 +350,8 @@ export default function Recorder({
             console.error(`💥 Segment ${segIdx} failed:`, err);
             segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
             updateUI();
+          } finally {
+            done();
           }
         }
 
@@ -363,11 +365,14 @@ export default function Recorder({
           const segmentBlob = new Blob([event.data], { type: mimeType });
           console.log(`📦 Segment ${segIdx} captured (${(event.data.size/1024).toFixed(0)} KB)`);
 
-          segmentQueue.push({ segIdx, blob: segmentBlob });
-          const p = processQueue().catch(err => {
+          const segmentPromise = new Promise<void>((resolve) => {
+            segmentQueue.push({ segIdx, blob: segmentBlob, done: resolve });
+          });
+          segmentPromises.current.push(segmentPromise);
+
+          processQueue().catch(err => {
             console.error(`💥 Queue error:`, err);
           });
-          segmentPromises.current.push(p);
         }
       };
 
