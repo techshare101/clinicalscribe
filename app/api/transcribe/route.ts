@@ -43,6 +43,60 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid file type. Please upload an audio file." }, { status: 400 });
     }
 
+    // Normalize mime + extension. Some browsers send codec params or odd filenames
+    // which can cause OpenAI to reject with "Invalid file format".
+    const normalizedMime = (file.type || 'audio/webm').split(';')[0];
+    const ext = normalizedMime.includes('mp4') ? 'mp4'
+      : normalizedMime.includes('ogg') ? 'ogg'
+      : normalizedMime.includes('wav') ? 'wav'
+      : normalizedMime.includes('mpeg') || normalizedMime.includes('mp3') ? 'mp3'
+      : 'webm';
+    const normalizedBuffer = await file.arrayBuffer();
+    const normalizedFile = new File([normalizedBuffer], `segment-${index}.${ext}`, { type: normalizedMime });
+    console.log("Normalized file:", normalizedFile.name, normalizedFile.type, normalizedFile.size);
+
+    const transcribeWithFormatFallback = async (sourceBuffer: ArrayBuffer, baseName: string, preferredMime: string, preferredExt: string) => {
+      const formatCandidates = [
+        { ext: preferredExt, mime: preferredMime },
+        { ext: 'webm', mime: 'audio/webm' },
+        { ext: 'mp4', mime: 'audio/mp4' },
+        { ext: 'm4a', mime: 'audio/mp4' },
+        { ext: 'ogg', mime: 'audio/ogg' },
+        { ext: 'wav', mime: 'audio/wav' },
+        { ext: 'mp3', mime: 'audio/mpeg' },
+      ];
+
+      const seen = new Set<string>();
+      let lastInvalidFormatError: any = null;
+
+      for (const candidate of formatCandidates) {
+        const key = `${candidate.ext}|${candidate.mime}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        const candidateFile = new File([sourceBuffer], `${baseName}.${candidate.ext}`, { type: candidate.mime });
+        try {
+          if (candidate.ext !== preferredExt || candidate.mime !== preferredMime) {
+            console.warn(`Retrying transcription with fallback format: ${candidateFile.name} (${candidateFile.type})`);
+          }
+          return await openai.audio.transcriptions.create({
+            file: candidateFile,
+            model: "whisper-1",
+            language: patientLang === "auto" ? undefined : patientLang,
+          });
+        } catch (err: any) {
+          const message = err?.message || '';
+          if (/Invalid file format/i.test(message)) {
+            lastInvalidFormatError = err;
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      throw lastInvalidFormatError || new Error('Unable to transcribe audio: unsupported format');
+    };
+
     // Validate file size (max 25MB for Whisper API)
     if (file.size > 25 * 1024 * 1024) {
       console.log("File larger than 25MB, will chunk automatically");
@@ -53,12 +107,12 @@ export async function POST(req: Request) {
     let fullText = "";
     let fullRawText = "";
     
-    if (file.size > 25 * 1024 * 1024) {
+    if (normalizedFile.size > 25 * 1024 * 1024) {
       // For large files, we need to chunk them
       console.log("Processing large file by chunking");
       
       // Convert file to ArrayBuffer
-      const arrayBuffer = await file.arrayBuffer();
+      const arrayBuffer = await normalizedFile.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       
       // Split into chunks of 20MB to leave room for overhead
@@ -76,16 +130,18 @@ export async function POST(req: Request) {
         console.log(`Processing chunk ${i + 1}/${chunks.length}`);
         
         // Create a new File object for this chunk
-        const chunkBlob = new Blob([new Uint8Array(chunks[i])], { type: file.type });
-        const chunkFile = new File([chunkBlob], `chunk-${i}-${file.name}`, { type: file.type });
+        const chunkBlob = new Blob([new Uint8Array(chunks[i])], { type: normalizedMime });
+        const chunkFile = new File([chunkBlob], `chunk-${i}-segment-${index}.${ext}`, { type: normalizedMime });
         
         try {
           // Transcribe this chunk
-          const chunkTranscription = await openai.audio.transcriptions.create({
-            file: chunkFile,
-            model: "whisper-1",
-            language: patientLang === "auto" ? undefined : patientLang,
-          });
+          const chunkBuffer = await chunkFile.arrayBuffer();
+          const chunkTranscription = await transcribeWithFormatFallback(
+            chunkBuffer,
+            `chunk-${i}-segment-${index}`,
+            normalizedMime,
+            ext
+          );
           
           fullRawText += chunkTranscription.text + " ";
           
@@ -115,11 +171,12 @@ export async function POST(req: Request) {
     } else {
       // For smaller files, process normally
       console.log("Processing file normally (under 25MB)");
-      const transcription = await openai.audio.transcriptions.create({
-        file,
-        model: "whisper-1",
-        language: patientLang === "auto" ? undefined : patientLang,
-      });
+      const transcription = await transcribeWithFormatFallback(
+        normalizedBuffer,
+        `segment-${index}`,
+        normalizedMime,
+        ext
+      );
       console.log("Transcription completed:", transcription.text);
 
       fullRawText = transcription.text;
