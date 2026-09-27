@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import { transcribeAudio } from '@/lib/utils';
@@ -103,6 +103,11 @@ export default function Recorder({
   const animationRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Error tracking & live browser speech recognition refs
+  const lastErrorRef = useRef<string | null>(null);
+  const speechRecognitionRef = useRef<any>(null);
+  const maxVolumeRef = useRef<number>(0);
+
   // Function to toggle session active state
   const setSessionActive = async (active: boolean) => {
     if (!sessionId) return;
@@ -131,11 +136,16 @@ export default function Recorder({
     };
   }, [isRecording]);
 
-  // Clean up timer when component unmounts
+  // Clean up timer and speech recognizer when component unmounts
   useEffect(() => {
     return () => {
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
+      }
+      if (speechRecognitionRef.current) {
+        try {
+          speechRecognitionRef.current.stop();
+        } catch {}
       }
     };
   }, []);
@@ -203,6 +213,15 @@ export default function Recorder({
         animationRef.current = requestAnimationFrame(draw);
         
         analyserRef.current!.getByteFrequencyData(dataArray);
+
+        // Track max audio volume received
+        let currentPeak = 0;
+        for (let j = 0; j < bufferLength; j++) {
+          if (dataArray[j] > currentPeak) currentPeak = dataArray[j];
+        }
+        if (currentPeak > maxVolumeRef.current) {
+          maxVolumeRef.current = currentPeak;
+        }
         
         const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
         gradient.addColorStop(0, 'rgba(99, 102, 241, 0.1)');
@@ -244,6 +263,7 @@ export default function Recorder({
       setError(null);
       setRecordingTime(0);
       setIsChunkCompleted(false);
+      lastErrorRef.current = null;
       
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
@@ -251,20 +271,53 @@ export default function Recorder({
       recordingTimerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
+
+      // Start live speech preview in browser if supported (zero latency real-time feedback)
+      try {
+        const SpeechRecognition = typeof window !== 'undefined' ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) : null;
+        if (SpeechRecognition) {
+          const recognizer = new SpeechRecognition();
+          recognizer.continuous = true;
+          recognizer.interimResults = true;
+          recognizer.lang = patientLanguage && patientLanguage !== 'auto' ? patientLanguage : 'en-US';
+          recognizer.onresult = (event: any) => {
+            let interim = '';
+            for (let i = 0; i < event.results.length; i++) {
+              interim += event.results[i][0].transcript + ' ';
+            }
+            if (interim.trim()) {
+              liveTextRef.current = interim.trim();
+              setTranscript(interim.trim());
+            }
+          };
+          recognizer.onerror = (e: any) => {
+            console.debug('Browser speech preview event:', e?.error);
+          };
+          recognizer.start();
+          speechRecognitionRef.current = recognizer;
+        }
+      } catch (speechErr) {
+        console.debug('Browser speech preview not available:', speechErr);
+      }
       
+      maxVolumeRef.current = 0;
+
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
-          sampleRate: 16000,
           channelCount: 1,
-          noiseSuppression: true,
           echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
         }
       });
       streamRef.current = stream;
       
       let mimeType = "audio/webm;codecs=opus";
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = "audio/mp4";
+      if (typeof MediaRecorder !== 'undefined' && !MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm"
+                 : MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4"
+                 : MediaRecorder.isTypeSupported("audio/ogg;codecs=opus") ? "audio/ogg;codecs=opus"
+                 : "";
       }
       
       const isProduction = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
@@ -314,6 +367,7 @@ export default function Recorder({
 
           try {
             let result: { transcript: string; rawTranscript: string } | null = null;
+            let lastSegErr: any = null;
             for (let attempt = 0; attempt < 2; attempt++) {
               try {
                 let blobToTranscribe = blob;
@@ -329,13 +383,16 @@ export default function Recorder({
 
                 const res = await transcribeAudio(blobToTranscribe, patientLanguage, docLanguage, segIdx);
                 result = { transcript: res.transcript, rawTranscript: res.rawTranscript };
+                lastErrorRef.current = null;
                 break;
-              } catch (segErr) {
+              } catch (segErr: any) {
+                lastSegErr = segErr;
                 if (attempt === 0) {
                   console.warn(`⚠️ Segment ${segIdx} attempt 1 failed, retrying...`, segErr);
                   await new Promise(r => setTimeout(r, 1500));
                 } else {
                   console.error(`❌ Segment ${segIdx} failed after retry:`, segErr);
+                  lastErrorRef.current = segErr instanceof Error ? segErr.message : String(segErr);
                 }
               }
             }
@@ -350,6 +407,9 @@ export default function Recorder({
             } else {
               segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
               console.warn(`⚠️ Segment ${segIdx} produced no text`);
+              if (lastSegErr && !lastErrorRef.current) {
+                lastErrorRef.current = lastSegErr instanceof Error ? lastSegErr.message : String(lastSegErr);
+              }
             }
 
             updateUI();
@@ -359,8 +419,9 @@ export default function Recorder({
                 console.error('Audio upload failed:', err)
               );
             }
-          } catch (err) {
+          } catch (err: any) {
             console.error(`💥 Segment ${segIdx} failed:`, err);
+            lastErrorRef.current = err instanceof Error ? err.message : String(err);
             segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
             updateUI();
           } finally {
@@ -396,6 +457,12 @@ export default function Recorder({
       };
 
       recorder.onstop = async () => {
+        // Safely stop stream tracks now that the recorder has finished encoding all audio
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+
         if (recordingTimerRef.current) {
           clearInterval(recordingTimerRef.current);
           recordingTimerRef.current = null;
@@ -458,10 +525,31 @@ export default function Recorder({
           return parts.join(' ');
         };
 
-        const stitchedTranscript = deoverlapSegments(ordered, 'transcript');
-        const stitchedRaw = deoverlapSegments(ordered, 'rawTranscript');
+        let stitchedTranscript = deoverlapSegments(ordered, 'transcript');
+        let stitchedRaw = deoverlapSegments(ordered, 'rawTranscript');
 
-        console.log(`ðŸ“‹ Final stitch: ${ordered.length} segments â†’ ${stitchedTranscript.length} chars (${totalSegments} total indexed)`);
+        // Fallback: If chunking/segments produced no text but audio was captured, transcribe full audio blob
+        if (!stitchedTranscript.trim() && audioChunks.current.length > 0) {
+          try {
+            console.log('🔄 Attempting fallback transcription of entire audio recording...');
+            const fullBlob = new Blob(audioChunks.current, { type: mimeTypeRef.current });
+            if (fullBlob.size > 2000) {
+              const fallbackRes = await transcribeAudio(fullBlob, patientLanguage, docLanguage, 0);
+              if (fallbackRes.transcript.trim()) {
+                stitchedTranscript = fallbackRes.transcript;
+                stitchedRaw = fallbackRes.rawTranscript;
+                lastErrorRef.current = null;
+              }
+            }
+          } catch (fallbackErr: any) {
+            console.error('Fallback full-audio transcription failed:', fallbackErr);
+            if (!lastErrorRef.current) {
+              lastErrorRef.current = fallbackErr?.message || String(fallbackErr);
+            }
+          }
+        }
+
+        console.log(`📋 Final stitch: ${ordered.length} segments → ${stitchedTranscript.length} chars (${totalSegments} total indexed)`);
 
         // Final update: write to refs AND directly set state
         liveTextRef.current = stitchedTranscript;
@@ -470,7 +558,13 @@ export default function Recorder({
         setRawTranscript(stitchedRaw);
 
         if (!stitchedTranscript.trim()) {
-          setError('No speech detected in this recording. Please try again.');
+          if (lastErrorRef.current) {
+            setError(`Recording error: ${lastErrorRef.current}`);
+          } else if (maxVolumeRef.current < 5) {
+            setError('No audio signal detected from microphone. Please ensure your microphone is unmuted and the input volume is turned up in system settings.');
+          } else {
+            setError('No speech detected in this recording. Please speak clearly into your microphone and try again.');
+          }
           setLoading(false);
           return;
         }
@@ -592,9 +686,20 @@ export default function Recorder({
   };
 
   const handleStop = () => {
-    mediaRecorderRef.current?.stop();
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {}
+      speechRecognitionRef.current = null;
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.requestData();
+      } catch (e) {
+        console.debug('requestData notice:', e);
+      }
+      mediaRecorderRef.current.stop();
     }
     setIsRecording(false);
     

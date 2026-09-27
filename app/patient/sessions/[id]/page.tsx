@@ -1,5 +1,6 @@
 "use client";
 
+import { withAuthHeaders } from "@/lib/authHeaders";
 import { useState, useEffect } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { db, auth } from '@/lib/firebase';
@@ -148,7 +149,7 @@ export default function PatientSessionDetail({ params }: { params: { id: string 
     try {
       const res = await fetch("/api/soap/combine", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await withAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ sessionId: params.id }),
       });
       const data = await res.json();

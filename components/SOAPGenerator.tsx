@@ -31,6 +31,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { formatDate } from '@/lib/formatDate';
+import { auth } from '@/lib/firebase';
 
 interface SOAPNote {
   subjective: string;
@@ -183,11 +184,21 @@ export function SOAPGenerator({
     setSOAPNote(null);
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (auth.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken();
+          headers['Authorization'] = `Bearer ${token}`;
+        } catch (tokenErr) {
+          console.warn('[SOAP] Failed to get ID token:', tokenErr);
+        }
+      }
+
       const response = await fetch('/api/soap', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           transcript: transcriptToUse.trim(),
           patientName: patientNameInput.trim() || undefined,

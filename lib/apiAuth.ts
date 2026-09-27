@@ -38,10 +38,15 @@ export async function getApiUser(req: Request): Promise<ApiUser | null> {
       claimRole = (decoded as any).role;
     }
   } catch {
-    return null;
+    // If auth verification failed, check dev override below
   }
 
-  if (!uid) return null;
+  if (!uid) {
+    if (process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS === "true") {
+      return { uid: "dev-user-id", email: "dev@example.com", role: "admin" };
+    }
+    return null;
+  }
 
   let role = claimRole;
   if (!role) {
