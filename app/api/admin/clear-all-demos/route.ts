@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { requireApiAdmin } from "@/lib/apiAuth";
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { getStorage } from "firebase-admin/storage";
@@ -107,6 +108,8 @@ async function clearUser(uid: string, stripeCustomerId?: string) {
 }
 
 export async function POST(req: NextRequest) {
+  const gate = await requireApiAdmin(req);
+  if (gate.response) return gate.response;
   try {
     // Get the auth token from the Authorization header
     const authHeader = req.headers.get("authorization");
@@ -124,7 +127,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    // TODO: Add admin role check here
     // For now, we'll just check if the user is authenticated
 
     // Fetch all demo accounts

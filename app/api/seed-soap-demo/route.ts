@@ -1,3 +1,4 @@
+import { requireApiAdmin } from "@/lib/apiAuth";
 import { NextResponse } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
@@ -5,6 +6,8 @@ import { Timestamp } from "firebase-admin/firestore";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  const gate = await requireApiAdmin(req);
+  if (gate.response) return gate.response;
   try {
     // Get the user from the Authorization header
     const authHeader = req.headers.get("Authorization");

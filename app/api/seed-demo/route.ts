@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { requireApiAdmin } from "@/lib/apiAuth";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
@@ -17,6 +18,8 @@ function randomId(prefix: string) {
 }
 
 export async function POST(req: NextRequest) {
+  const gate = await requireApiAdmin(req);
+  if (gate.response) return gate.response;
   try {
     // Get the auth token from the Authorization header
     const authHeader = req.headers.get("authorization");
@@ -40,8 +43,7 @@ export async function POST(req: NextRequest) {
     let uid: string;
     if (bodyUid) {
       // Admin reseed mode - use provided UID
-      // TODO: Add admin role check here
-      uid = bodyUid;
+        uid = bodyUid;
     } else {
       // Self-seed mode - use current user's UID
       uid = decodedToken.uid;

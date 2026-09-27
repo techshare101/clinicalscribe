@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireApiUser } from "@/lib/apiAuth";
 import OpenAI from "openai";
 import { translateText } from "@/lib/translate";
 import { adminDb } from '@/lib/firebase-admin'; // Import Firebase Admin for Firestore
@@ -16,13 +17,16 @@ export const maxDuration = 60; // 60 seconds for Pro plan, 10 for Hobby
 // For larger files, ensure client-side chunking before upload.
 
 export async function POST(req: Request) {
+  const auth = await requireApiUser(req);
+  if (auth.response) return auth.response;
   try {
     console.log("Transcribe API called");
     
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const index = parseInt(formData.get("index") as string) || 0;   // 🆕 capture chunk index as number
-    const uid = formData.get("uid") as string;
+    // Identity comes from the verified session, never from the request body
+    const uid = auth.user.uid;
     const patientLang = formData.get("patientLang") as string || "auto";
     const docLang = formData.get("docLang") as string || "en";
 

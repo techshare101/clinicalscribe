@@ -1,3 +1,4 @@
+import { requireApiAdmin } from "@/lib/apiAuth";
 import { NextResponse } from "next/server";
 import admin from "firebase-admin";
 
@@ -10,8 +11,9 @@ if (!admin.apps.length) {
 }
 
 export async function POST(req: Request) {
+  const gate = await requireApiAdmin(req);
+  if (gate.response) return gate.response;
   try {
-    // TODO: In production, add authentication check here to ensure only admins can access
     
     const { uid } = await req.json();
     

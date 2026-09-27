@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { requireApiUser } from '@/lib/apiAuth';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 // Language code to name map (duplicated from translate.ts since edge runtime can't import node modules)
 const LANG_NAMES: Record<string, string> = {
@@ -33,6 +34,8 @@ interface SOAPResponse {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireApiUser(req);
+  if (auth.response) return auth.response;
   try {
     const body: SOAPRequest = await req.json();
     const { transcript, patientName, encounterType, docLang } = body;

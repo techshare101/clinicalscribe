@@ -10,7 +10,9 @@ export async function POST(req: NextRequest) {
     const { email, adminSecret } = await req.json();
 
     // Simple admin secret check (set ADMIN_SECRET in Vercel env vars)
-    if (adminSecret !== process.env.ADMIN_SECRET) {
+    // Fail closed: if ADMIN_SECRET is not configured, nobody gets in
+    const expected = process.env.ADMIN_SECRET;
+    if (!expected || typeof adminSecret !== "string" || adminSecret !== expected) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

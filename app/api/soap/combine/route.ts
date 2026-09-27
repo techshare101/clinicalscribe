@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { requireApiUser, isAdminRole } from '@/lib/apiAuth';
 
 export const runtime = "nodejs"; // ✅ force Node.js runtime
 
@@ -25,6 +26,8 @@ interface SOAPResponse {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireApiUser(req);
+  if (auth.response) return auth.response;
   try {
     const body: SOAPRequest = await req.json();
     const { sessionId, isAutoCombine = false } = body;
@@ -42,6 +45,12 @@ export async function POST(req: Request) {
     }
 
     const sessionData = sessionDoc.data();
+
+    // Only the clinician who owns this session (or an admin) may combine it
+    const ownerId = sessionData?.patientId || sessionData?.userId || sessionData?.uid;
+    if (ownerId !== auth.user.uid && !isAdminRole(auth.user.role)) {
+      return NextResponse.json({ error: 'Not your session' }, { status: 403 });
+    }
     const recordings: Recording[] = sessionData?.recordings || [];
 
     if (!recordings.length) {
