@@ -1,5 +1,4 @@
-'use client'
-
+import { withAuthHeaders } from "@/lib/authHeaders";
 import { useState, useEffect } from 'react'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -119,9 +118,9 @@ export default function SoapEntry2() {
 
       const response = await fetch('/api/redflag', {
         method: 'POST',
-        headers: {
+        headers: await withAuthHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify({ soapNote }),
       })
 

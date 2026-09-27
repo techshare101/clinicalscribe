@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { auth } from '@/lib/firebase';
 
 interface AutoCombineRetryProps {
   sessionId: string;
@@ -24,12 +25,22 @@ export default function AutoCombineRetry({
     setSuccess(false);
     
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (auth.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken();
+          headers['Authorization'] = `Bearer ${token}`;
+        } catch (tokenErr) {
+          console.warn('[AutoCombineRetry] Failed to get ID token:', tokenErr);
+        }
+      }
+
       // Call the SOAP combine API
       const response = await fetch('/api/soap/combine', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ 
           sessionId,
           isAutoCombine: true

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { transcribeAudio } from '@/lib/utils';
 import { auth, db } from '@/lib/firebase';
 import { uploadAudioFile } from '@/lib/audioUpload';
+import { languageNames } from '@/lib/languageUtils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +29,7 @@ interface RecorderProps {
   patientLanguage?: string;
   docLanguage?: string;
   sessionId?: string; // Add session ID for backend storage
+  resetSignal?: number; // Increment to trigger full reset from parent
 }
 
 // Define the recording chunk interface
@@ -54,7 +56,8 @@ export default function Recorder({
   onTranscriptGenerated, 
   patientLanguage = "auto", 
   docLanguage = "en",
-  sessionId
+  sessionId,
+  resetSignal = 0,
 }: RecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -65,6 +68,14 @@ export default function Recorder({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
   const [recordings, setRecordings] = useState<RecordingChunk[]>([]); // Store multiple recordings
+  
+  // Streaming transcription state â€” transcribe each 30s segment as it arrives
+  const segmentIndexRef = useRef(0);
+  const segmentTranscripts = useRef<{ index: number; transcript: string; rawTranscript: string }[]>([]);
+  const mimeTypeRef = useRef("audio/webm;codecs=opus");
+  const initChunkRef = useRef<Blob | null>(null);
+  // Promise-based tracking: each segment gets a promise. onstop does Promise.allSettled().
+  const segmentPromises = useRef<Promise<void>[]>([]);
   const [recordingTime, setRecordingTime] = useState(0); // Track recording time
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -76,7 +87,14 @@ export default function Recorder({
   
   // Ordered stitching state
   const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>([]); // Store chunks with index for ordered stitching
+  const transcriptChunksRef = useRef<TranscriptChunk[]>([]); // Ref mirror to avoid stale reads
   const [progressMessage, setProgressMessage] = useState<string>(""); // Progress feedback message
+  
+  // Live refs for polling pattern â€” written by async transcription, polled to state by setInterval
+  const liveTextRef = useRef('');
+  const liveRawRef = useRef('');
+  const liveProgressRef = useRef('');
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Waveform visualization refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -84,6 +102,11 @@ export default function Recorder({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Error tracking & live browser speech recognition refs
+  const lastErrorRef = useRef<string | null>(null);
+  const speechRecognitionRef = useRef<any>(null);
+  const maxVolumeRef = useRef<number>(0);
 
   // Function to toggle session active state
   const setSessionActive = async (active: boolean) => {
@@ -113,22 +136,58 @@ export default function Recorder({
     };
   }, [isRecording]);
 
-  // Clean up timer only when recording stops
+  // Clean up timer and speech recognizer when component unmounts
   useEffect(() => {
-    // Clean up timer when component unmounts or recording stops
     return () => {
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
       }
+      if (speechRecognitionRef.current) {
+        try {
+          speechRecognitionRef.current.stop();
+        } catch {}
+      }
     };
   }, []);
 
-  // Auto-stop recording after 15 minutes (900 seconds) or when chunk is completed
+  // Poll live refs â†’ React state every 500ms while recording or loading
+  // This replaces flushSync which silently fails inside Promise/microtask contexts
   useEffect(() => {
-    if (isRecording && (recordingTime >= 900 || isChunkCompleted)) { // 15 minutes
-      handleStop();
+    if (isRecording || loading) {
+      pollIntervalRef.current = setInterval(() => {
+        const text = liveTextRef.current;
+        const raw = liveRawRef.current;
+        const progress = liveProgressRef.current;
+        setTranscript(prev => prev !== text ? text : prev);
+        setRawTranscript(prev => prev !== raw ? raw : prev);
+        if (progress) setProgressMessage(prev => prev !== progress ? progress : prev);
+      }, 500);
+      return () => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+      };
     }
-  }, [recordingTime, isRecording, isChunkCompleted]);
+  }, [isRecording, loading]);
+
+  // Reset all state when parent triggers a clear
+  useEffect(() => {
+    if (resetSignal > 0) {
+      setTranscript('');
+      setRawTranscript('');
+      setRecordings([]);
+      setTranscriptChunks([]);
+      transcriptChunksRef.current = [];
+      setCurrentChunk(1);
+      setTotalChunks(0);
+      setIsChunkCompleted(false);
+      setShowNextChunkPrompt(false);
+      setProgressMessage('');
+      setError(null);
+      setRecordingTime(0);
+    }
+  }, [resetSignal]);
 
   const setupVisualizer = async (stream: MediaStream) => {
     try {
@@ -154,38 +213,41 @@ export default function Recorder({
         animationRef.current = requestAnimationFrame(draw);
         
         analyserRef.current!.getByteFrequencyData(dataArray);
+
+        // Track max audio volume received
+        let currentPeak = 0;
+        for (let j = 0; j < bufferLength; j++) {
+          if (dataArray[j] > currentPeak) currentPeak = dataArray[j];
+        }
+        if (currentPeak > maxVolumeRef.current) {
+          maxVolumeRef.current = currentPeak;
+        }
         
-        // Clear canvas with gradient background
         const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-        gradient.addColorStop(0, 'rgba(99, 102, 241, 0.1)'); // indigo-500 with low opacity
-        gradient.addColorStop(0.5, 'rgba(139, 92, 246, 0.2)'); // violet-500
-        gradient.addColorStop(1, 'rgba(236, 72, 153, 0.1)'); // pink-500
+        gradient.addColorStop(0, 'rgba(99, 102, 241, 0.1)');
+        gradient.addColorStop(0.5, 'rgba(139, 92, 246, 0.2)');
+        gradient.addColorStop(1, 'rgba(236, 72, 153, 0.1)');
         
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Draw waveform bars with sci-fi glow effect
         const barWidth = (canvas.width / bufferLength) * 2.5;
         let x = 0;
         
         for (let i = 0; i < bufferLength; i++) {
           const barHeight = (dataArray[i] / 255) * canvas.height;
           
-          // Create gradient for each bar
           const barGradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height);
-          barGradient.addColorStop(0, '#6366f1'); // indigo-500
-          barGradient.addColorStop(0.5, '#8b5cf6'); // violet-500
-          barGradient.addColorStop(1, '#ec4899'); // pink-500
+          barGradient.addColorStop(0, '#6366f1');
+          barGradient.addColorStop(0.5, '#8b5cf6');
+          barGradient.addColorStop(1, '#ec4899');
           
-          // Draw bar with glow effect
           ctx.fillStyle = barGradient;
           ctx.shadowColor = '#8b5cf6';
           ctx.shadowBlur = 10;
           ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
           
-          // Reset shadow for next bar
           ctx.shadowBlur = 0;
-          
           x += barWidth + 1;
         }
       };
@@ -198,266 +260,424 @@ export default function Recorder({
 
   const handleStart = async () => {
     try {
-      // Clear any previous errors
       setError(null);
-      
-      // Reset recording time
       setRecordingTime(0);
       setIsChunkCompleted(false);
+      lastErrorRef.current = null;
       
-      // Start recording timer
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
       }
       recordingTimerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
-      
-      // Use WebM/Opus format with optimized settings for Vercel
-      // Lower bitrate = smaller chunks = no 413 errors on long recordings
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          sampleRate: 16000, // 16kHz is optimal for speech (Whisper supports down to 8kHz)
-          channelCount: 1, // Mono is sufficient for speech
-          noiseSuppression: true,
-          echoCancellation: true,
+
+      // Start live speech preview in browser if supported (zero latency real-time feedback)
+      try {
+        const SpeechRecognition = typeof window !== 'undefined' ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) : null;
+        if (SpeechRecognition) {
+          const recognizer = new SpeechRecognition();
+          recognizer.continuous = true;
+          recognizer.interimResults = true;
+          recognizer.lang = patientLanguage && patientLanguage !== 'auto' ? patientLanguage : 'en-US';
+          recognizer.onresult = (event: any) => {
+            let interim = '';
+            for (let i = 0; i < event.results.length; i++) {
+              interim += event.results[i][0].transcript + ' ';
+            }
+            if (interim.trim()) {
+              liveTextRef.current = interim.trim();
+              setTranscript(interim.trim());
+            }
+          };
+          recognizer.onerror = (e: any) => {
+            console.debug('Browser speech preview event:', e?.error);
+          };
+          recognizer.start();
+          speechRecognitionRef.current = recognizer;
         }
-      });
-      streamRef.current = stream; // Store stream for visualization
-      
-      // Force WebM/Opus format for better compression
-      let mimeType = "audio/webm;codecs=opus";
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = "audio/mp4"; // Fallback for iOS Safari
+      } catch (speechErr) {
+        console.debug('Browser speech preview not available:', speechErr);
       }
       
-      // Decide bitrate based on environment
-      // Production (Vercel): 32kbps = ~240KB per minute = 15 min ≈ 3.6MB total
-      // Development: 128kbps for higher quality testing
-      const isProduction = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
-      const bitsPerSecond = isProduction ? 32000 : 128000;
-      
-      console.log(`🎙️ Recording at ${bitsPerSecond / 1000}kbps (${isProduction ? 'production' : 'development'} mode)`);
-      
-      const recorder = new MediaRecorder(stream, { 
-        mimeType,
-        bitsPerSecond 
-      });
-      audioChunks.current = [];
+      maxVolumeRef.current = 0;
 
-      recorder.ondataavailable = async (event) => {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
+      streamRef.current = stream;
+      
+      let mimeType = "audio/webm;codecs=opus";
+      if (typeof MediaRecorder !== 'undefined' && !MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm"
+                 : MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4"
+                 : MediaRecorder.isTypeSupported("audio/ogg;codecs=opus") ? "audio/ogg;codecs=opus"
+                 : "";
+      }
+      
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
+      const bitsPerSecond = isProduction ? 64000 : 128000;
+      
+      console.log(`ðŸŽ™ï¸ Recording at ${bitsPerSecond / 1000}kbps (${isProduction ? 'production' : 'development'} mode)`);
+
+      const recorder = new MediaRecorder(stream, { mimeType, bitsPerSecond });
+      audioChunks.current = [];
+      mimeTypeRef.current = mimeType;
+      segmentIndexRef.current = 0;
+      segmentTranscripts.current = [];
+      segmentPromises.current = [];
+      initChunkRef.current = null;
+      liveTextRef.current = '';
+      liveRawRef.current = '';
+      liveProgressRef.current = '';
+
+      // ── SEQUENTIAL QUEUE ──
+      // Process segments ONE AT A TIME to avoid overwhelming Vercel.
+      // Segments queue up as they arrive (every 30s) and are transcribed in order.
+      // Each completed segment updates liveRefs → polling syncs to UI every 500ms.
+      const segmentQueue: Array<{ segIdx: number; blob: Blob; done: () => void }> = [];
+      let isProcessing = false;
+
+      const updateUI = () => {
+        const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
+        const liveText = ordered.map(s => s.transcript).filter(Boolean).join(' ');
+        const liveRaw = ordered.map(s => s.rawTranscript).filter(Boolean).join(' ');
+        const completed = segmentTranscripts.current.filter(s => s.transcript).length;
+        const total = segmentIndexRef.current;
+        console.log(`�� Live stitch: ${liveText.length} chars from ${completed}/${total} segments`);
+        liveTextRef.current = liveText;
+        liveRawRef.current = liveRaw;
+        liveProgressRef.current = `✅ ${completed}/${total} segments transcribed`;
+      };
+
+      const processQueue = async () => {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        while (segmentQueue.length > 0) {
+          const { segIdx, blob, done } = segmentQueue.shift()!;
+          const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+          console.log(`🎤 Transcribing segment ${segIdx} (${sizeMB} MB) — queue: ${segmentQueue.length} remaining`);
+          liveProgressRef.current = `🎤 Transcribing segment ${segIdx + 1}...`;
+
+          try {
+            let result: { transcript: string; rawTranscript: string } | null = null;
+            let lastSegErr: any = null;
+            for (let attempt = 0; attempt < 2; attempt++) {
+              try {
+                let blobToTranscribe = blob;
+                if (attempt === 1) {
+                  // Retry decode failures by prepending initialization bytes from chunk 0.
+                  // Some MediaRecorder timeslice chunks are not independently decodable.
+                  const initChunk = initChunkRef.current;
+                  if (initChunk && segIdx > 0) {
+                    blobToTranscribe = new Blob([initChunk, blob], { type: mimeType.split(';')[0] });
+                    console.warn(`🔁 Segment ${segIdx} retry with init-chunk prefix (${(blobToTranscribe.size / 1024).toFixed(0)} KB)`);
+                  }
+                }
+
+                const res = await transcribeAudio(blobToTranscribe, patientLanguage, docLanguage, segIdx);
+                result = { transcript: res.transcript, rawTranscript: res.rawTranscript };
+                lastErrorRef.current = null;
+                break;
+              } catch (segErr: any) {
+                lastSegErr = segErr;
+                if (attempt === 0) {
+                  console.warn(`⚠️ Segment ${segIdx} attempt 1 failed, retrying...`, segErr);
+                  await new Promise(r => setTimeout(r, 1500));
+                } else {
+                  console.error(`❌ Segment ${segIdx} failed after retry:`, segErr);
+                  lastErrorRef.current = segErr instanceof Error ? segErr.message : String(segErr);
+                }
+              }
+            }
+
+            if (result && result.transcript) {
+              segmentTranscripts.current.push({
+                index: segIdx,
+                transcript: result.transcript,
+                rawTranscript: result.rawTranscript,
+              });
+              console.log(`✅ Segment ${segIdx} done (${result.transcript.length} chars)`);
+            } else {
+              segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
+              console.warn(`⚠️ Segment ${segIdx} produced no text`);
+              if (lastSegErr && !lastErrorRef.current) {
+                lastErrorRef.current = lastSegErr instanceof Error ? lastSegErr.message : String(lastSegErr);
+              }
+            }
+
+            updateUI();
+
+            if (sessionId) {
+              uploadAudioFile(blob, sessionId).catch(err =>
+                console.error('Audio upload failed:', err)
+              );
+            }
+          } catch (err: any) {
+            console.error(`💥 Segment ${segIdx} failed:`, err);
+            lastErrorRef.current = err instanceof Error ? err.message : String(err);
+            segmentTranscripts.current.push({ index: segIdx, transcript: '', rawTranscript: '' });
+            updateUI();
+          } finally {
+            done();
+          }
+        }
+
+        isProcessing = false;
+      };
+
+      recorder.ondataavailable = (event: BlobEvent) => {
         if (event.data.size > 0) {
           audioChunks.current.push(event.data);
-          
-          // Immediately upload chunk to avoid memory buildup
-          // This prevents 413 errors by keeping request sizes small
-          if (event.data.size > 100000) { // Only upload chunks > 100KB
-            try {
-              const chunkBlob = new Blob([event.data], { type: mimeType });
-              console.log(`📤 Uploading chunk ${audioChunks.current.length} (${(chunkBlob.size / 1024).toFixed(2)} KB)`);
-              
-              // Upload to Firebase Storage immediately
-              if (sessionId) {
-                await uploadAudioFile(chunkBlob, sessionId);
-              }
-            } catch (uploadError) {
-              console.error('Failed to upload chunk:', uploadError);
-              // Continue recording even if upload fails
-            }
+          const segIdx = segmentIndexRef.current++;
+          const segmentBlob = new Blob([event.data], { type: mimeType });
+
+          if (segIdx === 0) {
+            // Keep a small initialization slice for decode-error recovery on later segments.
+            initChunkRef.current = segmentBlob.slice(0, 64 * 1024, mimeType.split(';')[0]);
           }
+
+          console.log(`📦 Segment ${segIdx} captured (${(event.data.size/1024).toFixed(0)} KB)`);
+
+          const segmentPromise = new Promise<void>((resolve) => {
+            segmentQueue.push({ segIdx, blob: segmentBlob, done: resolve });
+          });
+          segmentPromises.current.push(segmentPromise);
+
+          processQueue().catch(err => {
+            console.error(`💥 Queue error:`, err);
+          });
         }
       };
 
       recorder.onstop = async () => {
-        // Clean up timer
+        // Safely stop stream tracks now that the recorder has finished encoding all audio
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+
         if (recordingTimerRef.current) {
           clearInterval(recordingTimerRef.current);
           recordingTimerRef.current = null;
         }
-        
-        // Clean up visualization
         if (animationRef.current) {
           cancelAnimationFrame(animationRef.current);
         }
         if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
           audioContextRef.current.close();
         }
-        
-        const audioBlob = new Blob(audioChunks.current, { type: mimeType });
+
         setLoading(true);
-        setProgressMessage(`Uploading chunk ${currentChunk} of 4...`);
-        
+        setProgressMessage('â³ Waiting for all segments to finish transcribing...');
+
+        // CRITICAL: recorder.stop() fires a final ondataavailable with remaining
+        // buffered audio, then fires onstop. These are both queued as DOM events.
+        // We yield to the event loop so the final ondataavailable fires and pushes
+        // its promise BEFORE we snapshot the array for Promise.allSettled.
+        await new Promise(r => setTimeout(r, 200));
+
+        const totalSegments = segmentIndexRef.current;
+        const totalPromises = segmentPromises.current.length;
+        console.log(`â³ onstop: waiting for ${totalPromises} promises (${totalSegments} segments indexed)`);
+
+        // Await ALL segment promises â€” parallel mode, so they're all in-flight
+        await Promise.allSettled(segmentPromises.current);
+
+        // Double-check: if any late promises snuck in after the snapshot, await again
+        if (segmentPromises.current.length > totalPromises) {
+          console.log(`â³ onstop: ${segmentPromises.current.length - totalPromises} late promises detected, awaiting...`);
+          await Promise.allSettled(segmentPromises.current);
+        }
+
+        const ordered = [...segmentTranscripts.current].sort((a, b) => a.index - b.index);
+
+        // Remove chunk-boundary overlap: compare tail of previous segment with head of current
+        const deoverlapSegments = (segments: typeof ordered, key: 'transcript' | 'rawTranscript') => {
+          const parts: string[] = [];
+          for (let i = 0; i < segments.length; i++) {
+            let text = segments[i][key] || '';
+            if (!text) continue;
+            if (i > 0 && parts.length > 0) {
+              const prevWords = parts[parts.length - 1].split(/\s+/);
+              const currWords = text.split(/\s+/);
+              const tailWindow = prevWords.slice(-20);
+              let bestOverlap = 0;
+              for (let len = Math.min(tailWindow.length, currWords.length); len >= 3; len--) {
+                if (tailWindow.slice(-len).join(' ').toLowerCase() === currWords.slice(0, len).join(' ').toLowerCase()) {
+                  bestOverlap = len;
+                  break;
+                }
+              }
+              if (bestOverlap > 0) {
+                console.log(`🔗 Removed ${bestOverlap}-word overlap between segment ${i-1} and ${i}`);
+                text = currWords.slice(bestOverlap).join(' ');
+              }
+            }
+            if (text.trim()) parts.push(text.trim());
+          }
+          return parts.join(' ');
+        };
+
+        let stitchedTranscript = deoverlapSegments(ordered, 'transcript');
+        let stitchedRaw = deoverlapSegments(ordered, 'rawTranscript');
+
+        // Fallback: If chunking/segments produced no text but audio was captured, transcribe full audio blob
+        if (!stitchedTranscript.trim() && audioChunks.current.length > 0) {
+          try {
+            console.log('🔄 Attempting fallback transcription of entire audio recording...');
+            const fullBlob = new Blob(audioChunks.current, { type: mimeTypeRef.current });
+            if (fullBlob.size > 2000) {
+              const fallbackRes = await transcribeAudio(fullBlob, patientLanguage, docLanguage, 0);
+              if (fallbackRes.transcript.trim()) {
+                stitchedTranscript = fallbackRes.transcript;
+                stitchedRaw = fallbackRes.rawTranscript;
+                lastErrorRef.current = null;
+              }
+            }
+          } catch (fallbackErr: any) {
+            console.error('Fallback full-audio transcription failed:', fallbackErr);
+            if (!lastErrorRef.current) {
+              lastErrorRef.current = fallbackErr?.message || String(fallbackErr);
+            }
+          }
+        }
+
+        console.log(`📋 Final stitch: ${ordered.length} segments → ${stitchedTranscript.length} chars (${totalSegments} total indexed)`);
+
+        // Final update: write to refs AND directly set state
+        liveTextRef.current = stitchedTranscript;
+        liveRawRef.current = stitchedRaw;
+        setTranscript(stitchedTranscript);
+        setRawTranscript(stitchedRaw);
+
+        if (!stitchedTranscript.trim()) {
+          if (lastErrorRef.current) {
+            setError(`Recording error: ${lastErrorRef.current}`);
+          } else if (maxVolumeRef.current < 5) {
+            setError('No audio signal detected from microphone. Please ensure your microphone is unmuted and the input volume is turned up in system settings.');
+          } else {
+            setError('No speech detected in this recording. Please speak clearly into your microphone and try again.');
+          }
+          setLoading(false);
+          return;
+        }
+
         try {
-          // Save chunk to Firestore immediately
-          if (sessionId && auth.currentUser) {
-            try {
-              const chunkRef = doc(collection(db, 'transcriptions', auth.currentUser.uid, sessionId));
-              await setDoc(chunkRef, {
-                index: currentChunk,
-                createdAt: new Date(),
-                status: 'uploading'
-              });
-            } catch (saveError) {
-              console.error('Error saving chunk metadata to Firestore:', saveError);
-            }
-          }
-          
-          const result = await transcribeAudio(audioBlob, patientLanguage, docLanguage, currentChunk);
-          
-          // Update Firestore with transcription result
-          if (sessionId && auth.currentUser) {
-            try {
-              const chunkRef = doc(collection(db, 'transcriptions', auth.currentUser.uid, sessionId));
-              await setDoc(chunkRef, {
-                index: currentChunk,
-                transcript: result.transcript,
-                rawTranscript: result.rawTranscript,
-                patientLang: result.patientLang,
-                docLang: result.docLang,
-                createdAt: new Date(),
-                status: 'completed'
-              }, { merge: true });
-            } catch (saveError) {
-              console.error('Error updating chunk in Firestore:', saveError);
-            }
-          }
-          
-          setProgressMessage(`✅ Chunk ${currentChunk}/4 complete`);
-          
-          // Store chunk with index for ordered stitching
+          setProgressMessage(`âœ… Chunk ${currentChunk}/4 complete`);
+
           const newChunk: TranscriptChunk = {
-            index: result.index ?? currentChunk,
-            transcript: result.transcript,
-            rawTranscript: result.rawTranscript,
-            patientLang: result.patientLang,
-            docLang: result.docLang,
+            index: currentChunk,
+            transcript: stitchedTranscript,
+            rawTranscript: stitchedRaw,
+            patientLang: patientLanguage,
+            docLang: docLanguage,
             success: true
           };
-          
+
           setTranscriptChunks(prev => {
-            const updated = [...prev, newChunk];
-            // Sort by index to ensure proper order
-            return updated.sort((a, b) => a.index - b.index);
+            const updated = [...prev, newChunk].sort((a, b) => a.index - b.index);
+            transcriptChunksRef.current = updated;
+            return updated;
           });
-          
-          // Upload audio file to Firebase Storage if we have a session ID
-          let audioUrl: string | undefined;
-          if (sessionId) {
+
+          // Save to Firestore
+          if (sessionId && auth.currentUser) {
             try {
-              audioUrl = await uploadAudioFile(audioBlob, sessionId);
-            } catch (uploadError) {
-              console.error('Error uploading audio file:', uploadError);
+              const chunkRef = doc(collection(db, 'transcriptions', auth.currentUser.uid, sessionId));
+              await setDoc(chunkRef, {
+                index: currentChunk,
+                transcript: stitchedTranscript,
+                rawTranscript: stitchedRaw,
+                patientLang: patientLanguage,
+                docLang: docLanguage,
+                createdAt: new Date(),
+                status: 'completed'
+              });
+            } catch (saveError) {
+              console.error('Error saving chunk to Firestore:', saveError);
             }
           }
-          
-          // Add to recordings array
+
           const newRecording: RecordingChunk = {
             id: Date.now().toString(),
-            transcript: result.transcript,
+            transcript: stitchedTranscript,
             timestamp: new Date(),
-            audioUrl, // Include the audio URL if available
-            duration: recordingTime // Include the recording duration in seconds
+            duration: recordingTime
           };
           setRecordings(prev => [...prev, newRecording]);
-          
-          // If we have a session ID, save the recording to the backend
+
+          // Save recording to session backend
           if (sessionId) {
             try {
-              // Save recording to Firestore with isActive flag set to false (recording stopped)
               const response = await fetch('/api/session/recording', {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  sessionId,
-                  recording: newRecording,
-                  isActive: false // Set isActive to false when recording stops
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, recording: newRecording, isActive: false }),
               });
-              
-              if (!response.ok) {
-                console.error('Failed to save recording to session');
-              } else {
-                // Check if auto-combine was triggered
+              if (response.ok) {
                 const responseData = await response.json();
                 if (responseData.autoCombineTriggered) {
-                  console.log('Auto-combine triggered for session due to duration threshold');
+                  console.log('Auto-combine triggered for session');
                 }
               }
             } catch (saveError) {
               console.error('Error saving recording to session:', saveError);
             }
           }
-          
-          // Notify parent component about new transcript with language information
-          // Pass the detected language from Whisper API if available
-          const detectedLang = result.patientLang && result.patientLang !== "auto" ? result.patientLang : undefined;
-          onTranscriptGenerated?.(
-            result.transcript, 
-            result.rawTranscript, 
-            detectedLang
-          );
-          
-          // Update chunk state
+
+          // Notify parent component
+          const detectedLang = patientLanguage !== "auto" ? patientLanguage : undefined;
+          onTranscriptGenerated?.(stitchedTranscript, stitchedRaw, detectedLang);
+
           setIsChunkCompleted(true);
           setTotalChunks(prev => prev + 1);
-          
-          // Show prompt for next chunk if we haven't reached the limit
+
           if (currentChunk < 4) {
             setShowNextChunkPrompt(true);
           } else {
-            // All chunks recorded, combine automatically after a short delay
-            setProgressMessage("🎉 All chunks processed! Generating final transcript...");
-            setTimeout(() => {
-              combineRecordings();
-            }, 1500);
+            setProgressMessage("ðŸŽ‰ All chunks processed! Generating final transcript...");
+            setTimeout(() => { combineRecordings(); }, 1500);
           }
         } catch (err) {
-          console.error('Transcription error:', err);
-          setProgressMessage(`⚠️ Chunk ${currentChunk} failed, continuing...`);
-          
-          // Store failed chunk for partial transcript generation
+          console.error('Transcription stitching error:', err);
+          setError(err instanceof Error ? err.message : 'Transcription failed');
+          setProgressMessage(`âš ï¸ Chunk ${currentChunk} failed`);
+
           const failedChunk: TranscriptChunk = {
-            index: currentChunk,
-            transcript: '',
-            rawTranscript: '',
-            success: false,
-            error: err instanceof Error ? err.message : 'Unknown error'
+            index: currentChunk, transcript: '', rawTranscript: '',
+            success: false, error: err instanceof Error ? err.message : 'Unknown error'
           };
-          
           setTranscriptChunks(prev => {
-            const updated = [...prev, failedChunk];
-            // Sort by index to ensure proper order
-            return updated.sort((a, b) => a.index - b.index);
+            const updated = [...prev, failedChunk].sort((a, b) => a.index - b.index);
+            transcriptChunksRef.current = updated;
+            return updated;
           });
-          
-          // Still update total chunks to continue the flow
           setIsChunkCompleted(true);
           setTotalChunks(prev => prev + 1);
-          
-          // Show prompt for next chunk if we haven't reached the limit
+
           if (currentChunk < 4) {
             setShowNextChunkPrompt(true);
           } else {
-            // All chunks recorded (even with failures), combine automatically
-            setProgressMessage("⚠️ Some chunks failed, generating partial transcript...");
-            setTimeout(() => {
-              combineRecordings();
-            }, 1500);
+            setProgressMessage("âš ï¸ Some chunks failed, generating partial transcript...");
+            setTimeout(() => { combineRecordings(); }, 1500);
           }
         } finally {
           setLoading(false);
         }
       };
 
-      // Start recording with 30-second chunks to keep under Vercel's 10MB limit
-      // 30 seconds of WebM/Opus audio ≈ 2-4 MB
-      recorder.start(30000); // 30 seconds per chunk
+      // Fire ondataavailable every 30 seconds â€” each segment is ~240KB at 64kbps
+      recorder.start(30000);
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
       
-      // Set session as active when recording starts
       await setSessionActive(true);
     } catch (err) {
       console.error('Failed to access microphone:', err);
@@ -466,21 +686,37 @@ export default function Recorder({
   };
 
   const handleStop = () => {
-    mediaRecorderRef.current?.stop();
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {}
+      speechRecognitionRef.current = null;
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.requestData();
+      } catch (e) {
+        console.debug('requestData notice:', e);
+      }
+      mediaRecorderRef.current.stop();
     }
     setIsRecording(false);
     
-    // Clean up timer
     if (recordingTimerRef.current) {
       clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = null;
     }
     
-    // Set session as inactive when recording stops
     setSessionActive(false);
   };
+
+  // Auto-stop recording after 15 minutes (900 seconds)
+  useEffect(() => {
+    if (isRecording && recordingTime >= 900) {
+      handleStop();
+    }
+  }, [recordingTime, isRecording]);
 
   const startNextChunk = () => {
     setShowNextChunkPrompt(false);
@@ -517,8 +753,10 @@ export default function Recorder({
 
   // Function to combine all recordings into a single transcript
   const combineRecordings = async () => {
-    // Combine chunks in order using the transcriptChunks array
-    const successfulChunks = transcriptChunks
+    // Use ref to avoid stale React state â€” ref is updated synchronously in setTranscriptChunks callback
+    const chunks = transcriptChunksRef.current;
+    console.log(`ðŸ“‹ combineRecordings called â€” ${chunks.length} chunk(s) in ref`);
+    const successfulChunks = chunks
       .filter(chunk => chunk.success)
       .sort((a, b) => a.index - b.index);
     
@@ -558,132 +796,101 @@ export default function Recorder({
   const chunkProgress = (recordingTime / 900) * 100; // 900 seconds = 15 minutes
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 max-h-[520px] overflow-y-auto">
       {/* Waveform Visualization */}
-      <div className="relative bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100/50">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <div className="w-3 h-3 bg-indigo-500 rounded-full animate-pulse"></div>
-            Live Audio Visualization
+      <div className="relative bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-3 border border-indigo-100/50">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-pulse"></div>
+            Live Audio
           </h3>
-          <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 border-indigo-200">
+          <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[10px] px-1.5 py-0">
             Real-time
           </Badge>
         </div>
         <canvas 
           ref={canvasRef} 
-          className="w-full h-32 bg-white/50 rounded-xl border border-indigo-200/50"
+          className="w-full h-20 bg-white/50 rounded-lg border border-indigo-200/50"
           width={600}
-          height={128}
+          height={80}
         />
-        <div className="flex justify-center mt-3">
-          <Badge variant="outline" className="text-xs text-gray-500">
-            Audio waveform visualization during recording
-          </Badge>
-        </div>
         
-        {/* Display language information */}
-        <div className="flex gap-2 mt-4 justify-center">
-          <Badge className="bg-purple-100 text-purple-800 border-purple-200">
-            Patient Language: {
-              patientLanguage === "auto" ? "🌐 Auto Detect" : 
-              patientLanguage === "so" ? "🇸🇴 Somali" :
-              patientLanguage === "hmn" ? "🇱🇦 Hmong" :
-              patientLanguage === "sw" ? "🇰🇪 Swahili" :
-              patientLanguage === "ar" ? "🇸🇦 Arabic" :
-              patientLanguage === "en" ? "🇺🇸 English" :
-              patientLanguage.toUpperCase()
-            }
+        {/* Language + Chunk progress â€” compact row */}
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px] px-1.5 py-0">
+            Patient: {languageNames[patientLanguage] || patientLanguage.toUpperCase()}
           </Badge>
-          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-            Documentation Language: {
-              docLanguage === "en" ? "🇺🇸 English" :
-              docLanguage === "so" ? "🇸🇴 Somali" :
-              docLanguage === "hmn" ? "🇱🇦 Hmong" :
-              docLanguage === "sw" ? "🇰🇪 Swahili" :
-              docLanguage === "ar" ? "🇸🇦 Arabic" :
-              docLanguage.toUpperCase()
-            }
+          <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px] px-1.5 py-0">
+            Doc: {languageNames[docLanguage] || docLanguage.toUpperCase()}
           </Badge>
+          <span className="ml-auto text-[10px] font-medium text-gray-500">
+            Chunk {currentChunk}/4 Â· {formatTime(recordingTime)}
+          </span>
         </div>
-        
-        {/* Chunk progress indicator */}
-        <div className="mt-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-gray-700">
-              Chunk {currentChunk} of 4
-            </span>
-            <span className="text-sm font-medium text-gray-700">
-              {formatTime(recordingTime)} / 15:00
-            </span>
-          </div>
-          <Progress value={chunkProgress} className="h-2" />
-        </div>
+        <Progress value={chunkProgress} className="h-1.5 mt-1.5" />
         
         {/* Recording timer */}
         {isRecording && (
-          <div className="flex items-center justify-center mt-4 gap-2 text-red-600 font-medium">
-            <Timer className="h-5 w-5 animate-pulse" />
-            <span>Recording Chunk {currentChunk}: {formatTime(recordingTime)}</span>
-            {recordingTime >= 840 && ( // Warning at 14 minutes
-              <span className="text-orange-600">(Approaching 15-min limit)</span>
+          <div className="flex items-center justify-center mt-2 gap-1.5 text-red-600 text-xs font-medium">
+            <Timer className="h-3.5 w-3.5 animate-pulse" />
+            <span>Chunk {currentChunk}: {formatTime(recordingTime)}</span>
+            {recordingTime >= 840 && (
+              <span className="text-orange-600 text-[10px]">(Near limit)</span>
             )}
           </div>
         )}
         
         {/* Progress message */}
         {progressMessage && (
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-center">
-            <span className="font-medium text-blue-800">{progressMessage}</span>
+          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg text-center">
+            <span className="text-xs font-medium text-blue-800">{progressMessage}</span>
           </div>
         )}
         
         {/* All chunks completed message */}
         {totalChunks >= 4 && !isRecording && (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center justify-center">
-            <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-            <span className="font-medium text-green-800">
-              All chunks recorded. Final SOAP note generated.
-            </span>
+          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg flex items-center justify-center">
+            <CheckCircle className="h-3.5 w-3.5 text-green-500 mr-1.5" />
+            <span className="text-xs font-medium text-green-800">All chunks recorded.</span>
           </div>
         )}
       </div>
 
       {/* Recording Controls */}
-      <div className="flex flex-col sm:flex-row items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-center gap-2 flex-wrap">
         {!isRecording ? (
           !showNextChunkPrompt ? (
             <Button
               onClick={handleStart}
               disabled={loading || totalChunks >= 4}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-xl shadow-sm transition-all"
             >
-              <Mic className="h-5 w-5" />
+              <Mic className="h-4 w-4" />
               {loading ? 'Transcribing...' : totalChunks >= 4 ? 'All Chunks Recorded' : `Start Chunk ${currentChunk}`}
             </Button>
           ) : (
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
               <Button
                 onClick={startNextChunk}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl shadow-sm transition-all"
               >
-                <Play className="h-5 w-5" />
-                Start Chunk {currentChunk + 1}
+                <Play className="h-4 w-4" />
+                Next Chunk
               </Button>
               <Button
                 onClick={combineRecordings}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-sm transition-all"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Combining...
                   </>
                 ) : (
                   <>
-                    <Stethoscope className="h-5 w-5" />
-                    Combine All Chunks Now
+                    <Stethoscope className="h-4 w-4" />
+                    Combine Chunks
                   </>
                 )}
               </Button>
@@ -692,20 +899,20 @@ export default function Recorder({
         ) : (
           <Button
             onClick={handleStop}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white rounded-xl shadow-sm transition-all"
           >
-            <Square className="h-5 w-5" />
-            Stop Chunk {currentChunk} ({formatTime(recordingTime)})
+            <Square className="h-4 w-4" />
+            Stop ({formatTime(recordingTime)})
           </Button>
         )}
         
         {transcript && !showNextChunkPrompt && (
           <Button
             onClick={generateSOAP}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-sm transition-all"
           >
-            <Stethoscope className="h-5 w-5" />
-            Generate SOAP Note
+            <Stethoscope className="h-4 w-4" />
+            Generate SOAP
           </Button>
         )}
         
@@ -714,17 +921,17 @@ export default function Recorder({
           <Button
             onClick={combineRecordings}
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl shadow-sm transition-all"
           >
             {loading ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Combining...
               </>
             ) : (
               <>
-                <Stethoscope className="h-5 w-5" />
-                Combine into Final SOAP
+                <Stethoscope className="h-4 w-4" />
+                Combine Final SOAP
               </>
             )}
           </Button>
@@ -766,59 +973,59 @@ export default function Recorder({
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3">
+        <div className="p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-2xl flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
           <div>
-            <h4 className="font-semibold text-red-800">Recording Error</h4>
-            <p className="text-red-700 text-sm">{error}</p>
+            <h4 className="font-semibold text-red-800 dark:text-red-300">Recording Error</h4>
+            <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
           </div>
         </div>
       )}
 
       {/* Transcript Display */}
       {transcript && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                Transcribed Text
-              </h3>
-              <Button
-                onClick={copyTranscript}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-              >
-                {copied ? (
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-                {copied ? 'Copied!' : 'Copy'}
-              </Button>
-            </div>
-            <p className="text-gray-700 whitespace-pre-wrap">{transcript}</p>
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></div>
+              Transcribed Text
+            </h3>
+            <Button
+              onClick={copyTranscript}
+              variant="outline"
+              size="sm"
+              className="text-xs h-7 px-2.5"
+            >
+              {copied ? (
+                <CheckCircle className="h-3 w-3 text-emerald-600" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+              <span className="ml-1">{copied ? 'Copied!' : 'Copy'}</span>
+            </Button>
+          </div>
+          <div className="max-h-[180px] overflow-y-auto">
+            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{transcript}</p>
           </div>
         </div>
       )}
       
       {/* Show recordings list when we have multiple recordings */}
       {recordings.length > 1 && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <h3 className="font-bold text-gray-900 mb-3">Recordings ({recordings.length})</h3>
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+          <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-3">Recordings ({recordings.length})</h3>
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {recordings.map((recording, index) => (
-              <div key={recording.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                <span className="text-sm text-gray-600">Recording {index + 1}</span>
-                <span className="text-xs text-gray-500">
+              <div key={recording.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <span className="text-sm text-gray-600 dark:text-gray-300">Recording {index + 1}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {recording.timestamp.toLocaleTimeString()}
                 </span>
               </div>
             ))}
           </div>
-          <div className="mt-3 text-xs text-gray-500">
-            Combine all recordings into a single SOAP note using the "Combine into Final SOAP" button above.
+          <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+            Combine all recordings into a single SOAP note using the &quot;Combine into Final SOAP&quot; button above.
           </div>
         </div>
       )}

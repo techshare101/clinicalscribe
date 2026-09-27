@@ -33,8 +33,12 @@ export async function transcribeAudio(
       formData.append("index", index.toString())
     }
 
+    const token = await user.getIdToken();
     const response = await fetch('/api/transcribe', {
       method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
       body: formData,
     })
 
