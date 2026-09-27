@@ -3,11 +3,24 @@ import { requireApiUser } from '@/lib/apiAuth';
 
 export const runtime = 'nodejs';
 
+// Language code to name map (duplicated from translate.ts since edge runtime can't import node modules)
+const LANG_NAMES: Record<string, string> = {
+  en: "English", es: "Spanish", so: "Somali", hmn: "Hmong", sw: "Swahili",
+  fr: "French", ar: "Arabic", zh: "Chinese (Mandarin)", vi: "Vietnamese",
+  tl: "Tagalog", pt: "Portuguese", hi: "Hindi", ru: "Russian", am: "Amharic",
+  ko: "Korean", ja: "Japanese", de: "German", it: "Italian", tr: "Turkish",
+  nl: "Dutch", pl: "Polish", sv: "Swedish", th: "Thai", fa: "Persian",
+  uk: "Ukrainian", ro: "Romanian", cs: "Czech", hu: "Hungarian", el: "Greek",
+  he: "Hebrew", bn: "Bengali",
+  yo: "Yoruba", tw: "Twi", ha: "Hausa", zu: "Zulu", xh: "Xhosa",
+};
+
 interface SOAPRequest {
   transcript: string;
   patientName?: string;
   encounterType?: string;
-  language?: string;
+  patientLang?: string;
+  docLang?: string;
 }
 
 interface SOAPResponse {
@@ -25,21 +38,29 @@ export async function POST(req: Request) {
   if (auth.response) return auth.response;
   try {
     const body: SOAPRequest = await req.json();
-    const { transcript, patientName, encounterType } = body;
+    const { transcript, patientName, encounterType, docLang } = body;
+    const docLanguageName = LANG_NAMES[docLang || 'en'] || 'English';
 
     if (!transcript || transcript.trim().length === 0) {
       return NextResponse.json({ error: 'Transcript is required' }, { status: 400 });
     }
 
+    console.log('[SOAP API] Received transcript length:', transcript.trim().length, 'chars');
+
     // Construct the clinical prompt for GPT-4
+    const languageInstruction = docLang && docLang !== 'en'
+      ? `\n- IMPORTANT: Write the ENTIRE SOAP note in ${docLanguageName}. All section content must be in ${docLanguageName}.`
+      : '';
     const clinicalPrompt = `You are an experienced clinical documentation specialist. Convert the following medical transcript into a structured SOAP note format. Be precise, professional, and clinically accurate.
 
 INSTRUCTIONS:
-- Extract only information explicitly mentioned in the transcript
+- Extract ALL available clinical information from the transcript
 - Use proper medical terminology
 - Be concise but comprehensive
-- If information is missing for a section, note it appropriately
-- Maintain patient confidentiality standards
+- If the transcript discusses a patient case (even as a teaching example or presentation), treat it as the patient encounter and extract all relevant details
+- For any section where information is limited, summarize what IS available rather than saying "not provided"
+- Only write "Information not provided in the transcript" if there is truly zero relevant content for that section
+- Maintain patient confidentiality standards${languageInstruction}
 
 TRANSCRIPT:
 "${transcript}"
@@ -68,15 +89,15 @@ Focus on clinical accuracy and professional medical documentation standards.`;
         messages: [
           {
             role: 'system',
-            content: 'You are a clinical documentation specialist. Generate accurate, professional SOAP notes from medical transcripts. Always respond with valid JSON format.'
+            content: 'You are a clinical documentation specialist. Generate accurate, professional SOAP notes from medical transcripts. Extract all available clinical information. Always respond with valid JSON format.'
           },
           {
             role: 'user',
             content: clinicalPrompt
           }
         ],
-        temperature: 0.3, // Lower temperature for more consistent clinical output
-        max_tokens: 1500,
+        temperature: 0.3,
+        max_tokens: 2000,
         response_format: { type: "json_object" }
       }),
     });

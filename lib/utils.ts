@@ -22,7 +22,13 @@ export async function transcribeAudio(
     }
 
     // Create a proper File object with the correct MIME type for Whisper API
-    const audioFile = new File([audioBlob], `recording-chunk-${index || 0}.webm`, { type: "audio/webm" })
+    // Derive extension from actual blob MIME type to avoid OpenAI 400 errors
+    const mimeType = audioBlob.type || 'audio/webm';
+    const ext = mimeType.includes('mp4') ? 'm4a'
+      : mimeType.includes('ogg') ? 'ogg'
+      : mimeType.includes('wav') ? 'wav'
+      : 'webm';
+    const audioFile = new File([audioBlob], `recording-chunk-${index || 0}.${ext}`, { type: mimeType.split(';')[0] })
     
     const formData = new FormData()
     formData.append("file", audioFile)

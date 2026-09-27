@@ -3,6 +3,7 @@ import { requireApiUser } from "@/lib/apiAuth";
 import OpenAI from "openai";
 import { translateText } from "@/lib/translate";
 import { adminDb } from '@/lib/firebase-admin'; // Import Firebase Admin for Firestore
+import { deduplicateTranscript, applyMedicalCorrections } from '@/lib/medical-normalize';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -47,6 +48,62 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid file type. Please upload an audio file." }, { status: 400 });
     }
 
+    // Normalize mime + extension. Some browsers send codec params or odd filenames
+    // which can cause OpenAI to reject with "Invalid file format".
+    const normalizedMime = (file.type || 'audio/webm').split(';')[0];
+    const ext = normalizedMime.includes('mp4') ? 'mp4'
+      : normalizedMime.includes('ogg') ? 'ogg'
+      : normalizedMime.includes('wav') ? 'wav'
+      : normalizedMime.includes('mpeg') || normalizedMime.includes('mp3') ? 'mp3'
+      : 'webm';
+    const normalizedBuffer = await file.arrayBuffer();
+    const normalizedFile = new File([normalizedBuffer], `segment-${index}.${ext}`, { type: normalizedMime });
+    console.log("Normalized file:", normalizedFile.name, normalizedFile.type, normalizedFile.size);
+
+    const transcribeWithFormatFallback = async (sourceBuffer: ArrayBuffer, baseName: string, preferredMime: string, preferredExt: string) => {
+      const formatCandidates = [
+        { ext: preferredExt, mime: preferredMime },
+        { ext: 'webm', mime: 'audio/webm' },
+        { ext: 'mp4', mime: 'audio/mp4' },
+        { ext: 'm4a', mime: 'audio/mp4' },
+        { ext: 'ogg', mime: 'audio/ogg' },
+        { ext: 'wav', mime: 'audio/wav' },
+        { ext: 'mp3', mime: 'audio/mpeg' },
+      ];
+
+      const seen = new Set<string>();
+      let lastInvalidFormatError: any = null;
+
+      for (const candidate of formatCandidates) {
+        const key = `${candidate.ext}|${candidate.mime}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        const candidateFile = new File([sourceBuffer], `${baseName}.${candidate.ext}`, { type: candidate.mime });
+        try {
+          if (candidate.ext !== preferredExt || candidate.mime !== preferredMime) {
+            console.warn(`Retrying transcription with fallback format: ${candidateFile.name} (${candidateFile.type})`);
+          }
+          return await openai.audio.transcriptions.create({
+            file: candidateFile,
+            model: "whisper-1",
+            language: patientLang === "auto" ? undefined : patientLang,
+            temperature: 0,
+            prompt: "Medical clinical encounter transcription. Use standard medical terminology: AFib, RVR, NSVT, MRSA, CHF, HFrEF, TTE, TEE, EKG, ICU, IV, BP, HR, SpO2. Preserve exact phrasing. Do not summarize.",
+          });
+        } catch (err: any) {
+          const message = err?.message || '';
+          if (/Invalid file format|could not be decoded|format is not supported/i.test(message)) {
+            lastInvalidFormatError = err;
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      throw lastInvalidFormatError || new Error('Unable to transcribe audio: unsupported format');
+    };
+
     // Validate file size (max 25MB for Whisper API)
     if (file.size > 25 * 1024 * 1024) {
       console.log("File larger than 25MB, will chunk automatically");
@@ -57,12 +114,12 @@ export async function POST(req: Request) {
     let fullText = "";
     let fullRawText = "";
     
-    if (file.size > 25 * 1024 * 1024) {
+    if (normalizedFile.size > 25 * 1024 * 1024) {
       // For large files, we need to chunk them
       console.log("Processing large file by chunking");
       
       // Convert file to ArrayBuffer
-      const arrayBuffer = await file.arrayBuffer();
+      const arrayBuffer = await normalizedFile.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       
       // Split into chunks of 20MB to leave room for overhead
@@ -80,24 +137,33 @@ export async function POST(req: Request) {
         console.log(`Processing chunk ${i + 1}/${chunks.length}`);
         
         // Create a new File object for this chunk
-        const chunkBlob = new Blob([new Uint8Array(chunks[i])], { type: file.type });
-        const chunkFile = new File([chunkBlob], `chunk-${i}-${file.name}`, { type: file.type });
+        const chunkBlob = new Blob([new Uint8Array(chunks[i])], { type: normalizedMime });
+        const chunkFile = new File([chunkBlob], `chunk-${i}-segment-${index}.${ext}`, { type: normalizedMime });
         
         try {
           // Transcribe this chunk
-          const chunkTranscription = await openai.audio.transcriptions.create({
-            file: chunkFile,
-            model: "whisper-1",
-            language: patientLang === "auto" ? undefined : patientLang,
-          });
+          const chunkBuffer = await chunkFile.arrayBuffer();
+          const chunkTranscription = await transcribeWithFormatFallback(
+            chunkBuffer,
+            `chunk-${i}-segment-${index}`,
+            normalizedMime,
+            ext
+          );
           
           fullRawText += chunkTranscription.text + " ";
           
-          // Translate if needed
+          // Translate if doc language differs from transcribed language
           let chunkTranslatedText = chunkTranscription.text;
-          if (patientLang !== "auto" && patientLang !== docLang) {
+          if (docLang !== "en" || (patientLang !== "auto" && patientLang !== "en" && patientLang !== docLang)) {
             try {
               chunkTranslatedText = await translateText(chunkTranscription.text, docLang);
+            } catch (translationError) {
+              console.error("Translation failed for chunk:", translationError);
+            }
+          } else if (patientLang !== "auto" && patientLang !== "en" && docLang === "en") {
+            // Patient speaks non-English, doc is English — translate to English
+            try {
+              chunkTranslatedText = await translateText(chunkTranscription.text, "en");
             } catch (translationError) {
               console.error("Translation failed for chunk:", translationError);
             }
@@ -112,22 +178,30 @@ export async function POST(req: Request) {
     } else {
       // For smaller files, process normally
       console.log("Processing file normally (under 25MB)");
-      const transcription = await openai.audio.transcriptions.create({
-        file,
-        model: "whisper-1",
-        language: patientLang === "auto" ? undefined : patientLang,
-      });
+      const transcription = await transcribeWithFormatFallback(
+        normalizedBuffer,
+        `segment-${index}`,
+        normalizedMime,
+        ext
+      );
       console.log("Transcription completed:", transcription.text);
 
       fullRawText = transcription.text;
-      fullText = transcription.text;
+
+      // Medical ASR post-processing: de-duplicate and normalize terminology
+      fullText = deduplicateTranscript(transcription.text);
+      fullText = applyMedicalCorrections(fullText);
+      console.log("Medical normalization applied");
 
       // Translate to documentation language if needed
-      if (patientLang !== "auto" && patientLang !== docLang) {
-        console.log(`Translating from ${patientLang} to ${docLang}`);
+      // Case 1: docLang is not English — always translate (Whisper outputs in detected lang)
+      // Case 2: patient explicitly non-English, doc is English — translate to English
+      const needsTranslation = docLang !== "en" || (patientLang !== "auto" && patientLang !== "en");
+      if (needsTranslation) {
+        console.log(`Translating to ${docLang} (patientLang=${patientLang})`);
         try {
           fullText = await translateText(transcription.text, docLang);
-          console.log("Translation completed:", fullText);
+          console.log("Translation completed:", fullText.substring(0, 100) + "...");
         } catch (translationError) {
           console.error("Translation failed:", translationError);
         }

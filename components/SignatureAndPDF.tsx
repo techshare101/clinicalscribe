@@ -16,6 +16,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { FileText, Upload, Download, Signature, CheckCircle, AlertCircle, Trash2, User, Loader2, AlertTriangle } from 'lucide-react'
 import { formatDate } from '@/lib/formatDate'
+import { useSmartStatus } from '@/hooks/use-smart-status'
 
 interface SOAPNote {
   subjective: string
@@ -60,7 +61,63 @@ export default function SignatureAndPDF({
   const [uploadedPath, setUploadedPath] = useState<string | null>(null)
   const [lastPoint, setLastPoint] = useState<{ x: number; y: number } | null>(null)
   const [restored, setRestored] = useState(false)
+  const [epicExportStatus, setEpicExportStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
   const { toast } = useToast()
+  const smartStatus = useSmartStatus()
+
+  // Auto-export SOAP note to Epic FHIR server if connected
+  async function exportToEpic(pdfUrl?: string) {
+    if (!smartStatus.connected || !soapNote) return
+    setEpicExportStatus('sending')
+    try {
+      // Step 1: Build FHIR DocumentReference
+      const buildRes = await fetch('/api/fhir/document-reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          soap: {
+            subjective: soapNote.subjective,
+            objective: soapNote.objective,
+            assessment: soapNote.assessment,
+            plan: soapNote.plan,
+            patientName: patientName || soapNote.patientName,
+            encounterType: encounterType || soapNote.encounterType,
+            timestamp: soapNote.timestamp || new Date().toISOString(),
+          },
+          author: doctorName ? { name: doctorName } : undefined,
+          attachmentUrl: pdfUrl || undefined,
+          attachmentContentType: pdfUrl ? 'application/pdf' : undefined,
+        }),
+      })
+      if (!buildRes.ok) throw new Error('Failed to build FHIR resource')
+      const fhirResource = await buildRes.json()
+
+      // Step 2: Send to Epic
+      const sendRes = await fetch('/api/smart/post-document-reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fhirResource),
+      })
+      const sendJson = await sendRes.json()
+      if (sendJson.ok) {
+        setEpicExportStatus('success')
+        toast({
+          title: "Exported to Epic",
+          description: `SOAP note sent to Epic EHR successfully.`,
+        })
+      } else {
+        throw new Error(sendJson.message || 'Epic rejected the document')
+      }
+    } catch (e: any) {
+      console.error('[SignatureAndPDF] Epic export error:', e)
+      setEpicExportStatus('error')
+      toast({
+        title: "Epic Export Failed",
+        description: e?.message || 'Could not send SOAP note to Epic. You can retry from SOAP History.',
+        variant: "destructive",
+      })
+    }
+  }
 
   // Load saved data from localStorage on component mount
   useEffect(() => {
@@ -686,6 +743,11 @@ export default function SignatureAndPDF({
         description: "Your document has been generated and uploaded to secure storage.",
         variant: "default"
       });
+
+      // Auto-export to Epic if connected
+      if (smartStatus.connected) {
+        exportToEpic(result.url)
+      }
       
     } catch (error: any) {
       console.error('[SignatureAndPDF] PDF generation error:', error);
@@ -1001,19 +1063,19 @@ export default function SignatureAndPDF({
     <div className="space-y-6">
       {/* Restoration Warning */}
       {restored && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
-          <div className="text-sm text-amber-800">
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 rounded-lg flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          <div className="text-sm text-amber-800 dark:text-amber-200">
             <span className="font-medium">Restored saved signature data</span> - Your doctor name and signature were automatically restored from your previous session.
           </div>
         </div>
       )}
 
-      <Card className="border-l-4 border-l-purple-500 bg-purple-50/50">
+      <Card className="border-l-4 border-l-purple-500 bg-purple-50/50 dark:bg-purple-950/30">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2 text-purple-900">
+              <CardTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-200">
                 <Signature className="h-5 w-5" />
                 Digital Signature & PDF Export
               </CardTitle>
@@ -1025,7 +1087,7 @@ export default function SignatureAndPDF({
               onClick={clearAllData}
               variant="outline"
               size="sm"
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40"
             >
               <Trash2 className="h-4 w-4 mr-1" />
               Clear
@@ -1046,9 +1108,9 @@ export default function SignatureAndPDF({
                   value={doctorName}
                   onChange={(e) => setDoctorName(e.target.value)}
                   placeholder="Enter your full name"
-                  className="mt-1 bg-white"
+                  className="mt-1 bg-white dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   This will be used to generate your digital signature
                 </p>
               </div>
@@ -1059,7 +1121,7 @@ export default function SignatureAndPDF({
                   <Signature className="h-4 w-4" />
                   Signature
                 </Label>
-                <div className="mt-1 border-2 border-gray-300 rounded-lg bg-white p-2">
+                <div className="mt-1 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white p-2">
                   <canvas
                     ref={canvasRef}
                     width={400}
@@ -1091,11 +1153,11 @@ export default function SignatureAndPDF({
             {/* PDF Preview and Actions */}
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Document Preview</h3>
-                <div className="bg-white border rounded-lg p-4 h-64 overflow-y-auto">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Document Preview</h3>
+                <div className="bg-white border dark:border-gray-600 rounded-lg p-4 h-64 overflow-y-auto">
                   {soapNote ? (
                     <div className="text-sm space-y-2">
-                      <div className="font-bold text-lg border-b pb-2">
+                      <div className="font-bold text-lg border-b pb-2 text-gray-900">
                         SOAP Note - {soapNote.patientName || patientName || 'Unknown Patient'}
                       </div>
                       <div className="text-gray-600 text-xs">
@@ -1103,33 +1165,33 @@ export default function SignatureAndPDF({
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs mt-3">
                         <div>
-                          <span className="font-medium">Patient Language:</span> {patientLang?.toUpperCase() || 'EN'}
+                          <span className="font-medium text-gray-700">Patient Language:</span> {patientLang?.toUpperCase() || 'EN'}
                         </div>
                         <div>
-                          <span className="font-medium">Documentation Language:</span> {docLang?.toUpperCase() || 'EN'}
+                          <span className="font-medium text-gray-700">Documentation Language:</span> {docLang?.toUpperCase() || 'EN'}
                         </div>
                       </div>
                       <div className="mt-3 space-y-3">
                         <div>
                           <span className="font-semibold text-blue-700">Subjective:</span>
-                          <div className="ml-2">{soapNote.subjective}</div>
+                          <div className="ml-2 text-gray-800">{soapNote.subjective}</div>
                         </div>
                         <div>
                           <span className="font-semibold text-green-700">Objective:</span>
-                          <div className="ml-2">{soapNote.objective}</div>
+                          <div className="ml-2 text-gray-800">{soapNote.objective}</div>
                         </div>
                         <div>
                           <span className="font-semibold text-orange-700">Assessment:</span>
-                          <div className="ml-2">{soapNote.assessment}</div>
+                          <div className="ml-2 text-gray-800">{soapNote.assessment}</div>
                         </div>
                         <div>
                           <span className="font-semibold text-purple-700">Plan:</span>
-                          <div className="ml-2">{soapNote.plan}</div>
+                          <div className="ml-2 text-gray-800">{soapNote.plan}</div>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-gray-500 text-center py-8">
+                    <div className="text-gray-500 dark:text-gray-400 text-center py-8">
                       <FileText className="h-8 w-8 mx-auto mb-2" />
                       <p>SOAP note will appear here after generation</p>
                     </div>
@@ -1166,6 +1228,44 @@ export default function SignatureAndPDF({
                   {isGenerating ? 'Generating PDF...' : 'Generate & Upload to Firestore'}
                 </Button>
                 
+                {/* Epic EHR Export Status */}
+                {smartStatus.connected && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-lg">
+                    {epicExportStatus === 'idle' && (
+                      <>
+                        <CheckCircle className="h-4 w-4 text-blue-500" />
+                        <span className="text-xs text-blue-700 dark:text-blue-300">EHR Connected — SOAP note will auto-export to Epic after PDF generation</span>
+                      </>
+                    )}
+                    {epicExportStatus === 'sending' && (
+                      <>
+                        <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                        <span className="text-xs text-blue-700 dark:text-blue-300">Sending SOAP note to Epic...</span>
+                      </>
+                    )}
+                    {epicExportStatus === 'success' && (
+                      <>
+                        <CheckCircle className="h-4 w-4 text-emerald-500" />
+                        <span className="text-xs text-emerald-700 dark:text-emerald-300">SOAP note exported to Epic successfully</span>
+                      </>
+                    )}
+                    {epicExportStatus === 'error' && (
+                      <>
+                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <span className="text-xs text-red-700 dark:text-red-300">Epic export failed — </span>
+                        <Button
+                          onClick={() => exportToEpic(uploadUrl || undefined)}
+                          variant="link"
+                          size="sm"
+                          className="text-xs text-red-600 dark:text-red-400 p-0 h-auto"
+                        >
+                          Retry
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {statusMessage && (
                   <Alert variant={statusMessage.includes('Error') || statusMessage.includes('❌') ? 'destructive' : 'default'}>
                     {statusMessage.includes('Error') || statusMessage.includes('❌') ? (

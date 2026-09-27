@@ -15,6 +15,7 @@ const BLOCKED_IN_PRODUCTION = [
   "/api/dev",
   "/api/test-auth",
   "/api/test-render",
+  "/api/smart/debug-context",
 ];
 
 function isBlockedInProduction(pathname: string) {
@@ -92,5 +93,6 @@ export const config = {
     "/api/test-auth",
     "/api/test-render/:path*",
     "/api/test-render",
+    "/api/smart/debug-context",
   ],
 };

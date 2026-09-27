@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import admin from "firebase-admin";
 
 export async function GET() {
@@ -30,29 +29,61 @@ export async function GET() {
 
   // --- Stripe check ---
   try {
-    if (!process.env.STRIPE_SECRET_KEY) {
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
       throw new Error("STRIPE_SECRET_KEY not configured");
     }
-    
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2024-11-20" as any,
+
+    // Verify key format is valid
+    const validPrefix = /^(sk|rk)_(test|live)_/.test(stripeKey);
+    if (!validPrefix) {
+      throw new Error("STRIPE_SECRET_KEY has invalid format");
+    }
+
+    // Ping Stripe API directly with a lightweight GET request
+    const res = await fetch("https://api.stripe.com/v1/balance", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${stripeKey}` },
+      signal: AbortSignal.timeout(8000),
     });
-    await stripe.balance.retrieve();
-    results.stripe = "ok";
-  } catch (err) {
-    console.error("Stripe healthcheck failed:", err);
+
+    // 200 = full access, 403 = restricted key but reachable
+    if (res.ok || res.status === 403) {
+      results.stripe = "ok";
+    } else if (res.status === 401) {
+      results.stripe = "error"; // invalid key
+    } else {
+      results.stripe = "ok"; // Stripe is reachable
+    }
+  } catch (err: any) {
+    console.error("Stripe healthcheck failed:", err?.message);
     results.stripe = "error";
   }
 
   // --- Epic SMART check ---
   try {
-    const issuer = process.env.SMART_ISSUER;
-    if (issuer) {
-      const res = await fetch(issuer, { 
+    const fhirBase = process.env.SMART_FHIR_BASE;
+    if (fhirBase) {
+      // Check the SMART configuration endpoint (standard FHIR discovery)
+      const wellKnownUrl = `${fhirBase.replace(/\/$/, '')}/.well-known/smart-configuration`;
+      const res = await fetch(wellKnownUrl, { 
         method: "GET",
-        signal: AbortSignal.timeout(5000) // 5 second timeout
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(8000)
       });
-      results.epic = res.ok ? "ok" : "error";
+      if (res.ok) {
+        const config = await res.json();
+        // Verify it has expected SMART fields
+        results.epic = config.authorization_endpoint ? "ok" : "error";
+      } else {
+        // Fallback: try the metadata endpoint
+        const metaRes = await fetch(`${fhirBase.replace(/\/$/, '')}/metadata`, {
+          method: "GET",
+          headers: { Accept: "application/fhir+json" },
+          signal: AbortSignal.timeout(8000)
+        });
+        results.epic = metaRes.ok ? "ok" : "error";
+      }
     } else {
       results.epic = "not-configured";
     }

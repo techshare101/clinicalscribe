@@ -17,19 +17,19 @@ export default function LandingPageContentInner() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-950 dark:via-gray-900 dark:to-indigo-950/30">
       
       {/* Hero Section */}
       <section className="px-6 py-20 text-center max-w-6xl mx-auto">
         {/* Beta Badge */}
-        <div className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 border border-indigo-200/50 rounded-full px-6 py-3 mb-8 shadow-lg backdrop-blur-sm">
+        <div className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 dark:from-indigo-900/40 dark:via-purple-900/40 dark:to-pink-900/40 border border-indigo-200/50 dark:border-indigo-700/50 rounded-full px-6 py-3 mb-8 shadow-lg backdrop-blur-sm">
           <span className="w-2 h-2 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full animate-pulse"></span>
-          <span className="text-sm font-bold text-indigo-700">🚀 Now Available in Beta</span>
+          <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300">🚀 Now Available in Beta</span>
         </div>
 
         {/* Main Headline */}
         <h1 className="text-6xl md:text-8xl font-black mb-8 leading-tight">
-          <span className="bg-gradient-to-r from-gray-900 via-indigo-800 to-purple-900 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-gray-900 via-indigo-800 to-purple-900 dark:from-white dark:via-indigo-200 dark:to-purple-200 bg-clip-text text-transparent">
             Welcome to
           </span>
           <br />
@@ -39,8 +39,8 @@ export default function LandingPageContentInner() {
         </h1>
 
         {/* Sub-headline */}
-        <p className="text-2xl md:text-3xl text-gray-700 mb-12 max-w-4xl mx-auto leading-relaxed">
-          <span className="font-black text-gray-900">Speak. Sign. Send.</span> 
+        <p className="text-2xl md:text-3xl text-gray-700 dark:text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed">
+          <span className="font-black text-gray-900 dark:text-white">Speak. Sign. Send.</span> 
           {" "}The AI-powered medical scribe that saves you hours of charting — now in Beta.
         </p>
 
@@ -60,7 +60,7 @@ export default function LandingPageContentInner() {
           
           <Link
             href="/pricing"
-            className="group px-10 py-5 bg-white/90 backdrop-blur-sm text-indigo-700 rounded-3xl shadow-xl hover:shadow-2xl border-2 border-indigo-200 hover:border-indigo-400 hover:bg-white transform hover:scale-105 hover:-translate-y-2 transition-all duration-500 font-black text-xl"
+            className="group px-10 py-5 bg-white/90 dark:bg-white/10 backdrop-blur-sm text-indigo-700 dark:text-indigo-300 rounded-3xl shadow-xl hover:shadow-2xl border-2 border-indigo-200 dark:border-indigo-700 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-white dark:hover:bg-white/15 transform hover:scale-105 hover:-translate-y-2 transition-all duration-500 font-black text-xl"
           >
             <span className="flex items-center justify-center gap-3">
               💎 View Beta Plans
@@ -90,38 +90,38 @@ export default function LandingPageContentInner() {
         </div>
 
         {/* Trust Indicators */}
-        <div className="flex flex-wrap justify-center items-center gap-8 text-sm font-medium text-gray-600">
-          <div className="flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-full shadow-sm">
-            <Shield className="h-4 w-4 text-emerald-600" />
+        <div className="flex flex-wrap justify-center items-center gap-8 text-sm font-medium text-gray-600 dark:text-gray-300">
+          <div className="flex items-center gap-2 px-4 py-2 bg-white/70 dark:bg-white/10 backdrop-blur-sm rounded-full shadow-sm">
+            <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span>HIPAA Compliant</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-full shadow-sm">
-            <Zap className="h-4 w-4 text-blue-600" />
+          <div className="flex items-center gap-2 px-4 py-2 bg-white/70 dark:bg-white/10 backdrop-blur-sm rounded-full shadow-sm">
+            <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <span>AI-Powered</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-sm rounded-full shadow-sm">
-            <Users className="h-4 w-4 text-purple-600" />
+          <div className="flex items-center gap-2 px-4 py-2 bg-white/70 dark:bg-white/10 backdrop-blur-sm rounded-full shadow-sm">
+            <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
             <span>Limited Beta Access</span>
           </div>
         </div>
       </section>
 
       {/* Problem + Solution Section */}
-      <section className="px-6 py-20 bg-white/60 backdrop-blur-sm">
+      <section className="px-6 py-20 bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto text-center">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="text-left">
-              <h2 className="text-4xl font-black text-red-600 mb-6">⏰ The Problem</h2>
-              <p className="text-xl text-gray-700 leading-relaxed mb-8">
-                Healthcare professionals lose <span className="font-black text-red-600">4+ hours every day</span> to paperwork. 
-                Charting, SOAP notes, PDFs… it's endless.
+              <h2 className="text-4xl font-black text-red-600 dark:text-red-400 mb-6">⏰ The Problem</h2>
+              <p className="text-xl text-gray-700 dark:text-gray-300 leading-relaxed mb-8">
+                Healthcare professionals lose <span className="font-black text-red-600 dark:text-red-400">4+ hours every day</span> to paperwork. 
+                Charting, SOAP notes, PDFs… it’s endless.
               </p>
             </div>
             <div className="text-left">
-              <h2 className="text-4xl font-black text-emerald-600 mb-6">💡 The Solution</h2>
-              <p className="text-xl text-gray-700 leading-relaxed">
+              <h2 className="text-4xl font-black text-emerald-600 dark:text-emerald-400 mb-6">💡 The Solution</h2>
+              <p className="text-xl text-gray-700 dark:text-gray-300 leading-relaxed">
                 ClinicalScribe automates transcription & charting — so you can focus on 
-                <span className="font-black text-emerald-600"> patients, not paperwork</span>.
+                <span className="font-black text-emerald-600 dark:text-emerald-400"> patients, not paperwork</span>.
               </p>
             </div>
           </div>
@@ -129,12 +129,12 @@ export default function LandingPageContentInner() {
       </section>
 
       {/* 10-Pillar Features Grid */}
-      <section className="px-6 py-20 bg-gradient-to-b from-transparent to-white/50">
+      <section className="px-6 py-20 bg-gradient-to-b from-transparent to-white/50 dark:to-gray-900/50">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-5xl font-black text-center mb-6 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+          <h2 className="text-5xl font-black text-center mb-6 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
             10 Pillars of Innovation
           </h2>
-          <p className="text-center text-xl text-gray-600 mb-16 max-w-3xl mx-auto">
+          <p className="text-center text-xl text-gray-600 dark:text-gray-400 mb-16 max-w-3xl mx-auto">
             Every feature designed with healthcare professionals in mind
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -203,9 +203,9 @@ export default function LandingPageContentInner() {
       </section>
 
       {/* Social Proof */}
-      <section className="px-6 py-20 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      <section className="px-6 py-20 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/30 dark:via-purple-950/30 dark:to-pink-950/30">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-black text-center mb-16 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+          <h2 className="text-4xl font-black text-center mb-16 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
             What Our Beta Users Say
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -283,10 +283,10 @@ function FeatureCard({ icon, title, desc, gradient }: { icon: string; title: str
   return (
     <div className="group relative overflow-hidden">
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-20 rounded-3xl transition-all duration-500`}></div>
-      <div className="relative p-8 bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl border border-white/50 transition-all duration-500 text-center group-hover:-translate-y-2">
+      <div className="relative p-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl border border-white/50 dark:border-gray-700/50 transition-all duration-500 text-center group-hover:-translate-y-2">
         <span className="text-6xl block mb-6 group-hover:scale-110 transition-transform duration-500">{icon}</span>
-        <h3 className="text-xl font-black text-gray-900 mb-4 group-hover:text-gray-900">{title}</h3>
-        <p className="text-gray-600 leading-relaxed">{desc}</p>
+        <h3 className="text-xl font-black text-gray-900 dark:text-gray-100 mb-4">{title}</h3>
+        <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{desc}</p>
       </div>
     </div>
   );
@@ -296,12 +296,12 @@ function FeatureCardV2({ icon: Icon, title, desc, gradient }: { icon: any; title
   return (
     <div className="group relative overflow-hidden">
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-10 rounded-2xl transition-all duration-500`}></div>
-      <div className="relative p-6 bg-white/90 backdrop-blur-xl rounded-2xl shadow-lg hover:shadow-xl border border-gray-200 transition-all duration-500 group-hover:-translate-y-1">
+      <div className="relative p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-lg hover:shadow-xl border border-gray-200 dark:border-gray-700 transition-all duration-500 group-hover:-translate-y-1">
         <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${gradient} mb-4`}>
           <Icon className="h-6 w-6 text-white" />
         </div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
-        <p className="text-sm text-gray-600 leading-relaxed">{desc}</p>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">{title}</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{desc}</p>
       </div>
     </div>
   );
@@ -311,20 +311,20 @@ function TestimonialCard({ quote, author, role, avatar }: { quote: string; autho
   return (
     <div className="group relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-400/20 via-purple-500/20 to-pink-600/20 opacity-0 group-hover:opacity-100 rounded-3xl transition-opacity duration-500"></div>
-      <div className="relative p-8 bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl border border-white/50 transition-all duration-500 group-hover:-translate-y-2">
+      <div className="relative p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl border border-white/50 dark:border-gray-700/50 transition-all duration-500 group-hover:-translate-y-2">
         <div className="flex gap-2 mb-6">
           {[...Array(5)].map((_, i) => (
             <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
           ))}
         </div>
-        <p className="text-gray-700 text-lg mb-6 italic leading-relaxed">"{quote}"</p>
+        <p className="text-gray-700 dark:text-gray-300 text-lg mb-6 italic leading-relaxed">"{quote}"</p>
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg">
             {avatar}
           </div>
           <div>
-            <h4 className="font-black text-gray-900">{author}</h4>
-            <p className="text-sm text-gray-600 font-medium">{role}</p>
+            <h4 className="font-black text-gray-900 dark:text-gray-100">{author}</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{role}</p>
           </div>
         </div>
       </div>
@@ -334,9 +334,9 @@ function TestimonialCard({ quote, author, role, avatar }: { quote: string; autho
 
 function DifferentiatorCard({ icon, title }: { icon: string; title: string }) {
   return (
-    <div className="flex items-center gap-4 p-6 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-indigo-200 group">
+    <div className="flex items-center gap-4 p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-700 group">
       <span className="text-3xl group-hover:scale-110 transition-transform duration-300">{icon}</span>
-      <span className="font-bold text-gray-900 text-lg">{title}</span>
+      <span className="font-bold text-gray-900 dark:text-gray-100 text-lg">{title}</span>
     </div>
   );
 }

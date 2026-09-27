@@ -12,8 +12,15 @@ export async function GET(req: NextRequest) {
   const debug = searchParams.get('debug') === '1'
   const useMock = searchParams.get('mock') === 'true'
 
-  if (!code) {
-    const url = new URL('/?smart=error', req.nextUrl.origin)
+  // Handle Epic error responses (e.g., invalid credentials, lockout)
+  const epicError = searchParams.get('error') || ''
+  const epicErrorDesc = searchParams.get('error_description') || ''
+  if (epicError || !code) {
+    console.error('SMART callback error from Epic:', { error: epicError, description: epicErrorDesc })
+    const errorParam = epicErrorDesc
+      ? encodeURIComponent(epicErrorDesc.slice(0, 200))
+      : 'auth_failed'
+    const url = new URL(`/ehr-sandbox?smart=error&reason=${errorParam}`, req.nextUrl.origin)
     return NextResponse.redirect(url)
   }
   
@@ -25,9 +32,20 @@ export async function GET(req: NextRequest) {
 
   // Skip state validation for mock mode
   if (!useMock && (!expectedState || expectedState !== returnedState)) {
-    const url = new URL('/?smart=state_mismatch', req.nextUrl.origin)
+    console.error('SMART callback: state mismatch', { expected: expectedState?.slice(0, 8), got: returnedState?.slice(0, 8) })
+    const url = new URL('/ehr-sandbox?smart=error&reason=state_mismatch', req.nextUrl.origin)
     return NextResponse.redirect(url)
   }
+
+  console.log('🔄 SMART callback:', {
+    hasCode: !!code,
+    hasState: !!returnedState,
+    stateMatch: expectedState === returnedState,
+    hasCodeVerifier: !!codeVerifier,
+    hasRedirectUri: !!redirectUriUsed,
+    redirectUri: redirectUriUsed,
+    useMock,
+  })
 
   try {
     // Use mock implementation if specified or if we're in testing/development
@@ -37,6 +55,18 @@ export async function GET(req: NextRequest) {
           codeVerifier,
           redirectUriOverride: redirectUriUsed || undefined,
         })
+    
+    console.log('✅ Token exchange success:', {
+      hasAccessToken: !!token.access_token,
+      expiresIn: token.expires_in,
+      hasRefreshToken: !!token.refresh_token,
+      hasPatient: !!token.patient,
+      patient: token.patient || null,
+      practitioner: (token as any).practitioner || null,
+      encounter: token.encounter || null,
+      fhirUser: (token as any).fhirUser || null,
+      tokenKeys: Object.keys(token),
+    })
         
     // Prefer the fhir base captured at launch time; fallback to env
     const cookieFhirBase = cookieStore.get('smart_fhir_base')?.value || ''
@@ -110,7 +140,7 @@ export async function GET(req: NextRequest) {
         { status: 500 }
       )
     }
-    const url = new URL('/?smart=token_error', req.nextUrl.origin)
+    const url = new URL(`/ehr-sandbox?smart=error&reason=${encodeURIComponent(err?.message?.slice(0, 200) || 'token_exchange_failed')}`, req.nextUrl.origin)
     return NextResponse.redirect(url)
   }
 }

@@ -1,7 +1,7 @@
 export const runtime = 'nodejs'
 
 import { NextResponse } from 'next/server'
-import { adminAuth } from '@/lib/firebase-admin'
+import { adminAuth, adminDb } from '@/lib/firebase-admin'
 
 export async function POST(req: Request) {
   try {
@@ -66,9 +66,29 @@ export async function POST(req: Request) {
       }, { status: 500 });
     }
 
-    const res = NextResponse.json({ ok: true, userId: decodedToken.uid })
+    // Fetch user role from Firestore so middleware can gate admin routes
+    let userRole = 'nurse';
+    try {
+      const profileSnap = await adminDb.collection('profiles').doc(decodedToken.uid).get();
+      if (profileSnap.exists) {
+        userRole = profileSnap.get('role') || 'nurse';
+      }
+      console.log('📋 Session API: User role:', userRole);
+    } catch (roleErr: any) {
+      console.warn('⚠️ Session API: Could not fetch role:', roleErr.message);
+    }
+
+    const res = NextResponse.json({ ok: true, userId: decodedToken.uid, role: userRole })
     res.cookies.set('__session', sessionCookie, {
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: Math.floor(expiresIn / 1000),
+    })
+    // Set role cookie for middleware to check admin access
+    res.cookies.set('role', userRole, {
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
@@ -97,6 +117,13 @@ export async function DELETE() {
   const res = NextResponse.json({ ok: true })
   res.cookies.set('__session', '', {
     httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+  })
+  res.cookies.set('role', '', {
+    httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',

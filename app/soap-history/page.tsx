@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth'
 import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import {
 import { ExportToEHR } from './_components/ExportToEHR'
 import { EhrStatusBadge } from '@/components/EhrStatusBadge'
 import { DownloadPdfButton } from '@/components/DownloadPdfButton'
-import PatientSearch from '@/components/PatientSearch'
+import { ViewPdfButton } from '@/components/ViewPdfButton'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FileText,
@@ -31,9 +31,15 @@ import {
   Search,
   Sparkles,
   Heart,
-  TrendingUp,
   Eye,
-  Share2
+  Share2,
+  Trash2,
+  Stethoscope,
+  X,
+  Loader2,
+  Archive,
+  Shield,
+  ArchiveRestore,
 } from 'lucide-react'
 import { formatDate } from '@/lib/formatDate'
 import { formatRelativeTime } from '@/lib/formatRelativeTime'
@@ -54,7 +60,7 @@ interface SOAPNote {
   fhirExport?: { status?: 'none' | 'exported' | 'failed' }
 }
 
-// Inline quick-export button shown on each SOAP note card
+// Inline quick-export button
 function ExportToEHRInline({ note }: { note: SOAPNote }) {
   const [loading, setLoading] = useState(false)
   const [exported, setExported] = useState(note.fhirExport?.status === 'exported')
@@ -64,7 +70,6 @@ function ExportToEHRInline({ note }: { note: SOAPNote }) {
     if (loading || exported) return
     setLoading(true)
     try {
-      // 1) Build FHIR DocumentReference
       const buildRes = await fetch('/api/fhir/document-reference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,8 +88,6 @@ function ExportToEHRInline({ note }: { note: SOAPNote }) {
       })
       if (!buildRes.ok) throw new Error('Failed to build FHIR resource')
       const docRef = await buildRes.json()
-
-      // 2) Post to Epic via server proxy
       const postRes = await fetch('/api/smart/post-document-reference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,8 +95,6 @@ function ExportToEHRInline({ note }: { note: SOAPNote }) {
       })
       const postData = await postRes.json().catch(() => ({}))
       const posted = postRes.ok && postData.posted
-
-      // 3) Persist status
       await fetch('/api/notes/fhir-export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -105,10 +106,9 @@ function ExportToEHRInline({ note }: { note: SOAPNote }) {
           remote: posted ? { server: postData.server, resourceId: postData.resourceId } : null,
         }),
       })
-
       if (posted) setExported(true)
     } catch {
-      // silent — badge will show 'failed' on next load
+      // silent
     } finally {
       setLoading(false)
     }
@@ -116,32 +116,21 @@ function ExportToEHRInline({ note }: { note: SOAPNote }) {
 
   if (exported) {
     return (
-      <Button size="sm" disabled className="bg-teal-500/80 text-white rounded-xl cursor-default">
-        <Share2 className="h-4 w-4 mr-1" />
-        Exported
-      </Button>
+      <Badge className="bg-teal-100 text-teal-700 border-teal-200 text-[10px]">
+        <Share2 className="h-3 w-3 mr-1" /> Exported
+      </Badge>
     )
   }
 
   return (
-    <Button
-      size="sm"
+    <button
       onClick={handleQuickExport}
       disabled={loading}
-      className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl"
+      className="inline-flex items-center gap-1 text-[10px] font-medium text-teal-700 hover:text-teal-900 transition-colors disabled:opacity-50"
     >
-      {loading ? (
-        <span className="flex items-center gap-1">
-          <span className="h-3 w-3 border-2 border-t-transparent border-white rounded-full animate-spin" />
-          Exporting
-        </span>
-      ) : (
-        <>
-          <Share2 className="h-4 w-4 mr-1" />
-          Export
-        </>
-      )}
-    </Button>
+      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Share2 className="h-3 w-3" />}
+      {loading ? 'Exporting' : 'Export EHR'}
+    </button>
   )
 }
 
@@ -149,459 +138,507 @@ export default function SOAPHistoryPage() {
   const [user, setUser] = useState<FirebaseUser | null>(null)
   const [soapNotes, setSoapNotes] = useState<SOAPNote[]>([])
   const [pdfHistory, setPdfHistory] = useState<any[]>([])
-  const [filter, setFilter] = useState<'all' | 'flagged' | 'non-flagged' | 'pdf-available'>('all')
-  const [filterPatientId, setFilterPatientId] = useState<string | null>(null)
-  const [patientSearch, setPatientSearch] = useState('')
-  const [patientOptions, setPatientOptions] = useState<{ id: string; name: string }[]>([])
+  const [filter, setFilter] = useState<'all' | 'flagged' | 'non-flagged' | 'pdf-available' | 'archived'>('all')
+  const [searchTerm, setSearchTerm] = useState('')
   const [selectedNote, setSelectedNote] = useState<SOAPNote | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [bulkAction, setBulkAction] = useState<'idle' | 'confirm-archive' | 'confirm-delete' | 'processing'>('idle')
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser)
     })
-
     return () => unsubscribe()
   }, [])
 
-  // Fetch SOAP notes from API (initial load)
-  useEffect(() => {
+  const fetchSOAPNotes = useCallback(async () => {
     if (!user) return
+    try {
+      const token = await user.getIdToken(true)
+      const res = await fetch("/api/soap-history", {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Failed to fetch')
+      const data = await res.json()
+      // API now returns { notes, isAdmin }
+      const notesArray = Array.isArray(data) ? data : data.notes || []
+      setSoapNotes(notesArray.map((note: any) => ({ id: note.id, ...note })))
+      if (data.isAdmin !== undefined) setIsAdmin(data.isAdmin)
+    } catch (err) {
+      console.error('Error fetching SOAP notes:', err)
+    }
+  }, [user])
 
-    const fetchSOAPNotes = async () => {
-      try {
-        const token = await user.getIdToken(true);
-        console.log('🔍 SOAP History: Fetching notes...');
-        
-        const res = await fetch("/api/soap-history", {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-        
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error('❌ SOAP History: API error response:', errorText);
-          throw new Error(`Failed to fetch SOAP notes: ${res.status} ${res.statusText} - ${errorText}`);
-        }
-        
-        const notesData = await res.json();
-        const notesList = notesData.map((note: any) => ({
-          id: note.id,
-          ...note
-        }));
-        
-        console.log('✅ Fetched SOAP notes:', notesList.length);
-        setSoapNotes(notesList);
-      } catch (err: any) {
-        console.error('Error fetching SOAP notes:', err);
-      }
-    };
-    
-    fetchSOAPNotes();
-  }, [user, filterPatientId]);
+  useEffect(() => { fetchSOAPNotes() }, [fetchSOAPNotes])
 
-  // Real-time listener for PDF history
+  // Real-time PDF history
   useEffect(() => {
-    if (!user || !db) return;
-
-    console.log('🔥 Setting up real-time listener for soapHistory...');
-    
+    if (!user || !db) return
     const q = query(
       collection(db, 'soapHistory'),
       where('userId', '==', user.uid),
       orderBy('createdAt', 'desc')
-    );
-
+    )
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const history = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      console.log('🔥 Real-time update: soapHistory entries:', history.length);
-      setPdfHistory(history);
+      setPdfHistory(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
     }, (error) => {
-      console.error('❌ Firestore listener error:', error);
-    });
-
-    return () => {
-      console.log('🔥 Cleaning up Firestore listener');
-      unsubscribe();
-    };
-  }, [user]);
-
-  useEffect(() => {
-    // fetch a few patient options for the filter when search changes
-    let cancelled = false
-    async function run() {
-      const s = patientSearch.trim().toLowerCase()
-      if (s.length < 2) {
-        setPatientOptions([])
-        return
-      }
-      try {
-        // For now, we'll just clear the options since we're not implementing patient search
-        // This could be enhanced later with a proper API endpoint
-        setPatientOptions([])
-      } catch {
-        if (!cancelled) setPatientOptions([])
-      }
-    }
-    run()
-    return () => {
-      cancelled = true
-    }
-  }, [patientSearch])
+      console.error('Firestore listener error:', error)
+    })
+    return () => unsubscribe()
+  }, [user])
 
   const isRedFlag = (redFlag: string | boolean): boolean => {
-    if (typeof redFlag === 'boolean') {
-      return redFlag
-    }
-    return redFlag === 'true'
+    return typeof redFlag === 'boolean' ? redFlag : redFlag === 'true'
   }
 
+  const handleArchive = async (noteId: string, archive: boolean) => {
+    if (!user) return
+    setArchivingId(noteId)
+    try {
+      const token = await user.getIdToken(true)
+      const res = await fetch(`/api/soap-history/${noteId}`, {
+        method: 'PATCH',
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: archive })
+      })
+      if (res.ok) {
+        setSoapNotes(prev => prev.map(n =>
+          n.id === noteId ? { ...n, archived: archive } as any : n
+        ))
+      }
+    } catch (err) {
+      console.error('Archive error:', err)
+    } finally {
+      setArchivingId(null)
+    }
+  }
+
+  const handleDelete = async (noteId: string) => {
+    if (!user) return
+    setDeletingId(noteId)
+    try {
+      const token = await user.getIdToken(true)
+      const res = await fetch(`/api/soap-history/${noteId}`, {
+        method: 'DELETE',
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      if (res.ok) {
+        setSoapNotes(prev => prev.filter(n => n.id !== noteId))
+      }
+    } catch (err) {
+      console.error('Delete error:', err)
+    } finally {
+      setDeletingId(null)
+      setConfirmDeleteId(null)
+    }
+  }
+
+  const handleBulkAction = async (action: 'archive' | 'delete') => {
+    if (!user) return
+    setBulkAction('processing')
+    try {
+      const token = await user.getIdToken(true)
+      const activeNoteIds = soapNotes.filter((n: any) => !n.archived).map(n => n.id)
+      const res = await fetch('/api/soap-history/bulk', {
+        method: 'POST',
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action, noteIds: activeNoteIds })
+      })
+      if (res.ok) {
+        if (action === 'delete') {
+          setSoapNotes(prev => prev.filter((n: any) => n.archived))
+        } else {
+          setSoapNotes(prev => prev.map(n => ({ ...n, archived: true } as any)))
+        }
+      }
+    } catch (err) {
+      console.error('Bulk action error:', err)
+    } finally {
+      setBulkAction('idle')
+    }
+  }
+
+  // Smart search: recognize category keywords and auto-apply filter
+  useEffect(() => {
+    const t = searchTerm.trim().toLowerCase()
+    if (t === 'flagged' || t === 'red flag') { setFilter('flagged'); setSearchTerm(''); return }
+    if (t === 'standard' || t === 'non-flagged' || t === 'normal') { setFilter('non-flagged'); setSearchTerm(''); return }
+    if (t === 'pdf ready' || t === 'pdf' || t === 'pdf available') { setFilter('pdf-available'); setSearchTerm(''); return }
+    if (t === 'all' || t === 'clear') { setFilter('all'); setSearchTerm(''); return }
+    if (isAdmin && (t === 'archived' || t === 'archive')) { setFilter('archived'); setSearchTerm(''); return }
+  }, [searchTerm, isAdmin])
+
+  // Client-side filtering: status filter + patient name search
   const filteredNotes = soapNotes.filter(note => {
-    if (filter === 'flagged') return isRedFlag(note.redFlag)
-    if (filter === 'non-flagged') return !isRedFlag(note.redFlag)
-    if (filter === 'pdf-available') return (note as any).storagePath || (note as any).pdf?.status === 'generated'
+    // Archived filter (admin only)
+    if (filter === 'archived') return (note as any).archived === true
+    // Hide archived notes when viewing any other filter
+    if ((note as any).archived) return false
+    // Status filter
+    if (filter === 'flagged' && !isRedFlag(note.redFlag)) return false
+    if (filter === 'non-flagged' && isRedFlag(note.redFlag)) return false
+    if (filter === 'pdf-available' && !((note as any).storagePath || (note as any).pdf?.status === 'generated')) return false
+    // Search filter — search across patient name, ID, encounter type, and all SOAP sections
+    if (searchTerm.trim().length >= 2) {
+      const term = searchTerm.toLowerCase()
+      const fields = [
+        note.patientName, note.patientId, note.assessment,
+        note.subjective, note.objective, note.plan,
+        (note as any).encounterType,
+      ]
+      const anyMatch = fields.some(f => (f || '').toLowerCase().includes(term))
+      if (!anyMatch) return false
+    }
     return true
   })
 
+  const activeCount = soapNotes.filter((n: any) => !n.archived).length
+  const archivedCount = soapNotes.filter((n: any) => n.archived).length
+
+  const soapSections = [
+    { key: 'subjective', label: 'Subjective', letter: 'S', headerBg: 'bg-blue-50 dark:bg-blue-950/40', headerBorder: 'border-blue-100 dark:border-blue-900/50', badgeBg: 'bg-blue-200 dark:bg-blue-800', badgeText: 'text-blue-800 dark:text-blue-200' },
+    { key: 'objective', label: 'Objective', letter: 'O', headerBg: 'bg-emerald-50 dark:bg-emerald-950/40', headerBorder: 'border-emerald-100 dark:border-emerald-900/50', badgeBg: 'bg-emerald-200 dark:bg-emerald-800', badgeText: 'text-emerald-800 dark:text-emerald-200' },
+    { key: 'assessment', label: 'Assessment', letter: 'A', headerBg: 'bg-amber-50 dark:bg-amber-950/40', headerBorder: 'border-amber-100 dark:border-amber-900/50', badgeBg: 'bg-amber-200 dark:bg-amber-800', badgeText: 'text-amber-800 dark:text-amber-200' },
+    { key: 'plan', label: 'Plan', letter: 'P', headerBg: 'bg-indigo-50 dark:bg-indigo-950/40', headerBorder: 'border-indigo-100 dark:border-indigo-900/50', badgeBg: 'bg-indigo-200 dark:bg-indigo-800', badgeText: 'text-indigo-800 dark:text-indigo-200' },
+  ] as const
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Floating Background Elements */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-blue-300/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-purple-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-indigo-300/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
-      </div>
-
-      <div className="relative container mx-auto py-8 max-w-7xl px-4">
+    <div className="min-h-screen bg-gray-50/80 dark:bg-gray-950">
+      <div className="container mx-auto px-4 py-6 max-w-5xl space-y-5">
         {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8"
-        >
-          <div className="space-y-2">
-            <motion.h1 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-              className="text-5xl font-black bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-900 bg-clip-text text-transparent drop-shadow-sm"
-            >
-              SOAP History
-            </motion.h1>
-            <motion.p 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-              className="text-xl text-gray-600 flex items-center gap-2"
-            >
-              <FileText className="h-5 w-5 text-blue-500" />
-              View and manage your clinical documentation history
-            </motion.p>
-          </div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.6, duration: 0.6 }}
-          >
-            <EhrStatusBadge />
-          </motion.div>
-        </motion.div>
-
-        {/* Filters Section */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.6 }}
-          className="mb-8"
+          className="relative overflow-hidden rounded-2xl shadow-sm"
         >
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl">
-                <Filter className="h-6 w-6 text-white" />
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-800" />
+          <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+          <div className="relative z-10 px-6 py-5 text-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/20 rounded-xl">
+                  <Stethoscope className="h-6 w-6" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-semibold">SOAP History</h1>
+                  <p className="text-white/70 text-sm">View and manage your clinical documentation</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-black text-gray-900">Filter & Search</h3>
-                <p className="text-gray-600">Find specific SOAP notes quickly</p>
+              <div className="flex items-center gap-3">
+                <EhrStatusBadge />
+                {isAdmin && (
+                  <Badge className="bg-amber-400/30 text-amber-100 border-amber-400/40 text-[10px]">
+                    <Shield className="h-3 w-3 mr-1" /> Admin
+                  </Badge>
+                )}
+                <Badge className="bg-white/20 text-white border-white/30 text-xs">
+                  {activeCount} Active{archivedCount > 0 ? ` · ${archivedCount} Archived` : ''}
+                </Badge>
               </div>
             </div>
-            
-            <div className="flex flex-wrap items-center gap-4">
-              {[
-                { key: 'all', label: 'All Notes', icon: '📋', gradient: 'from-gray-500 to-gray-600' },
-                { key: 'flagged', label: 'Flagged', icon: '🚨', gradient: 'from-red-500 to-pink-600' },
-                { key: 'non-flagged', label: 'Standard', icon: '✅', gradient: 'from-emerald-500 to-green-600' },
-                { key: 'pdf-available', label: 'PDF Ready', icon: '📄', gradient: 'from-purple-500 to-indigo-600' }
-              ].map((filterBtn) => (
-                <Button
-                  key={filterBtn.key}
-                  onClick={() => setFilter(filterBtn.key as any)}
-                  className={`flex items-center gap-2 rounded-2xl font-semibold transition-all duration-300 hover:scale-105 hover:-translate-y-1 ${
-                    filter === filterBtn.key
-                      ? `bg-gradient-to-r ${filterBtn.gradient} text-white shadow-lg`
-                      : 'bg-white/70 text-gray-700 hover:bg-white border border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <span>{filterBtn.icon}</span>
-                  {filterBtn.label}
-                </Button>
-              ))}
-              
-              <div className="flex items-center gap-3 ml-auto">
-                <div className="w-64">
-                  <PatientSearch 
-                    onSearch={(term) => {
-                      if (term.length === 0) {
-                        setFilterPatientId(null)
-                        setPatientSearch('')
-                      } else {
-                        setPatientSearch(term)
-                      }
-                    }}
-                    placeholder="Search patients..."
-                    className="mb-0"
-                  />
-                </div>
-                
-                {filterPatientId && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => { setFilterPatientId(null); setPatientSearch('') }}
-                    className="rounded-xl"
+          </div>
+        </motion.div>
+
+        {/* Filter & Search Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm p-4 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-2xl" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              {/* Filter Buttons */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { key: 'all', label: 'All', icon: FileText, activeClass: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm', inactiveClass: 'text-gray-600 dark:text-gray-300 hover:text-indigo-700 dark:hover:text-indigo-400 border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-600' },
+                  { key: 'flagged', label: 'Flagged', icon: AlertTriangle, activeClass: 'bg-red-600 hover:bg-red-700 text-white shadow-sm', inactiveClass: 'text-red-600 dark:text-red-400 hover:text-red-700 border-red-200 dark:border-red-800 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/30' },
+                  { key: 'non-flagged', label: 'Standard', icon: Sparkles, activeClass: 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm', inactiveClass: 'text-amber-600 dark:text-amber-400 hover:text-amber-700 border-amber-200 dark:border-amber-800 hover:border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30' },
+                  { key: 'pdf-available', label: 'PDF Ready', icon: Download, activeClass: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm', inactiveClass: 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 border-emerald-200 dark:border-emerald-800 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' },
+                  ...(isAdmin && archivedCount > 0 ? [{ key: 'archived', label: `Archived (${archivedCount})`, icon: Archive, activeClass: 'bg-gray-700 hover:bg-gray-800 text-white shadow-sm', inactiveClass: 'text-gray-500 dark:text-gray-400 hover:text-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800' }] : []),
+                ].map((btn) => (
+                  <Button
+                    key={btn.key}
+                    variant={filter === btn.key ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => { setFilter(btn.key as any); setSearchTerm('') }}
+                    className={`text-xs h-8 rounded-lg ${
+                      filter === btn.key ? btn.activeClass : btn.inactiveClass
+                    }`}
                   >
-                    Clear
+                    <btn.icon className="h-3 w-3 mr-1" />
+                    {btn.label}
                   </Button>
+                ))}
+              </div>
+
+              {/* Search Input */}
+              <div className="relative flex-1 w-full sm:w-auto sm:ml-auto sm:max-w-[260px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by patient, ID, or assessment..."
+                  className="pl-8 h-8 text-xs border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 focus:border-indigo-300 dark:focus:border-indigo-600 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 )}
               </div>
             </div>
+
+            {/* Admin Bulk Actions */}
+            {isAdmin && activeCount > 0 && (
+              <div className="flex items-center gap-2 pt-3 mt-3 border-t border-gray-100 dark:border-gray-800">
+                <Shield className="h-3.5 w-3.5 text-amber-600" />
+                <span className="text-[11px] font-medium text-gray-500">Admin:</span>
+                {bulkAction === 'idle' && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBulkAction('confirm-archive')}
+                      className="h-7 text-[10px] px-2.5 rounded-lg border-amber-200 text-amber-700 hover:bg-amber-50"
+                    >
+                      <Archive className="h-3 w-3 mr-1" /> Archive All ({activeCount})
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBulkAction('confirm-delete')}
+                      className="h-7 text-[10px] px-2.5 rounded-lg border-red-200 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" /> Delete All ({activeCount})
+                    </Button>
+                  </>
+                )}
+                {bulkAction === 'confirm-archive' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-amber-700 font-medium">Archive {activeCount} notes?</span>
+                    <Button size="sm" onClick={() => handleBulkAction('archive')} className="h-7 text-[10px] px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white">
+                      Confirm Archive
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setBulkAction('idle')} className="h-7 text-[10px] px-2.5 rounded-lg">
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+                {bulkAction === 'confirm-delete' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-red-700 font-medium">Permanently delete {activeCount} notes?</span>
+                    <Button variant="destructive" size="sm" onClick={() => handleBulkAction('delete')} className="h-7 text-[10px] px-2.5 rounded-lg">
+                      Confirm Delete
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setBulkAction('idle')} className="h-7 text-[10px] px-2.5 rounded-lg">
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+                {bulkAction === 'processing' && (
+                  <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Processing...
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </motion.div>
-        {/* PDF History Panel */}
+
+        {/* PDF History — compact collapsible */}
         {pdfHistory.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9, duration: 0.6 }}
-            className="mb-8"
+            transition={{ delay: 0.15 }}
           >
-            <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl">
-                  <FileText className="h-6 w-6 text-white" />
+            <details className="group">
+              <summary className="flex items-center justify-between cursor-pointer px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-emerald-600" />
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Recent PDFs</span>
+                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">
+                    {pdfHistory.length}
+                  </Badge>
                 </div>
-                <div>
-                  <h3 className="text-xl font-black text-gray-900">Recent PDF Reports</h3>
-                  <p className="text-gray-600">Generated SOAP note PDFs</p>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
+                <span className="text-xs text-gray-400 dark:text-gray-500 group-open:hidden">Click to expand</span>
+              </summary>
+              <div className="space-y-2 mt-2">
                 {pdfHistory.slice(0, 5).map((entry) => (
                   <div
                     key={entry.id}
-                    className="bg-white/70 p-4 rounded-2xl flex justify-between items-center hover:bg-white transition-colors border border-gray-100"
+                    className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-xl p-3 flex items-center justify-between shadow-sm"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                        <FileText className="h-6 w-6 text-white" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg flex items-center justify-center">
+                        <FileText className="h-4 w-4 text-indigo-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {entry.patientName || 'Unknown Patient'}
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{entry.patientName || 'Unknown'}</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                          <Clock className="h-2.5 w-2.5" />
+                          {entry.createdAt?.toDate?.()?.toLocaleString?.() || 'Just now'}
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <Clock className="h-3 w-3" />
-                          <span>
-                            {entry.createdAt?.toDate?.()?.toLocaleString?.() || 'Just now'}
-                          </span>
-                          <Badge className="ml-2 text-xs bg-purple-100 text-purple-800 border-purple-200">
-                            {entry.renderMode === 'remote-render' ? '🛰️ Cloud' : '💻 Local'}
-                          </Badge>
-                        </div>
                       </div>
                     </div>
                     <a
                       href={entry.pdfUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all font-semibold text-sm"
+                      className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
                     >
-                      <ExternalLink className="h-4 w-4" />
-                      View PDF
+                      <ExternalLink className="h-3 w-3" /> View
                     </a>
                   </div>
                 ))}
               </div>
-            </div>
+            </details>
           </motion.div>
         )}
 
-        {/* SOAP Notes Grid */}
+        {/* SOAP Notes List */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.0, duration: 0.6 }}
+          transition={{ delay: 0.2 }}
         >
           {filteredNotes.length === 0 ? (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6 }}
-              className="text-center py-16 space-y-8"
-            >
-              <motion.div 
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ duration: 0.8, type: "spring", bounce: 0.6 }}
-                className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-400 via-purple-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl ring-4 ring-blue-200/50"
-              >
-                <Search className="h-10 w-10 text-white" />
-              </motion.div>
-              <div className="space-y-3">
-                <h3 className="text-2xl font-black bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                  No SOAP Notes Found
-                </h3>
-                <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
-                  No clinical documentation matches your current filter criteria
-                </p>
+            <div className="text-center py-16">
+              <div className="mx-auto w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4">
+                <Search className="h-7 w-7 text-gray-400 dark:text-gray-500" />
               </div>
-            </motion.div>
+              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-1">No SOAP Notes Found</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                {searchTerm ? `No results for "${searchTerm}"` : 'No notes match the current filter'}
+              </p>
+            </div>
           ) : (
-            <div className="grid gap-6">
+            <div className="space-y-3">
               <AnimatePresence>
                 {filteredNotes.map((note, index) => (
                   <motion.div
                     key={note.id}
-                    initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                    className="group relative overflow-hidden"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.3) }}
+                    className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-sm overflow-hidden relative group"
                   >
-                    {/* Gradient Border Animation */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 rounded-3xl opacity-0 group-hover:opacity-20 transition-opacity duration-500 blur-xl" />
-                    
-                    <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl border border-white/50 transition-all duration-500 p-8 group-hover:-translate-y-1">
-                      {/* Header */}
-                      <div className="flex items-start justify-between mb-6">
-                        <div className="flex items-center gap-4">
-                          <div className="relative">
-                            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg">
-                              <FileText className="h-7 w-7" />
-                            </div>
-                            {isRedFlag(note.redFlag) && (
-                              <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
-                                <AlertTriangle className="h-3 w-3 text-white" />
-                              </div>
-                            )}
+                    {/* Accent stripe */}
+                    <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${
+                      isRedFlag(note.redFlag)
+                        ? 'bg-gradient-to-r from-red-400 to-red-600'
+                        : 'bg-gradient-to-r from-indigo-400 to-blue-500'
+                    }`} />
+
+                    <div className="p-4">
+                      {/* Top row: patient info + actions */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            isRedFlag(note.redFlag)
+                              ? 'bg-red-100 dark:bg-red-900/40 text-red-600'
+                              : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600'
+                          }`}>
+                            <FileText className="h-4 w-4" />
                           </div>
-                          <div>
-                            <h3 className="text-xl font-black text-gray-900 flex items-center gap-3">
-                              {note.patientName || 'Unknown Patient'}
-                              <Badge className={`${isRedFlag(note.redFlag) ? 'bg-red-500' : 'bg-emerald-500'} text-white border-0`}>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                {note.patientName || 'Unknown Patient'}
+                              </h3>
+                              <Badge className={`text-[10px] px-1.5 py-0 shrink-0 ${
+                                isRedFlag(note.redFlag)
+                                  ? 'bg-red-100 text-red-700 border-red-200'
+                                  : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                              }`}>
                                 {isRedFlag(note.redFlag) ? 'Flagged' : 'Standard'}
                               </Badge>
-                            </h3>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-4 w-4" />
-                                <span title={formatDate(note.createdAt)}>
-                                  {formatRelativeTime(note.createdAt)}
-                                </span>
-                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {formatRelativeTime(note.createdAt)}
+                              </span>
                               {note.patientId && (
-                                <div className="flex items-center gap-1">
-                                  <User className="h-4 w-4" />
-                                  PID: {note.patientId}
-                                </div>
-                              )}
-                              {note.painLevel && (
-                                <Badge variant="outline" className="text-xs">
-                                  Pain: {note.painLevel}
-                                </Badge>
+                                <span className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  {note.patientId}
+                                </span>
                               )}
                             </div>
                           </div>
                         </div>
-                        
-                        {/* Quick Actions */}
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <ExportToEHRInline note={note} />
-                          {((note as any).storagePath || (note as any).pdf?.status === 'generated') && (
-                            <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          )}
+
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button
+                                variant="outline"
                                 size="sm"
                                 onClick={() => setSelectedNote(note)}
-                                className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl"
+                                className="h-7 text-[10px] px-2 rounded-lg border-gray-200"
                               >
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
+                                <Eye className="h-3 w-3 mr-1" /> View
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                               <DialogHeader>
-                                <DialogTitle className="text-2xl font-black bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent">
-                                  SOAP Note Details
+                                <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                  SOAP Note — {selectedNote?.patientName || 'Unknown'}
                                 </DialogTitle>
                               </DialogHeader>
                               {selectedNote && (
-                                <div className="space-y-6">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="bg-gray-50 rounded-2xl p-6">
-                                      <h3 className="font-black mb-4 flex items-center gap-2">
-                                        <Clock className="h-5 w-5 text-blue-600" />
-                                        Audit Information
-                                      </h3>
-                                      <div className="space-y-2 text-sm">
-                                        <div><span className="font-semibold">Created:</span> {formatDate(selectedNote.createdAt)}</div>
-                                        <div><span className="font-semibold">Relative:</span> {formatRelativeTime(selectedNote.createdAt)}</div>
-                                        <div><span className="font-semibold">User ID:</span> {selectedNote.uid}</div>
-                                      </div>
+                                <div className="space-y-4 mt-2">
+                                  {/* Audit row */}
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+                                      <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Created</p>
+                                      <p className="text-sm text-gray-900 dark:text-gray-100">{formatDate(selectedNote.createdAt)}</p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">{formatRelativeTime(selectedNote.createdAt)}</p>
                                     </div>
-                                    <div className="bg-blue-50 rounded-2xl p-6">
-                                      <h3 className="font-black mb-4 flex items-center gap-2">
-                                        <Heart className="h-5 w-5 text-red-500" />
-                                        Clinical Information
-                                      </h3>
-                                      <div className="space-y-2 text-sm">
-                                        <div><span className="font-semibold">Pain Level:</span> {selectedNote.painLevel || 'Not recorded'}</div>
-                                        <div><span className="font-semibold">AI Suggested:</span> {selectedNote.aiSuggested ? 'Yes' : 'No'}</div>
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-semibold">Red Flag:</span>
-                                          <Badge className={`${isRedFlag(selectedNote.redFlag) ? 'bg-red-500' : 'bg-emerald-500'} text-white border-0`}>
-                                            {isRedFlag(selectedNote.redFlag) ? 'Yes' : 'No'}
-                                          </Badge>
-                                        </div>
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+                                      <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-1">Clinical</p>
+                                      <div className="flex items-center gap-2 text-sm">
+                                        {selectedNote.painLevel && <span>Pain: {selectedNote.painLevel}</span>}
+                                        <Badge className={`text-[10px] ${isRedFlag(selectedNote.redFlag) ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                          {isRedFlag(selectedNote.redFlag) ? 'Red Flag' : 'No Flag'}
+                                        </Badge>
                                       </div>
                                     </div>
                                   </div>
 
-                                  <div className="space-y-4">
-                                    {[
-                                      { title: 'Subjective', content: selectedNote.subjective, color: 'emerald' },
-                                      { title: 'Objective', content: selectedNote.objective, color: 'blue' },
-                                      { title: 'Assessment', content: selectedNote.assessment, color: 'purple' },
-                                      { title: 'Plan', content: selectedNote.plan, color: 'orange' }
-                                    ].map((section) => (
-                                      <div key={section.title} className={`bg-${section.color}-50 rounded-2xl p-6 border-l-4 border-${section.color}-500`}>
-                                        <h3 className="font-black mb-3 text-lg">{section.title}</h3>
-                                        <div className="text-gray-800 leading-relaxed">
-                                          {section.content}
+                                  {/* SOAP sections */}
+                                  <div className="space-y-3">
+                                    {soapSections.map((section) => (
+                                      <div key={section.key} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                                        <div className={`flex items-center gap-2 px-3 py-2 ${section.headerBg} border-b ${section.headerBorder}`}>
+                                          <span className={`w-5 h-5 ${section.badgeBg} ${section.badgeText} rounded flex items-center justify-center text-[10px] font-bold`}>
+                                            {section.letter}
+                                          </span>
+                                          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{section.label}</span>
+                                        </div>
+                                        <div className="p-3">
+                                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                            {(selectedNote as any)[section.key] || 'No data available'}
+                                          </p>
                                         </div>
                                       </div>
                                     ))}
                                   </div>
-                                  <div className="pt-6 border-t border-gray-200 space-y-4">
+
+                                  {/* Actions footer */}
+                                  <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-2">
                                     <ExportToEHR
                                       note={{
                                         id: selectedNote.id,
@@ -610,85 +647,110 @@ export default function SOAPHistoryPage() {
                                         assessment: selectedNote.assessment,
                                         plan: selectedNote.plan,
                                         createdAt: selectedNote.createdAt,
-                                        patientName: (selectedNote as any).patientName,
+                                        patientName: selectedNote.patientName,
                                       }}
-                                      patient={(selectedNote as any).patientId || (selectedNote as any).patientName ? {
-                                        id: (selectedNote as any).patientId,
-                                        name: (selectedNote as any).patientName,
+                                      patient={selectedNote.patientId || selectedNote.patientName ? {
+                                        id: selectedNote.patientId,
+                                        name: selectedNote.patientName,
                                       } : undefined}
                                       author={undefined}
                                       attachment={undefined}
                                     />
-                                    {((selectedNote as any).pdfUrl || (selectedNote as any).pdf?.url) ? (
-                                      <a 
-                                        href={(selectedNote as any).pdfUrl || (selectedNote as any).pdf?.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <Button className="w-full bg-green-600 hover:bg-green-700">
-                                          <ExternalLink className="h-4 w-4 mr-2" />
-                                          View PDF
-                                        </Button>
-                                      </a>
-                                    ) : (selectedNote as any).storagePath && (
-                                      <DownloadPdfButton pdfPath={(selectedNote as any).storagePath} />
+                                    {(selectedNote as any).storagePath && (
+                                      <>
+                                        <ViewPdfButton storagePath={(selectedNote as any).storagePath} variant="button" />
+                                        <DownloadPdfButton pdfPath={(selectedNote as any).storagePath} />
+                                      </>
                                     )}
                                   </div>
                                 </div>
                               )}
                             </DialogContent>
                           </Dialog>
+
+                          {/* Admin-only: Archive / Delete / Unarchive */}
+                          {isAdmin && (
+                            <>
+                              {(note as any).archived ? (
+                                <button
+                                  onClick={() => handleArchive(note.id, false)}
+                                  disabled={archivingId === note.id}
+                                  className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 hover:text-amber-900 transition-colors disabled:opacity-50"
+                                  title="Unarchive note"
+                                >
+                                  {archivingId === note.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArchiveRestore className="h-3 w-3" />}
+                                  Restore
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleArchive(note.id, true)}
+                                  disabled={archivingId === note.id}
+                                  className="text-gray-400 hover:text-amber-600 transition-colors p-1 opacity-0 group-hover:opacity-100"
+                                  title="Archive note"
+                                >
+                                  {archivingId === note.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Archive className="h-3.5 w-3.5" />}
+                                </button>
+                              )}
+                              {confirmDeleteId === note.id ? (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleDelete(note.id)}
+                                    disabled={deletingId === note.id}
+                                    className="h-7 text-[10px] px-2 rounded-lg"
+                                  >
+                                    {deletingId === note.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Delete'}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    className="h-7 text-[10px] px-2 rounded-lg border-gray-200"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setConfirmDeleteId(note.id)}
+                                  className="text-gray-400 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100"
+                                  title="Permanently delete"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </>
+                          )}
                         </div>
                       </div>
 
-                      {/* Content Preview */}
-                      <div className="space-y-4">
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border-l-4 border-blue-500">
-                          <h4 className="font-bold text-blue-900 mb-2">Assessment</h4>
-                          <p className="text-blue-800 text-sm leading-relaxed line-clamp-2">
-                            {note.assessment}
-                          </p>
-                        </div>
-                        
-                        {/* Status Indicators */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex gap-3">
-                            {(note as any).pdfUrl || (note as any).pdf?.url ? (
-                              <a 
-                                href={(note as any).pdfUrl || (note as any).pdf?.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 border font-semibold cursor-pointer hover:bg-emerald-200 transition-colors">
-                                  📄 View PDF
-                                </Badge>
-                              </a>
-                            ) : (note as any).storagePath || (note as any).pdf?.status === 'generated' ? (
-                              <Badge className="bg-gray-100 text-gray-600 border-gray-200 border font-semibold">
-                                📄 PDF Ready
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-gray-100 text-gray-600 border-gray-200 border font-semibold">
-                                — No PDF
-                              </Badge>
-                            )}
-                            <Badge className={`${
-                              note.fhirExport?.status === 'exported' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                              note.fhirExport?.status === 'failed' ? 'bg-red-100 text-red-800 border-red-200' :
-                              'bg-gray-100 text-gray-600 border-gray-200'
-                            } border font-semibold`}>
-                              🔗 {note.fhirExport?.status || 'none'}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            {note.aiSuggested && (
-                              <div className="flex items-center gap-1">
-                                <Sparkles className="h-4 w-4 text-purple-500" />
-                                <span>AI Generated</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                      {/* Assessment preview */}
+                      <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2 mb-2.5 pl-12">
+                        {note.assessment || 'No assessment available'}
+                      </p>
+
+                      {/* Status badges */}
+                      <div className="flex items-center gap-2 pl-12">
+                        {(note as any).storagePath ? (
+                          <ViewPdfButton storagePath={(note as any).storagePath} variant="badge" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] cursor-pointer hover:bg-emerald-100" />
+                        ) : (note as any).pdfUrl || (note as any).pdf?.url || (note as any).pdf?.status === 'generated' ? (
+                          <Badge className="bg-gray-50 text-gray-500 border-gray-200 text-[10px]">PDF Generated</Badge>
+                        ) : null}
+                        {note.fhirExport?.status && note.fhirExport.status !== 'none' && (
+                          <Badge className={`text-[10px] ${
+                            note.fhirExport.status === 'exported'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : 'bg-red-50 text-red-700 border-red-200'
+                          }`}>
+                            EHR: {note.fhirExport.status}
+                          </Badge>
+                        )}
+                        {note.aiSuggested && (
+                          <span className="flex items-center gap-1 text-[10px] text-purple-600">
+                            <Sparkles className="h-3 w-3" /> AI
+                          </span>
+                        )}
                       </div>
                     </div>
                   </motion.div>
