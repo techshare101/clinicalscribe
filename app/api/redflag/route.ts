@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireApiUser } from '@/lib/apiAuth'
 import OpenAI from 'openai'
 
 const RPM = Number(process.env.REDFLAG_RPM || 5)
@@ -32,6 +33,8 @@ const openai = new OpenAI({
 })
 
 export async function POST(req: Request) {
+  const auth = await requireApiUser(req)
+  if (auth.response) return auth.response
   try {
     if (isRateLimited(req)) {
       return NextResponse.json(
@@ -88,4 +91,4 @@ export async function POST(req: Request) {
   }
 }
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'

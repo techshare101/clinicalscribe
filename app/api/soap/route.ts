@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { requireApiUser } from '@/lib/apiAuth';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 interface SOAPRequest {
   transcript: string;
@@ -20,6 +21,8 @@ interface SOAPResponse {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireApiUser(req);
+  if (auth.response) return auth.response;
   try {
     const body: SOAPRequest = await req.json();
     const { transcript, patientName, encounterType } = body;

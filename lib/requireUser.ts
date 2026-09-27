@@ -14,7 +14,7 @@ export async function requireUser() {
     // No session cookie found
     if (!sessionCookie) {
       // Dev override: return mock user when NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS is true
-      const devOverride = process.env.NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS === "true"
+      const devOverride = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS === "true"
       if (devOverride) {
         return {
           uid: "dev-user-id",
@@ -75,7 +75,7 @@ export async function requireUser() {
     })
     
     // Dev override: return mock user when NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS is true
-    const devOverride = process.env.NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS === "true"
+    const devOverride = process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_SHOW_DASHBOARD_ALWAYS === "true"
     if (devOverride) {
       return {
         uid: "dev-user-id",
