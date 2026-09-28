@@ -45,18 +45,25 @@ export async function POST(req: Request) {
   try {
     // Handle both JSON and plain HTML requests
     const contentType = req.headers.get("content-type") || "";
+    const acceptHeader = req.headers.get("accept") || "";
     let html: string;
     let ownerId: string | undefined;
     let noteId: string | undefined;
+    let requestedFormat: string | undefined;
     
     if (contentType.includes("application/json")) {
       const body = await req.json();
       html = body.html;
       ownerId = body.ownerId;
       noteId = body.noteId;
+      requestedFormat = body.format;
     } else {
       // Plain HTML text
       html = await req.text();
+    }
+    
+    if (ownerId && !noteId) {
+      noteId = `${ownerId}_${Date.now()}`;
     }
     
     const isLocal = !process.env.VERCEL;
@@ -97,6 +104,7 @@ export async function POST(req: Request) {
     // ☁️ Upload to Firebase (only if noteId provided)
     let url: string | undefined;
     let path: string | undefined;
+    let firebaseErrorMessage: string | undefined;
     const renderMode = isLocal ? "local-chrome" : "vercel-bundled";
     
     if (ownerId && noteId) {
@@ -132,30 +140,64 @@ export async function POST(req: Request) {
         );
 
         console.log(`[PDF Render] ✅ Uploaded to Firebase: ${path}`);
-      } catch (firebaseError) {
+      } catch (firebaseError: any) {
         console.error("⚠️ Firebase upload failed:", firebaseError);
-        // Continue without Firebase - still return PDF
+        firebaseErrorMessage = firebaseError?.message || "Firebase upload failed";
+        // Continue without failing PDF generation
       }
     }
 
     console.log(`[PDF Render] ✅ Success with mode: ${renderMode}`);
     
-    // Return raw PDF binary for immediate download
-    const filename = noteId ? `clinicalscribe-${noteId}.pdf` : "clinicalscribe.pdf";
-    const headers: Record<string, string> = {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Cache-Control": "no-store",
-      "X-Render-Mode": renderMode,
-    };
-    
-    if (url) {
-      headers["X-PDF-URL"] = url;
+    // Determine whether caller wants raw binary PDF or JSON response
+    const wantsBinary =
+      !contentType.includes("application/json") ||
+      requestedFormat === "pdf" ||
+      requestedFormat === "binary" ||
+      requestedFormat === "blob" ||
+      (acceptHeader.includes("application/pdf") && !acceptHeader.includes("application/json"));
+
+    if (wantsBinary) {
+      const filename = noteId ? `clinicalscribe-${noteId}.pdf` : "clinicalscribe.pdf";
+      const headers: Record<string, string> = {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Cache-Control": "no-store",
+        "X-Render-Mode": renderMode,
+        "X-PDF-Size": String(pdfBuffer.length),
+        "Access-Control-Expose-Headers": "Content-Disposition, X-PDF-URL, X-PDF-Path, X-File-Path, X-Note-ID, X-PDF-Size, X-Render-Mode",
+      };
+      
+      if (url) {
+        headers["X-PDF-URL"] = url;
+      }
+      if (path) {
+        headers["X-PDF-Path"] = path;
+        headers["X-File-Path"] = path;
+      }
+      if (noteId) {
+        headers["X-Note-ID"] = noteId;
+      }
+      if (firebaseErrorMessage) {
+        headers["X-Firebase-Error"] = firebaseErrorMessage;
+      }
+      
+      return new Response(Buffer.from(pdfBuffer), {
+        status: 200,
+        headers,
+      });
     }
-    
-    return new Response(Buffer.from(pdfBuffer), {
-      status: 200,
-      headers,
+
+    // Default response for JSON requests
+    return NextResponse.json({
+      success: true,
+      url: url || null,
+      filePath: path || null,
+      path: path || null,
+      noteId: noteId || null,
+      renderMode,
+      size: pdfBuffer.length,
+      ...(firebaseErrorMessage && { firebaseError: firebaseErrorMessage }),
     });
   } catch (err: any) {
     console.error("❌ [PDF Render] Error:", err);

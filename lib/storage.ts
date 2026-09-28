@@ -34,10 +34,13 @@ export async function generateAndUploadPDF(
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${idToken}`,
+      Accept: "application/json, application/pdf",
     },
     body: JSON.stringify({
       html,
       ownerId: user.uid,
+      format: "json",
+      returnJson: true,
       ...(noteId && { noteId }),
       ...(metadata?.patientId && { patientId: metadata.patientId }),
       ...(metadata?.patientName && { patientName: metadata.patientName }),
@@ -45,10 +48,36 @@ export async function generateAndUploadPDF(
     }),
   });
   
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "PDF generation failed");
+  if (!response.ok) {
+    let errorMsg = "PDF generation failed";
+    try {
+      const ct = response.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        const errObj = await response.json();
+        errorMsg = errObj.error || errorMsg;
+      } else {
+        const errText = await response.text();
+        errorMsg = errText || errorMsg;
+      }
+    } catch {}
+    throw new Error(errorMsg);
+  }
   
-  return { url: result.url, path: result.path };
+  const contentType = response.headers.get("content-type") || "";
+  let result: any = {};
+  
+  if (contentType.includes("application/pdf")) {
+    const headerUrl = response.headers.get("X-PDF-URL") || response.headers.get("x-pdf-url");
+    const headerPath = response.headers.get("X-PDF-Path") || response.headers.get("x-pdf-path") || (user?.uid && noteId ? `pdfs/${user.uid}/${noteId}.pdf` : undefined);
+    result = {
+      url: headerUrl || undefined,
+      path: headerPath
+    };
+  } else {
+    result = await response.json();
+  }
+  
+  return { url: result.url, path: result.path || result.filePath };
 }
 
 function randomId() {

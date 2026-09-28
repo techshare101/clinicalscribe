@@ -706,7 +706,8 @@ export default function SignatureAndPDF({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+          'Authorization': `Bearer ${idToken}`,
+          'Accept': 'application/json, application/pdf'
         },
         body: JSON.stringify({
           ownerId: user.uid,
@@ -715,7 +716,9 @@ export default function SignatureAndPDF({
           signature: doctorName,
           patientId: patientName ? patientName.replace(/\s+/g, '_') : 'unknown',
           patientName: patientName || 'Unknown Patient',
-          docLang: docLang || 'en'
+          docLang: docLang || 'en',
+          format: 'json',
+          returnJson: true
         }),
         signal: controller.signal
       });
@@ -723,19 +726,45 @@ export default function SignatureAndPDF({
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        const errorResult = await response.json();
-        throw new Error(errorResult.error || 'Failed to generate PDF');
+        let errorMsg = 'Failed to generate PDF';
+        try {
+          const ct = response.headers.get('content-type') || '';
+          if (ct.includes('application/json')) {
+            const errorResult = await response.json();
+            errorMsg = errorResult.error || errorMsg;
+          } else {
+            const errorText = await response.text();
+            errorMsg = errorText || errorMsg;
+          }
+        } catch {}
+        throw new Error(errorMsg);
       }
       
-      const result = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      let result: any = {};
       
-      if (!result.success) {
+      if (contentType.includes('application/pdf')) {
+        const headerUrl = response.headers.get('X-PDF-URL') || response.headers.get('x-pdf-url');
+        const headerPath = response.headers.get('X-PDF-Path') || response.headers.get('x-pdf-path') || `pdfs/${user.uid}/${noteId}.pdf`;
+        result = {
+          success: true,
+          url: headerUrl || undefined,
+          filePath: headerPath,
+          path: headerPath
+        };
+      } else {
+        result = await response.json();
+      }
+      
+      if (!result.success && !result.url && !result.filePath) {
         throw new Error(result.error || 'PDF generation failed');
       }
       
       // Store the URL and path from the successful generation
-      setUploadUrl(result.url);
-      setUploadedPath(result.filePath);
+      const finalUrl = result.url || uploadUrl || null;
+      const finalPath = result.filePath || result.path || `pdfs/${user.uid}/${noteId}.pdf`;
+      setUploadUrl(finalUrl);
+      setUploadedPath(finalPath);
       setStatusMessage('✅ PDF generated and uploaded successfully!');
       
       toast({
@@ -854,14 +883,16 @@ export default function SignatureAndPDF({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+          'Authorization': `Bearer ${idToken}`,
+          'Accept': 'application/pdf, application/json'
         },
         body: JSON.stringify({
           ownerId: user.uid,
           noteId: noteId,
           html: htmlContent,
           patientName: patientName,
-          docLang: docLang
+          docLang: docLang,
+          format: 'pdf'
         }),
         signal: controller.signal
       })
@@ -869,24 +900,47 @@ export default function SignatureAndPDF({
       clearTimeout(timeoutId)
       
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(errorText || 'Failed to generate PDF')
+        let errorMsg = 'Failed to generate PDF'
+        try {
+          const ct = response.headers.get('content-type') || ''
+          if (ct.includes('application/json')) {
+            const errObj = await response.json()
+            errorMsg = errObj.error || errorMsg
+          } else {
+            const errText = await response.text()
+            errorMsg = errText || errorMsg
+          }
+        } catch {}
+        throw new Error(errorMsg)
       }
       
-      // Get metadata from response headers
-      const pdfUrl = response.headers.get('X-PDF-URL')
-      const pdfPath = response.headers.get('X-PDF-Path')
+      // Get metadata from response headers if present
+      const pdfUrl = response.headers.get('X-PDF-URL') || response.headers.get('x-pdf-url')
+      const pdfPath = response.headers.get('X-PDF-Path') || response.headers.get('x-pdf-path')
       const returnedNoteId = response.headers.get('X-Note-ID') || noteId
       const pdfSize = response.headers.get('X-PDF-Size')
       
       console.log('[PDF Download] PDF generated successfully')
-      console.log('[PDF Download] PDF uploaded to:', pdfPath)
-      console.log('[PDF Download] Download URL:', pdfUrl)
-      console.log('[PDF Download] Size:', pdfSize, 'bytes')
+      if (pdfPath) console.log('[PDF Download] PDF uploaded to:', pdfPath)
+      if (pdfUrl) console.log('[PDF Download] Download URL:', pdfUrl)
+      if (pdfSize) console.log('[PDF Download] Size:', pdfSize, 'bytes')
       
-      // Backend has already uploaded to Firebase Storage and updated Firestore
-      // Now get the PDF blob directly from the response
-      const blob = await response.blob()
+      const contentType = response.headers.get('content-type') || ''
+      let blob: Blob
+      
+      if (contentType.includes('application/pdf')) {
+        blob = await response.blob()
+      } else {
+        const jsonResult = await response.json()
+        const downloadUrl = jsonResult.url || pdfUrl
+        if (downloadUrl) {
+          const fileRes = await fetch(downloadUrl)
+          blob = await fileRes.blob()
+        } else {
+          throw new Error('No PDF download URL returned from server')
+        }
+      }
+      
       console.log('[PDF Download] PDF blob received, size:', blob.size, 'bytes')
       
       setStatusMessage('✅ PDF ready - downloading...')
@@ -988,41 +1042,94 @@ export default function SignatureAndPDF({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+          'Authorization': `Bearer ${idToken}`,
+          'Accept': 'application/json, application/pdf'
         },
         body: JSON.stringify({
           ownerId: user.uid,
           html: htmlContent,
           noteId: noteId,
-          patientId: patientName || 'unknown',
+          patientId: patientName ? patientName.replace(/\s+/g, '_') : 'unknown',
           patientName: patientName || 'Unknown Patient',
-          docLang: docLang || 'en'
+          docLang: docLang || 'en',
+          format: 'json',
+          returnJson: true
         }),
         signal: controller.signal
       })
       
       clearTimeout(timeoutId)
       
-      const result = await response.json()
-      
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to generate PDF')
+        let errorMsg = 'Failed to generate PDF'
+        try {
+          const ct = response.headers.get('content-type') || ''
+          if (ct.includes('application/json')) {
+            const errObj = await response.json()
+            errorMsg = errObj.error || errorMsg
+          } else {
+            const errText = await response.text()
+            errorMsg = errText || errorMsg
+          }
+        } catch {}
+        throw new Error(errorMsg)
       }
       
-      if (result.success && result.filePath) {
-        // Store the file path in state
-        setUploadedPath(result.filePath)
-        setUploadUrl(result.url)
-        setStatusMessage('✅ PDF generated and uploaded to Firestore successfully!')
-        
-        toast({
-          title: "PDF Generated Successfully!",
-          description: "Your document has been generated and uploaded to Firestore.",
-          variant: "default"
-        })
+      const contentType = response.headers.get('content-type') || ''
+      let result: any = {}
+      
+      if (contentType.includes('application/pdf')) {
+        // Response was returned as binary PDF directly; extract metadata from headers
+        const headerUrl = response.headers.get('X-PDF-URL') || response.headers.get('x-pdf-url')
+        const headerPath = response.headers.get('X-PDF-Path') || response.headers.get('x-pdf-path') || `pdfs/${user.uid}/${noteId}.pdf`
+        result = {
+          success: true,
+          url: headerUrl || undefined,
+          filePath: headerPath,
+          path: headerPath
+        }
       } else {
-        throw new Error('PDF generation failed - no file path returned')
+        result = await response.json()
       }
+      
+      const finalFilePath = result.filePath || result.path || `pdfs/${user.uid}/${noteId}.pdf`
+      const finalUrl = result.url || uploadUrl || null
+
+      // Save complete SOAP note and PDF metadata directly to Firestore
+      try {
+        await setDoc(doc(db, "soapNotes", noteId), {
+          userId: user.uid,
+          noteId: noteId,
+          pdfUrl: finalUrl,
+          storagePath: finalFilePath,
+          rawTranscript,
+          transcript: translatedTranscript,
+          patientLang,
+          docLang,
+          soap: soapNote,
+          patientName: patientName || 'Unknown Patient',
+          encounterType: encounterType || 'General',
+          doctorName: doctorName,
+          status: 'done',
+          updatedAt: serverTimestamp()
+        }, { merge: true })
+        console.log('✅ SOAP note & PDF metadata saved to Firestore:', noteId)
+      } catch (fsErr) {
+        console.warn('⚠️ Could not save note to Firestore client-side:', fsErr)
+      }
+
+      // Store the file path and URL in state
+      setUploadedPath(finalFilePath)
+      if (finalUrl) {
+        setUploadUrl(finalUrl)
+      }
+      setStatusMessage('✅ PDF generated and uploaded to Firestore successfully!')
+      
+      toast({
+        title: "PDF Generated Successfully!",
+        description: "Your document has been generated and uploaded to Firestore.",
+        variant: "default"
+      })
       
     } catch (error: any) {
       console.error('[SignatureAndPDF] PDF generation error:', error)
