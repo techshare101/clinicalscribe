@@ -49,11 +49,14 @@ export async function renderAndUploadPDF(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}`
+        'Authorization': `Bearer ${idToken}`,
+        'Accept': 'application/json, application/pdf'
       },
       body: JSON.stringify({
         html,
         ownerId: uid,
+        format: 'json',
+        returnJson: true,
         ...(noteId && { noteId }),
         ...(metadata?.patientId && { patientId: metadata.patientId }),
         ...(metadata?.patientName && { patientName: metadata.patientName }),
@@ -61,19 +64,44 @@ export async function renderAndUploadPDF(
       })
     })
     
-    const result = await response.json()
-    
     if (!response.ok) {
+      let errorMsg = 'Failed to generate PDF'
+      try {
+        const ct = response.headers.get('content-type') || ''
+        if (ct.includes('application/json')) {
+          const errObj = await response.json()
+          errorMsg = errObj.error || errorMsg
+        } else {
+          const errText = await response.text()
+          errorMsg = errText || errorMsg
+        }
+      } catch {}
       return {
         success: false,
-        error: result.error || 'Failed to generate PDF'
+        error: errorMsg
       }
+    }
+
+    const contentType = response.headers.get('content-type') || ''
+    let result: any = {}
+    
+    if (contentType.includes('application/pdf')) {
+      const headerUrl = response.headers.get('X-PDF-URL') || response.headers.get('x-pdf-url')
+      const headerPath = response.headers.get('X-PDF-Path') || response.headers.get('x-pdf-path') || (uid && noteId ? `pdfs/${uid}/${noteId}.pdf` : undefined)
+      result = {
+        success: true,
+        url: headerUrl || undefined,
+        path: headerPath,
+        filePath: headerPath
+      }
+    } else {
+      result = await response.json()
     }
     
     return {
-      success: result.success || false,
+      success: result.success !== false,
       url: result.url,
-      path: result.path
+      path: result.path || result.filePath
     }
   } catch (error: any) {
     return {
@@ -107,25 +135,49 @@ export async function downloadPDF(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}`
+        'Authorization': `Bearer ${idToken}`,
+        'Accept': 'application/pdf, application/json'
       },
       body: JSON.stringify({
         html,
         ownerId: uid,
         noteId,
+        format: 'pdf'
       })
     })
     
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to generate PDF' }))
-      throw new Error(error.error || 'Failed to generate PDF')
+      let errorMsg = 'Failed to generate PDF'
+      try {
+        const ct = response.headers.get('content-type') || ''
+        if (ct.includes('application/json')) {
+          const errObj = await response.json()
+          errorMsg = errObj.error || errorMsg
+        } else {
+          const errText = await response.text()
+          errorMsg = errText || errorMsg
+        }
+      } catch {}
+      throw new Error(errorMsg)
     }
     
     // Get PDF URL from headers if available (Firebase Storage URL)
-    const pdfUrl = response.headers.get('X-PDF-URL')
+    let pdfUrl = response.headers.get('X-PDF-URL') || response.headers.get('x-pdf-url')
+    const contentType = response.headers.get('content-type') || ''
+    let blob: Blob
     
-    // Get PDF as blob
-    const blob = await response.blob()
+    if (contentType.includes('application/pdf')) {
+      blob = await response.blob()
+    } else {
+      const jsonResult = await response.json()
+      pdfUrl = jsonResult.url || pdfUrl
+      if (pdfUrl) {
+        const fileRes = await fetch(pdfUrl)
+        blob = await fileRes.blob()
+      } else {
+        throw new Error('No PDF download URL returned from server')
+      }
+    }
     
     if (blob.size === 0) {
       throw new Error('Generated PDF is empty')
