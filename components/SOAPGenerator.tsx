@@ -43,6 +43,8 @@ interface SOAPNote {
   timestamp: string;
   patientLang?: string;
   docLang?: string;
+  warning?: string;
+  fallbackUsed?: boolean;
 }
 
 interface SOAPGeneratorProps {
@@ -481,6 +483,14 @@ ${soapNote.plan}`;
             exit={{ opacity: 0, y: -16 }}
             className="space-y-4"
           >
+            {/* Fallback / Quota warning notice */}
+            {soapNote.warning && (
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-800 dark:text-amber-200 text-xs">
+                <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                <span>{soapNote.warning}</span>
+              </div>
+            )}
+
             {/* Success header bar */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl overflow-hidden relative shadow-sm">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 rounded-t-2xl" />

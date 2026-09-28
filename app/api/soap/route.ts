@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireApiUser } from '@/lib/apiAuth';
+import { parseClinicalTranscriptToSoap } from '@/lib/soap-fallback';
 
 export const runtime = 'nodejs';
 
@@ -103,9 +104,22 @@ Focus on clinical accuracy and professional medical documentation standards.`;
     });
 
     if (!openaiResponse.ok) {
-      const errorData = await openaiResponse.json();
+      const errorData = await openaiResponse.json().catch(() => ({}));
       console.error('OpenAI API error:', errorData);
-      return NextResponse.json({ error: 'Failed to generate SOAP note' }, { status: openaiResponse.status });
+
+      // If OpenAI quota/credits are exhausted (429), use the clinical fallback parser
+      // so clinicians are never blocked from generating their SOAP note!
+      if (openaiResponse.status === 429 || errorData?.error?.code === 'insufficient_quota') {
+        console.warn('⚠️ OpenAI credit limit reached, using clinical fallback engine');
+        const fallbackSoap = parseClinicalTranscriptToSoap(transcript, patientName, encounterType);
+        return NextResponse.json({
+          ...fallbackSoap,
+          warning: 'OpenAI API credits depleted. Note generated using Clinical Fallback Engine.',
+        });
+      }
+
+      const errorMessage = errorData?.error?.message || 'Failed to generate SOAP note';
+      return NextResponse.json({ error: errorMessage }, { status: openaiResponse.status });
     }
 
     const openaiData = await openaiResponse.json();
@@ -129,9 +143,17 @@ Focus on clinical accuracy and professional medical documentation standards.`;
     return NextResponse.json(response);
   } catch (error) {
     console.error('SOAP generation error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to generate SOAP note',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    try {
+      const fallbackSoap = parseClinicalTranscriptToSoap(body?.transcript || '', body?.patientName, body?.encounterType);
+      return NextResponse.json({
+        ...fallbackSoap,
+        warning: 'Generated using Clinical Fallback Engine due to temporary service unavailability.',
+      });
+    } catch {
+      return NextResponse.json({ 
+        error: 'Failed to generate SOAP note',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, { status: 500 });
+    }
   }
 }
