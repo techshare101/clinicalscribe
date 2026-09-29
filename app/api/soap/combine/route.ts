@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { requireApiUser, isAdminRole } from '@/lib/apiAuth';
+import { cleanTranscriptBeforeSoap, stitchTranscriptChunks } from '@/lib/medical-normalize';
 
 export const runtime = "nodejs"; // ✅ force Node.js runtime
 
@@ -57,8 +58,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No recordings found in this session' }, { status: 400 });
     }
 
-    // 2. Merge all transcripts into one text block
-    const allNotes = recordings.map(r => r.transcript).join('\n\n--- NEW SEGMENT ---\n\n');
+    // 2. Clean and stitch all transcripts into one de-duplicated text block
+    const cleanedRecordings = recordings.map(r => cleanTranscriptBeforeSoap(r.transcript));
+    const allNotes = stitchTranscriptChunks(cleanedRecordings);
 
     // 3. Send to AI → structured SOAP
     const prompt = `You are a medical scribe assistant. 

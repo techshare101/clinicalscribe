@@ -33,6 +33,7 @@ import {
 import { formatDate } from '@/lib/formatDate';
 import { auth } from '@/lib/firebase';
 import { toast } from '@/lib/toast';
+import { cleanTranscriptBeforeSoap } from '@/lib/medical-normalize';
 
 interface SOAPNote {
   subjective: string;
@@ -199,11 +200,13 @@ export function SOAPGenerator({
         }
       }
 
+      const cleanedTranscript = cleanTranscriptBeforeSoap(transcriptToUse);
+
       const response = await fetch('/api/soap', {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          transcript: transcriptToUse.trim(),
+          transcript: cleanedTranscript,
           patientName: patientNameInput.trim() || undefined,
           encounterType: encounterTypeInput.trim() || undefined,
           patientLang: patientLanguage,

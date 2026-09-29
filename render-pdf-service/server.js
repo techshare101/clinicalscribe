@@ -117,8 +117,9 @@ app.post("/api/whisper/merge", async (req, res) => {
         filename: `chunk${i + 1}.webm`,
         contentType: "audio/webm",
       });
-      form.append("model", "whisper-1");
+      form.append("model", "gpt-transcribe");
       form.append("response_format", "json");
+      form.append("prompt", "Clinical encounter dictation. Terminology and medications: Lasix, lisinopril, empagliflozin, amlodipine, bibasal crackles, unstable angina, cardiac catheterization, metoprolol, atorvastatin, spironolactone, Entresto, Eliquis, Xarelto, Plavix, Farxiga. Preserve exact phrasing.");
       
       if (patientLang !== "auto") {
         form.append("language", patientLang);

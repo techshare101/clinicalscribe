@@ -24,6 +24,7 @@ import {
 import { doc, updateDoc, setDoc, collection } from 'firebase/firestore';
 import { Progress } from '@/components/ui/progress';
 import { toast } from '@/lib/toast';
+import { stitchTranscriptChunks, cleanTranscriptBeforeSoap } from '@/lib/medical-normalize';
 
 interface RecorderProps {
   onTranscriptGenerated?: (transcript: string, rawTranscript: string, patientLang?: string, docLang?: string) => void;
@@ -763,13 +764,13 @@ export default function Recorder({
       .filter(chunk => chunk.success)
       .sort((a, b) => a.index - b.index);
     
-    const combinedTranscript = successfulChunks
-      .map(chunk => chunk.transcript)
-      .join(' ');
+    const combinedTranscript = stitchTranscriptChunks(
+      successfulChunks.map(chunk => chunk.transcript)
+    );
     
-    const combinedRawTranscript = successfulChunks
-      .map(chunk => chunk.rawTranscript)
-      .join(' ');
+    const combinedRawTranscript = stitchTranscriptChunks(
+      successfulChunks.map(chunk => chunk.rawTranscript)
+    );
     
     setTranscript(combinedTranscript);
     setRawTranscript(combinedRawTranscript);
