@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import SoapCtaBanner from '@/components/SoapCtaBanner';
 import { 
   Copy, 
   FileText, 
@@ -357,6 +358,9 @@ ${soapNote.plan}`;
               )}
             </CardContent>
           </Card>
+
+          {/* Conversion CTA Banner */}
+          <SoapCtaBanner />
         </div>
       </div>
     </div>
