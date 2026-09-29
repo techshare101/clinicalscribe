@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Spinner from "./ui/Spinner";
 import { formatDate } from "@/lib/formatDate";
+import { toast } from "@/lib/toast";
 
 interface Recording {
   id: string;
@@ -39,7 +40,14 @@ export default function RecordingsList({ recordings, onCombine }: {
                   <audio controls src={rec.audioUrl} className="w-32" />
                 )}
                 <button
-                  onClick={() => navigator.clipboard.writeText(rec.transcript)}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(rec.transcript);
+                      toast({ message: "Recording transcript copied to clipboard", variant: "success" });
+                    } catch {
+                      toast({ message: "Failed to copy to clipboard", variant: "error" });
+                    }
+                  }}
                   className="text-xs px-3 py-1 rounded bg-purple-600 text-white hover:bg-purple-700"
                 >
                   Copy

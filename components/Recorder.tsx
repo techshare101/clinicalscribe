@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { doc, updateDoc, setDoc, collection } from 'firebase/firestore';
 import { Progress } from '@/components/ui/progress';
+import { toast } from '@/lib/toast';
 
 interface RecorderProps {
   onTranscriptGenerated?: (transcript: string, rawTranscript: string, patientLang?: string, docLang?: string) => void;
@@ -732,9 +733,11 @@ export default function Recorder({
     try {
       await navigator.clipboard.writeText(transcript);
       setCopied(true);
+      toast({ message: 'Transcript copied to clipboard', variant: 'success' });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
+      toast({ message: 'Failed to copy to clipboard', variant: 'error' });
     }
   };
 

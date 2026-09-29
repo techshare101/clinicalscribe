@@ -225,15 +225,15 @@ export default function StaticLandingPage() {
             <div>
               <h4 className="text-white font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/about" className="hover:text-blue-400 transition-colors">About</Link></li>
-                <li><Link href="/careers" className="hover:text-blue-400 transition-colors">Careers</Link></li>
+                <li><Link href="/docs" className="hover:text-blue-400 transition-colors">About</Link></li>
+                <li><Link href="/pricing" className="hover:text-blue-400 transition-colors">Plans</Link></li>
                 <li><Link href="/contact" className="hover:text-blue-400 transition-colors">Contact</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-white font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/help" className="hover:text-blue-400 transition-colors">Help Center</Link></li>
+                <li><Link href="/contact" className="hover:text-blue-400 transition-colors">Support</Link></li>
                 <li><Link href="/docs" className="hover:text-blue-400 transition-colors">Documentation</Link></li>
                 <li><Link href="/privacy" className="hover:text-blue-400 transition-colors">Privacy Policy</Link></li>
               </ul>
