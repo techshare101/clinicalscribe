@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireApiUser } from '@/lib/apiAuth';
 import { parseClinicalTranscriptToSoap } from '@/lib/soap-fallback';
+import { cleanTranscriptBeforeSoap } from '@/lib/medical-normalize';
 
 export const runtime = 'nodejs';
 
@@ -46,7 +47,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Transcript is required' }, { status: 400 });
     }
 
-    console.log('[SOAP API] Received transcript length:', transcript.trim().length, 'chars');
+    // Clean transcript: strip hallucinations, deduplicate n-grams/repeated sentences, and apply medical corrections
+    const cleanedTranscript = cleanTranscriptBeforeSoap(transcript);
+
+    console.log('[SOAP API] Received transcript length:', transcript.trim().length, 'chars -> cleaned:', cleanedTranscript.length, 'chars');
 
     // Construct the clinical prompt for GPT-4
     const languageInstruction = docLang && docLang !== 'en'
@@ -64,7 +68,7 @@ INSTRUCTIONS:
 - Maintain patient confidentiality standards${languageInstruction}
 
 TRANSCRIPT:
-"${transcript}"
+"${cleanedTranscript}"
 
 ${patientName ? `PATIENT: ${patientName}` : ''}
 ${encounterType ? `ENCOUNTER TYPE: ${encounterType}` : ''}
@@ -111,7 +115,7 @@ Focus on clinical accuracy and professional medical documentation standards.`;
       // so clinicians are never blocked from generating their SOAP note!
       if (openaiResponse.status === 429 || errorData?.error?.code === 'insufficient_quota') {
         console.warn('⚠️ OpenAI credit limit reached, using clinical fallback engine');
-        const fallbackSoap = parseClinicalTranscriptToSoap(transcript, patientName, encounterType);
+        const fallbackSoap = parseClinicalTranscriptToSoap(cleanedTranscript, patientName, encounterType);
         return NextResponse.json({
           ...fallbackSoap,
           warning: 'OpenAI API credits depleted. Note generated using Clinical Fallback Engine.',

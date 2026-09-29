@@ -86,7 +86,7 @@ export default function StaticLandingPage() {
         <div className="flex flex-wrap justify-center items-center gap-8 text-gray-500 dark:text-gray-400 text-sm">
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="font-medium">HIPAA Compliant</span>
+            <span className="font-medium">256-bit Encrypted</span>
           </div>
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -225,15 +225,15 @@ export default function StaticLandingPage() {
             <div>
               <h4 className="text-white font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/about" className="hover:text-blue-400 transition-colors">About</Link></li>
-                <li><Link href="/careers" className="hover:text-blue-400 transition-colors">Careers</Link></li>
+                <li><Link href="/docs" className="hover:text-blue-400 transition-colors">About</Link></li>
+                <li><Link href="/pricing" className="hover:text-blue-400 transition-colors">Plans</Link></li>
                 <li><Link href="/contact" className="hover:text-blue-400 transition-colors">Contact</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-white font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/help" className="hover:text-blue-400 transition-colors">Help Center</Link></li>
+                <li><Link href="/contact" className="hover:text-blue-400 transition-colors">Support</Link></li>
                 <li><Link href="/docs" className="hover:text-blue-400 transition-colors">Documentation</Link></li>
                 <li><Link href="/privacy" className="hover:text-blue-400 transition-colors">Privacy Policy</Link></li>
               </ul>

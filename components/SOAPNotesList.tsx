@@ -307,7 +307,11 @@ function AnimatedNoteCard({ note, index, user }: { note: any; index: number; use
                 {(note.transcript || note.translatedTranscript) && (
                   <div className="bg-blue-50 p-3 rounded border border-blue-200">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-blue-800">Translated Transcript</span>
+                      <span className="text-sm font-medium text-blue-800">
+                        {note.patientLang && note.docLang && note.patientLang !== note.docLang && note.patientLang !== 'auto'
+                          ? 'Translated Transcript'
+                          : 'Encounter Transcript'}
+                      </span>
                       {getLanguageDisplay(note.docLang)}
                     </div>
                     <p className="text-blue-700 text-sm">

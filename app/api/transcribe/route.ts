@@ -2,8 +2,15 @@ import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/apiAuth";
 import OpenAI from "openai";
 import { translateText } from "@/lib/translate";
-import { adminDb } from '@/lib/firebase-admin'; // Import Firebase Admin for Firestore
-import { deduplicateTranscript, applyMedicalCorrections } from '@/lib/medical-normalize';
+import { adminDb } from '@/lib/firebase-admin';
+import { 
+  deduplicateTranscript, 
+  applyMedicalCorrections, 
+  stripWhisperHallucinations, 
+  cleanTranscriptBeforeSoap, 
+  removeChunkOverlap,
+  MEDICAL_TRANSCRIPTION_PROMPT 
+} from '@/lib/medical-normalize';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -84,13 +91,28 @@ export async function POST(req: Request) {
           if (candidate.ext !== preferredExt || candidate.mime !== preferredMime) {
             console.warn(`Retrying transcription with fallback format: ${candidateFile.name} (${candidateFile.type})`);
           }
-          return await openai.audio.transcriptions.create({
-            file: candidateFile,
-            model: "whisper-1",
-            language: patientLang === "auto" ? undefined : patientLang,
-            temperature: 0,
-            prompt: "Medical clinical encounter transcription. Use standard medical terminology: AFib, RVR, NSVT, MRSA, CHF, HFrEF, TTE, TEE, EKG, ICU, IV, BP, HR, SpO2. Preserve exact phrasing. Do not summarize.",
-          });
+          try {
+            return await openai.audio.transcriptions.create({
+              file: candidateFile,
+              model: "gpt-transcribe",
+              language: patientLang === "auto" ? undefined : patientLang,
+              temperature: 0,
+              prompt: MEDICAL_TRANSCRIPTION_PROMPT,
+            });
+          } catch (modelErr: any) {
+            // Graceful fallback to whisper-1 if gpt-transcribe is temporarily unavailable on key
+            if (modelErr?.code === 'model_not_found' || /model.*not.*found|does not exist/i.test(modelErr?.message || '')) {
+              console.warn("gpt-transcribe not available, falling back to whisper-1");
+              return await openai.audio.transcriptions.create({
+                file: candidateFile,
+                model: "whisper-1",
+                language: patientLang === "auto" ? undefined : patientLang,
+                temperature: 0,
+                prompt: MEDICAL_TRANSCRIPTION_PROMPT,
+              });
+            }
+            throw modelErr;
+          }
         } catch (err: any) {
           const message = err?.message || '';
           if (/Invalid file format|could not be decoded|format is not supported/i.test(message)) {
@@ -150,31 +172,46 @@ export async function POST(req: Request) {
             ext
           );
           
-          fullRawText += chunkTranscription.text + " ";
+          const rawChunkText = chunkTranscription.text || "";
+          const cleanedChunkText = cleanTranscriptBeforeSoap(rawChunkText);
+          
+          if (fullRawText) {
+            const dedupedChunk = removeChunkOverlap(fullRawText, cleanedChunkText);
+            fullRawText += " " + dedupedChunk;
+          } else {
+            fullRawText = cleanedChunkText;
+          }
           
           // Translate if doc language differs from transcribed language
-          let chunkTranslatedText = chunkTranscription.text;
+          let chunkTranslatedText = cleanedChunkText;
           if (docLang !== "en" || (patientLang !== "auto" && patientLang !== "en" && patientLang !== docLang)) {
             try {
-              chunkTranslatedText = await translateText(chunkTranscription.text, docLang);
+              chunkTranslatedText = await translateText(cleanedChunkText, docLang);
             } catch (translationError) {
               console.error("Translation failed for chunk:", translationError);
             }
           } else if (patientLang !== "auto" && patientLang !== "en" && docLang === "en") {
-            // Patient speaks non-English, doc is English — translate to English
             try {
-              chunkTranslatedText = await translateText(chunkTranscription.text, "en");
+              chunkTranslatedText = await translateText(cleanedChunkText, "en");
             } catch (translationError) {
               console.error("Translation failed for chunk:", translationError);
             }
           }
           
-          fullText += chunkTranslatedText + " ";
+          if (fullText) {
+            const dedupedTranslated = removeChunkOverlap(fullText, chunkTranslatedText);
+            fullText += " " + dedupedTranslated;
+          } else {
+            fullText = chunkTranslatedText;
+          }
         } catch (chunkError) {
           console.error(`Error processing chunk ${i + 1}:`, chunkError);
-          // Continue with other chunks even if one fails
         }
       }
+
+      // Final pass de-duplication and normalization across assembled chunks
+      fullRawText = cleanTranscriptBeforeSoap(fullRawText);
+      fullText = cleanTranscriptBeforeSoap(fullText);
     } else {
       // For smaller files, process normally
       console.log("Processing file normally (under 25MB)");
@@ -186,21 +223,18 @@ export async function POST(req: Request) {
       );
       console.log("Transcription completed:", transcription.text);
 
-      fullRawText = transcription.text;
-
-      // Medical ASR post-processing: de-duplicate and normalize terminology
-      fullText = deduplicateTranscript(transcription.text);
-      fullText = applyMedicalCorrections(fullText);
-      console.log("Medical normalization applied");
+      // Clean transcript: strip hallucinations, deduplicate n-grams/sentences, and normalize medical terminology
+      fullRawText = cleanTranscriptBeforeSoap(transcription.text);
+      fullText = fullRawText;
+      console.log("Medical normalization and deduplication applied");
 
       // Translate to documentation language if needed
-      // Case 1: docLang is not English — always translate (Whisper outputs in detected lang)
-      // Case 2: patient explicitly non-English, doc is English — translate to English
       const needsTranslation = docLang !== "en" || (patientLang !== "auto" && patientLang !== "en");
       if (needsTranslation) {
         console.log(`Translating to ${docLang} (patientLang=${patientLang})`);
         try {
-          fullText = await translateText(transcription.text, docLang);
+          fullText = await translateText(fullRawText, docLang);
+          fullText = cleanTranscriptBeforeSoap(fullText);
           console.log("Translation completed:", fullText.substring(0, 100) + "...");
         } catch (translationError) {
           console.error("Translation failed:", translationError);

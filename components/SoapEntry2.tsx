@@ -206,7 +206,7 @@ const BODY_MAP_COPY: Record<string, { title: string; subtitle: string }> = {
 }
 
 export default function SoapEntry2({ discipline = 'general' }: { discipline?: Discipline }) {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<any>(() => (typeof window !== 'undefined' ? auth?.currentUser || null : null))
   const [subjective, setSubjective] = useState('')
   const [objective, setObjective] = useState('')
   const [assessment, setAssessment] = useState('')
@@ -222,6 +222,8 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
   const [gptAnalysis, setGptAnalysis] = useState<GPTAnalysis | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [draftRestored, setDraftRestored] = useState(false)
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null)
 
   const soapValues = { subjective, objective, assessment, plan }
   const setters = {
@@ -235,12 +237,96 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
   const soapSections = useMemo(() => getSoapSections(discipline), [discipline])
   const bodyMapCopy = BODY_MAP_COPY[discipline] || BODY_MAP_COPY.general
 
+  const isFormComplete = Boolean(
+    subjective.trim() &&
+    objective.trim() &&
+    assessment.trim() &&
+    plan.trim()
+  )
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser || null)
     })
     return () => unsubscribe()
   }, [])
+
+  // Restore draft from localStorage on initial mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('clinicalscribe_manual_soap_draft')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.subjective) setSubjective(parsed.subjective)
+        if (parsed.objective) setObjective(parsed.objective)
+        if (parsed.assessment) setAssessment(parsed.assessment)
+        if (parsed.plan) setPlan(parsed.plan)
+        if (parsed.painLevel) setPainLevel(parsed.painLevel)
+        if (parsed.encounterType) setEncounterType(parsed.encounterType)
+        if (parsed.patientName) setPatientName(parsed.patientName)
+        setDraftRestored(true)
+        if (parsed.savedAt) {
+          setDraftSavedAt(new Date(parsed.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to restore SOAP draft from localStorage', e)
+    }
+  }, [])
+
+  // Autosave draft to localStorage when fields change
+  useEffect(() => {
+    const hasAnyContent = Boolean(
+      subjective.trim() ||
+      objective.trim() ||
+      assessment.trim() ||
+      plan.trim() ||
+      patientName.trim()
+    )
+    if (!hasAnyContent) return
+
+    const timer = setTimeout(() => {
+      try {
+        const now = Date.now()
+        localStorage.setItem(
+          'clinicalscribe_manual_soap_draft',
+          JSON.stringify({
+            subjective,
+            objective,
+            assessment,
+            plan,
+            painLevel,
+            encounterType,
+            patientName,
+            savedAt: now,
+          })
+        )
+        setDraftSavedAt(new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+      } catch (e) {
+        console.warn('Failed to autosave SOAP draft', e)
+      }
+    }, 600)
+
+    return () => clearTimeout(timer)
+  }, [subjective, objective, assessment, plan, painLevel, encounterType, patientName])
+
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem('clinicalscribe_manual_soap_draft')
+    } catch {}
+    setSubjective('')
+    setObjective('')
+    setAssessment('')
+    setPlan('')
+    setPainLevel('')
+    setEncounterType('')
+    setPatientName('')
+    setPatientId(undefined)
+    setGptAnalysis(null)
+    setDraftSavedAt(null)
+    setDraftRestored(false)
+    toast({ message: 'Form cleared', variant: 'success' })
+  }
 
   const validateForm = () => {
     if (!subjective.trim()) { setError('Subjective section is required'); return false }
@@ -258,9 +344,10 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
     setIsAnalyzing(true)
     setError(null)
     try {
+      const headers = await withAuthHeaders({ 'Content-Type': 'application/json' })
       const response = await fetch('/api/redflag', {
         method: 'POST',
-        headers: await withAuthHeaders({ 'Content-Type': 'application/json' }),
+        headers,
         body: JSON.stringify({
           soapNote: {
             subjective: subjective.trim(),
@@ -271,19 +358,33 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
           },
         }),
       })
-      if (!response.ok) throw new Error('Failed to analyze')
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        const detailedMsg = errorData.error || (response.status === 401 ? 'Please sign in to analyze notes with GPT-4o' : `Analysis failed (${response.statusText || response.status})`)
+        throw new Error(detailedMsg)
+      }
+
       const result: GPTAnalysis = await response.json()
       setGptAnalysis(result)
-    } catch (err) {
+      toast({ message: 'AI clinical analysis complete', variant: 'success' })
+    } catch (err: any) {
       console.error('Error analyzing SOAP note:', err)
-      setError('Failed to analyze SOAP note. Please try again.')
+      const errorMsg = err?.message || 'Failed to analyze SOAP note. Please try again.'
+      setError(errorMsg)
+      toast({ message: errorMsg, variant: 'error' })
     } finally {
       setIsAnalyzing(false)
     }
   }
 
   const handleSubmit = async () => {
-    if (!user) { setError('You must be logged in to save SOAP notes'); return }
+    const currentUser = user || auth?.currentUser
+    if (!currentUser) {
+      setError('You must be logged in to save SOAP notes to the cloud. You can still export your note using "Export as Text" below.')
+      toast({ message: 'Please sign in to save session notes to Firestore', variant: 'error' })
+      return
+    }
     if (!validateForm()) return
 
     setIsSaving(true)
@@ -303,7 +404,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
           const newDoc = await addDoc(patientsRef, {
             name: trimmedName,
             name_lower: lower,
-            ownerId: user.uid,
+            ownerId: currentUser.uid,
           })
           resolvedPatientId = newDoc.id
         }
@@ -315,8 +416,9 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
         assessment: assessment.trim(),
         plan: plan.trim(),
         painLevel: painLevel.trim(),
-        uid: user.uid,
-        userId: user.uid,
+        uid: currentUser.uid,
+        userId: currentUser.uid,
+        discipline,
         createdAt: serverTimestamp(),
         fhirExport: { status: 'none' },
       }
@@ -347,6 +449,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
           <p><strong>Date:</strong> ${formatDate(new Date())}</p>
           <p><strong>Client:</strong> ${trimmedName || 'Unknown'}</p>
           <p><strong>Session:</strong> ${encounterType || 'General'}</p>
+          <p><strong>Discipline:</strong> ${discipline}</p>
           <p><strong>Pain Level:</strong> ${painLevel || 'N/A'}</p>
           <h2>Subjective</h2><div>${subjective.replace(/\n/g, '<br/>')}</div>
           <h2>Objective</h2><div>${objective.replace(/\n/g, '<br/>')}</div>
@@ -354,24 +457,33 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
           <h2>Plan</h2><div>${plan.replace(/\n/g, '<br/>')}</div>
           ${analysisHtml}
         `
-        const { path } = await renderAndUploadPDF(html, user.uid, docRef.id, 'ClinicalScribe Beta')
+        const { path } = await renderAndUploadPDF(html, currentUser.uid, docRef.id, '')
         await updateDoc(doc(db, 'soapNotes', docRef.id), { storagePath: path, pdf: { status: 'done', path } })
-        toast({ message: 'PDF generated and saved', variant: 'success' })
+        toast({ message: 'Session note saved & PDF generated', variant: 'success' })
       } catch (e) {
         console.error('PDF generation failed', e)
         await updateDoc(doc(db, 'soapNotes', docRef.id), { pdf: { status: 'error' } }).catch(() => {})
-        toast({ message: 'PDF generation failed', variant: 'error' })
+        toast({ message: 'Note saved (PDF will be processed in background)', variant: 'info' })
       }
+
+      // Clear draft on successful save
+      try {
+        localStorage.removeItem('clinicalscribe_manual_soap_draft')
+      } catch {}
 
       setSaveStatus('success')
       setSubjective(''); setObjective(''); setAssessment(''); setPlan('')
       setPainLevel(''); setEncounterType(''); setPatientName(''); setPatientId(undefined)
       setGptAnalysis(null)
-      setTimeout(() => setSaveStatus('idle'), 3000)
-    } catch (err) {
+      setDraftSavedAt(null)
+      setDraftRestored(false)
+      setTimeout(() => setSaveStatus('idle'), 4000)
+    } catch (err: any) {
       console.error('Error saving SOAP note:', err)
-      setError('Failed to save SOAP note. Please try again.')
+      const msg = err?.message || 'Failed to save SOAP note. Please try again.'
+      setError(msg)
       setSaveStatus('error')
+      toast({ message: msg, variant: 'error' })
     } finally {
       setIsSaving(false)
     }
@@ -381,29 +493,34 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
     try {
       await navigator.clipboard.writeText(text)
       setCopiedField(field)
+      const fieldName = field.charAt(0).toUpperCase() + field.slice(1)
+      toast({ message: `${fieldName} copied to clipboard`, variant: 'success' })
       setTimeout(() => setCopiedField(null), 1500)
     } catch (err) {
       console.error('Failed to copy:', err)
+      toast({ message: 'Failed to copy to clipboard', variant: 'error' })
     }
   }
 
   const exportSOAP = () => {
-    let fullSOAP = `SOAP NOTE\nDate: ${formatDate(new Date())}\nClient: ${patientName || 'N/A'}\nSession: ${encounterType || 'N/A'}\nPain Level: ${painLevel || 'Not recorded'}\n\nSUBJECTIVE:\n${subjective}\n\nOBJECTIVE:\n${objective}\n\nASSESSMENT:\n${assessment}\n\nPLAN:\n${plan}`
+    let fullSOAP = `SOAP NOTE\nDate: ${formatDate(new Date())}\nClient: ${patientName || 'N/A'}\nSession: ${encounterType || 'N/A'}\nDiscipline: ${discipline}\nPain Level: ${painLevel || 'Not recorded'}\n\nSUBJECTIVE:\n${subjective}\n\nOBJECTIVE:\n${objective}\n\nASSESSMENT:\n${assessment}\n\nPLAN:\n${plan}`
     if (gptAnalysis) {
       fullSOAP += `\n\n--- AI CLINICAL ANALYSIS ---\nStatus: ${gptAnalysis.flagged ? 'CLINICAL ALERT DETECTED' : 'No Critical Issues Found'}\nFeedback: ${gptAnalysis.feedback}`
       if (gptAnalysis.recommendation) {
         fullSOAP += `\nRecommendation: ${gptAnalysis.recommendation}`
       }
     }
-    const blob = new Blob([fullSOAP], { type: 'text/plain' })
+    const blob = new Blob([fullSOAP], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `SOAP_Note_${new Date().toISOString().split('T')[0]}.txt`
+    const safeName = (patientName || 'Note').replace(/[^a-z0-9_-]/gi, '_')
+    a.download = `SOAP_${safeName}_${new Date().toISOString().split('T')[0]}.txt`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    toast({ message: 'SOAP note exported as text file', variant: 'success' })
   }
 
   const painNum = parseInt(painLevel) || 0
@@ -692,12 +809,29 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
         )}
       </AnimatePresence>
 
+      {/* Draft Autosave indicator */}
+      {(draftSavedAt || draftRestored) && (
+        <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 dark:bg-gray-800/60 border border-gray-200/70 dark:border-gray-700/70 rounded-xl text-xs text-gray-500 dark:text-gray-400">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            {draftRestored && !draftSavedAt ? 'Restored draft from last session' : `Draft autosaved at ${draftSavedAt}`}
+          </span>
+          <button
+            type="button"
+            onClick={clearDraft}
+            className="text-[11px] text-gray-400 hover:text-red-500 transition-colors underline"
+          >
+            Clear draft
+          </button>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-2.5">
         <Button
           onClick={handleSubmit}
-          disabled={isSaving || !user}
-          className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl h-10 text-sm font-medium shadow-sm"
+          disabled={isSaving || !isFormComplete}
+          className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-gray-700 dark:disabled:to-gray-800 text-white rounded-xl h-10 text-sm font-medium shadow-sm transition-all"
         >
           {isSaving ? (
             <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Saving & Generating PDF...</>
@@ -709,7 +843,7 @@ export default function SoapEntry2({ discipline = 'general' }: { discipline?: Di
           variant="outline"
           onClick={exportSOAP}
           disabled={!subjective && !objective && !assessment && !plan}
-          className="flex-1 rounded-xl h-10 text-sm border-gray-200"
+          className="flex-1 rounded-xl h-10 text-sm border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
         >
           <FileText className="mr-1.5 h-4 w-4" /> Export as Text
         </Button>

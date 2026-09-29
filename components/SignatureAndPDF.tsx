@@ -329,19 +329,44 @@ export default function SignatureAndPDF({
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
     const data = imageData.data
+    let inkPixels = 0
 
-    // Check if any pixel is not white (255, 255, 255, 255)
+    // Check for actual drawn stroke pixels (not transparent and not pure white background)
     for (let i = 0; i < data.length; i += 4) {
-      if (data[i] !== 255 || data[i + 1] !== 255 || data[i + 2] !== 255 || data[i + 3] !== 255) {
-        return false
+      const alpha = data[i + 3]
+      const r = data[i]
+      const g = data[i + 1]
+      const b = data[i + 2]
+
+      if (alpha > 30 && (r < 240 || g < 240 || b < 240)) {
+        inkPixels++
+        if (inkPixels > 50) return false
       }
     }
     return true
   }
 
+  const cleanSectionHtml = (rawText?: string): string => {
+    if (!rawText) return '<em>No clinical documentation recorded</em>'
+    let clean = rawText
+      // Strip redundant section headers if present (e.g. **Subjective:** or Subjective:)
+      .replace(/^(?:\*\*)?(?:Subjective|Objective|Assessment|Plan)(?:\*\*)?:?\s*/i, '')
+      // Convert markdown bold **text** to <strong>text</strong>
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      // Convert markdown italics *text* to <em>text</em>
+      .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>')
+      // Convert markdown bullet points to clean list items
+      .replace(/^[\*\-]\s+(.+)$/gm, '<li style="margin-left: 18px; margin-bottom: 4px;">$1</li>')
+      // Convert newlines to clean spacing
+      .replace(/\n\n+/g, '</p><p style="margin-top: 8px;">')
+      .replace(/\n/g, '<br/>')
+    return `<p style="margin: 0; line-height: 1.6;">${clean}</p>`
+  }
+
   const generateHTMLContent = (): string => {
     const canvas = canvasRef.current
-    const signatureDataUrl = canvas?.toDataURL('image/png') || ''
+    const hasDrawnSignature = !isSignatureEmpty() && !!canvas
+    const signatureDataUrl = hasDrawnSignature ? canvas?.toDataURL('image/png') : ''
 
     const currentDate = formatDate(new Date())
 
@@ -399,7 +424,7 @@ export default function SignatureAndPDF({
             }
             .section-title {
               font-weight: bold;
-              font-size: 18px;
+              font-size: 16px;
               color: #1f2937;
               margin-bottom: 12px;
               text-transform: uppercase;
@@ -423,11 +448,11 @@ export default function SignatureAndPDF({
               font-size: 18px;
             }
             .signature-image {
-              max-width: 400px;
+              max-width: 320px;
               height: auto;
               border: 1px solid #d1d5db;
               border-radius: 6px;
-              margin: 15px 0;
+              margin: 10px 0;
               background: white;
             }
             .signature-details {
@@ -445,36 +470,9 @@ export default function SignatureAndPDF({
               body { margin: 20px; }
               .signature-section { break-inside: avoid; }
             }
-            ${true ? `
-            .watermark {
-              position: fixed;
-              top: 0; left: 0; right: 0; bottom: 0;
-              pointer-events: none;
-              background-image: repeating-linear-gradient(
-                45deg,
-                rgba(37, 99, 235, 0.08) 0,
-                rgba(37, 99, 235, 0.08) 40px,
-                rgba(255, 255, 255, 0.0) 40px,
-                rgba(255, 255, 255, 0.0) 120px
-              );
-            }
-            .watermark-text {
-              position: fixed;
-              top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg);
-              font-size: 48px;
-              color: rgba(37, 99, 235, 0.15);
-              font-weight: 800;
-              letter-spacing: 2px;
-              text-transform: uppercase;
-            }
-            ` : ''}
           </style>
         </head>
         <body>
-          ${true ? `
-          <div class="watermark" aria-hidden="true"></div>
-          <div class="watermark-text" aria-hidden="true">ClinicalScribe Beta</div>
-          ` : ''}
           <div class="header">
             <h1>SOAP Note</h1>
             <p>Clinical Documentation System</p>
@@ -497,84 +495,27 @@ export default function SignatureAndPDF({
               <strong>Generated:</strong>
               <span>${soapNote?.timestamp || currentDate}</span>
             </div>
-            <div class="metadata-row">
-              <strong>Patient Language:</strong>
-              <span>${
-                patientLang === "auto" ? "🌐 Auto Detected" :
-                patientLang === "so" ? "🇸🇴 Somali" :
-                patientLang === "hmn" ? "🇱🇦 Hmong" :
-                patientLang === "sw" ? "🇰🇪 Swahili" :
-                patientLang === "ar" ? "🇸🇦 Arabic" :
-                patientLang === "en" ? "🇺🇸 English" :
-                patientLang.toUpperCase()
-              }</span>
-            </div>
-            <div class="metadata-row">
-              <strong>Documentation Language:</strong>
-              <span>${
-                docLang === "en" ? "🇺🇸 English" :
-                docLang === "so" ? "🇸🇴 Somali" :
-                docLang === "hmn" ? "🇱🇦 Hmong" :
-                docLang === "sw" ? "🇰🇪 Swahili" :
-                docLang === "ar" ? "🇸🇦 Arabic" :
-                docLang.toUpperCase()
-              }</span>
-            </div>
           </div>
-
-          ${rawTranscript && translatedTranscript && rawTranscript !== translatedTranscript ? `
-            <div class="section">
-              <div class="section-title">Transcript Information</div>
-              <div class="section-content">
-                <p><strong>Raw Transcript (${
-                  patientLang === "auto" ? "🌐 Auto Detected" :
-                  patientLang === "so" ? "🇸🇴 Somali" :
-                  patientLang === "hmn" ? "🇱🇦 Hmong" :
-                  patientLang === "sw" ? "🇰🇪 Swahili" :
-                  patientLang === "ar" ? "🇸🇦 Arabic" :
-                  patientLang === "en" ? "🇺🇸 English" :
-                  patientLang.toUpperCase()
-                }):</strong></p>
-                <p>${rawTranscript}</p>
-                <p style="margin-top: 15px;"><strong>Translated Transcript (${
-                  docLang === "en" ? "🇺🇸 English" :
-                  docLang === "so" ? "🇸🇴 Somali" :
-                  docLang === "hmn" ? "🇱🇦 Hmong" :
-                  docLang === "sw" ? "🇰🇪 Swahili" :
-                  docLang === "ar" ? "🇸🇦 Arabic" :
-                  docLang.toUpperCase()
-                }):</strong></p>
-                <p>${translatedTranscript}</p>
-              </div>
-            </div>
-          ` : `
-            <div class="section">
-              <div class="section-title">Transcript</div>
-              <div class="section-content">
-                <p>${translatedTranscript || rawTranscript || 'No transcript available'}</p>
-              </div>
-            </div>
-          `}
 
           ${soapNote ? `
             <div class="section subjective">
               <div class="section-title">Subjective</div>
-              <div class="section-content">${soapNote.subjective}</div>
+              <div class="section-content">${cleanSectionHtml(soapNote.subjective)}</div>
             </div>
 
             <div class="section objective">
               <div class="section-title">Objective</div>
-              <div class="section-content">${soapNote.objective}</div>
+              <div class="section-content">${cleanSectionHtml(soapNote.objective)}</div>
             </div>
 
             <div class="section assessment">
               <div class="section-title">Assessment</div>
-              <div class="section-content">${soapNote.assessment}</div>
+              <div class="section-content">${cleanSectionHtml(soapNote.assessment)}</div>
             </div>
 
             <div class="section plan">
               <div class="section-title">Plan</div>
-              <div class="section-content">${soapNote.plan}</div>
+              <div class="section-content">${cleanSectionHtml(soapNote.plan)}</div>
             </div>
           ` : `
             <div class="section">
@@ -584,15 +525,23 @@ export default function SignatureAndPDF({
             </div>
           `}
 
-          <div class="signature-section">
-            <h3>Healthcare Provider Verification</h3>
-            <div class="signature-details">
-              <p><strong>Signed by:</strong> ${doctorName}</p>
-              <p><strong>Date & Time:</strong> ${currentDate}</p>
-              <p><strong>Digital Signature:</strong></p>
-              ${signatureDataUrl ? `<img src="${signatureDataUrl}" alt="Digital Signature" class="signature-image" />` : '<p><em>No signature provided</em></p>'}
+          ${doctorName.trim() ? `
+            <div class="signature-section">
+              <h3>Healthcare Provider Verification</h3>
+              <div class="signature-details">
+                <p><strong>Signed by:</strong> ${doctorName.trim()}</p>
+                <p><strong>Date & Time:</strong> ${currentDate}</p>
+                ${hasDrawnSignature ? `
+                  <p style="margin-top: 12px; margin-bottom: 6px;"><strong>Digital Signature:</strong></p>
+                  <img src="${signatureDataUrl}" alt="Digital Signature" class="signature-image" />
+                ` : `
+                  <p style="margin-top: 10px; font-style: italic; color: #4b5563; font-size: 13px;">
+                    ✓ Electronically verified and approved by ${doctorName.trim()}
+                  </p>
+                `}
+              </div>
             </div>
-          </div>
+          ` : ''}
         </body>
       </html>
     `
@@ -608,15 +557,6 @@ export default function SignatureAndPDF({
       return
     }
 
-    if (isSignatureEmpty()) {
-      toast({
-        title: "Signature Required", 
-        description: "Please provide your signature before saving the SOAP note.",
-        variant: "destructive"
-      })
-      return
-    }
-
     try {
       const user = auth.currentUser
       if (!user) {
@@ -626,17 +566,17 @@ export default function SignatureAndPDF({
       // Generate a unique ID for the SOAP note
       const noteId = `${user.uid}_${Date.now()}`
       
-      // Save SOAP note to Firestore with both raw and translated transcripts
+      // Save SOAP note to Firestore
       await setDoc(doc(db, "soapNotes", noteId), {
         userId: user.uid,
-        rawTranscript,                      // Patient's original language
-        transcript: translatedTranscript,   // Documentation language
-        patientLang: patientLang,           // Patient language code (e.g., 'so', 'hmn')
-        docLang: docLang,                   // Documentation language code (e.g., 'en')
+        rawTranscript,
+        transcript: translatedTranscript,
+        patientLang: patientLang,
+        docLang: docLang,
         soap: soapNote,
         patientName: patientName,
         encounterType: encounterType,
-        doctorName: doctorName,
+        doctorName: doctorName.trim(),
         createdAt: new Date()
       }, { merge: true })
 
@@ -663,15 +603,6 @@ export default function SignatureAndPDF({
       toast({
         title: "Name Required",
         description: "Please enter your name before generating the PDF.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (isSignatureEmpty()) {
-      toast({
-        title: "Signature Required", 
-        description: "Please provide your signature before generating the PDF.",
         variant: "destructive"
       });
       return;

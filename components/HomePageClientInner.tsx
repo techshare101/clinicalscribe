@@ -88,7 +88,7 @@ export default function HomePageClientInner() {
       <div className="flex flex-wrap justify-center items-center gap-6 text-sm text-gray-500">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-          <span className="font-medium">HIPAA Compliant</span>
+          <span className="font-medium">256-bit Encrypted</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>

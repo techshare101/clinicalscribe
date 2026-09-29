@@ -23,6 +23,7 @@ import RecordingsList from '@/components/RecordingsList';
 import { getAudioUrl } from '@/lib/getAudioUrl';
 import AutoCombineBanner from '@/components/AutoCombineBanner';
 import AutoCombineRetry from '@/components/AutoCombineRetry';
+import { toast } from '@/lib/toast';
 import { formatDate } from '@/lib/formatDate';
 
 interface Recording {
@@ -327,7 +328,14 @@ export default function PatientSessionDetail({ params }: { params: { id: string 
                       </div>
                     </div>
                     <button
-                      onClick={() => navigator.clipboard.writeText(sessionData.transcript || '')}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(sessionData.transcript || '');
+                          toast({ message: 'Transcript copied to clipboard', variant: 'success' });
+                        } catch {
+                          toast({ message: 'Failed to copy to clipboard', variant: 'error' });
+                        }
+                      }}
                       className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors duration-200"
                     >
                       <Copy className="h-4 w-4 text-emerald-600" />
@@ -362,7 +370,14 @@ export default function PatientSessionDetail({ params }: { params: { id: string 
                       </div>
                     </div>
                     <button
-                      onClick={() => navigator.clipboard.writeText(sessionData.soapNote || '')}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(sessionData.soapNote || '');
+                          toast({ message: 'SOAP note copied to clipboard', variant: 'success' });
+                        } catch {
+                          toast({ message: 'Failed to copy to clipboard', variant: 'error' });
+                        }
+                      }}
                       className="p-2 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors duration-200"
                     >
                       <Copy className="h-4 w-4 text-blue-600" />
@@ -398,9 +413,16 @@ export default function PatientSessionDetail({ params }: { params: { id: string 
                       </div>
                     </div>
                     <button
-                      onClick={() => navigator.clipboard.writeText(
-                        `Subjective:\n${sessionData.finalSoap?.subjective || ''}\n\nObjective:\n${sessionData.finalSoap?.objective || ''}\n\nAssessment:\n${sessionData.finalSoap?.assessment || ''}\n\nPlan:\n${sessionData.finalSoap?.plan || ''}`
-                      )}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(
+                            `Subjective:\n${sessionData.finalSoap?.subjective || ''}\n\nObjective:\n${sessionData.finalSoap?.objective || ''}\n\nAssessment:\n${sessionData.finalSoap?.assessment || ''}\n\nPlan:\n${sessionData.finalSoap?.plan || ''}`
+                          );
+                          toast({ message: 'Full SOAP note copied to clipboard', variant: 'success' });
+                        } catch {
+                          toast({ message: 'Failed to copy to clipboard', variant: 'error' });
+                        }
+                      }}
                       className="p-2 bg-purple-500/10 hover:bg-purple-500/20 rounded-xl transition-colors duration-200"
                     >
                       <Copy className="h-4 w-4 text-purple-600" />

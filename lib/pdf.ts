@@ -25,7 +25,7 @@ export async function renderAndUploadPDF(
   html: string, 
   uid: string, 
   docId: string = `doc_${Date.now()}`,
-  watermark = 'ClinicalScribe Beta',
+  watermark = '',
   metadata?: {
     patientId?: string
     patientName?: string

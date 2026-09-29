@@ -202,9 +202,9 @@ export default function PricingPage() {
 
   const featureItems = [
     { icon: FileText, title: "AI-Powered SOAP Notes", desc: "Generate structured clinical notes automatically from voice recordings", iconBg: "bg-blue-100 dark:bg-blue-900/40", iconColor: "text-blue-600 dark:text-blue-400" },
-    { icon: Database, title: "EHR Integration", desc: "Seamlessly export to Epic, Cerner, and other major EHR systems", iconBg: "bg-emerald-100 dark:bg-emerald-900/40", iconColor: "text-emerald-600 dark:text-emerald-400" },
-    { icon: Shield, title: "HIPAA Compliant", desc: "Bank-grade security with encrypted storage and transmission", iconBg: "bg-purple-100 dark:bg-purple-900/40", iconColor: "text-purple-600 dark:text-purple-400" },
-    { icon: Headphones, title: "24/7 Support", desc: "Get help when you need it with our dedicated support team", iconBg: "bg-amber-100 dark:bg-amber-900/40", iconColor: "text-amber-600 dark:text-amber-400" },
+    { icon: Database, title: "EHR-Ready Export", desc: "Export-ready notes your staff files in minutes into any EHR system", iconBg: "bg-emerald-100 dark:bg-emerald-900/40", iconColor: "text-emerald-600 dark:text-emerald-400" },
+    { icon: Shield, title: "256-bit Encrypted", desc: "Robust data protection with encrypted storage and secure transmission", iconBg: "bg-purple-100 dark:bg-purple-900/40", iconColor: "text-purple-600 dark:text-purple-400" },
+    { icon: Headphones, title: "Dedicated Support", desc: "Get help when you need it with our dedicated support team", iconBg: "bg-amber-100 dark:bg-amber-900/40", iconColor: "text-amber-600 dark:text-amber-400" },
   ]
 
   return (
@@ -245,10 +245,10 @@ export default function PricingPage() {
 
             <div className="flex items-center justify-center gap-2 flex-wrap mb-6">
               <Badge className="bg-white/10 text-white/90 border-white/15 text-[10px] backdrop-blur-sm px-3 py-1">
-                <Shield className="h-3 w-3 mr-1" /> HIPAA Compliant
+                <Shield className="h-3 w-3 mr-1" /> 256-bit Encrypted
               </Badge>
               <Badge className="bg-white/10 text-white/90 border-white/15 text-[10px] backdrop-blur-sm px-3 py-1">
-                <Star className="h-3 w-3 mr-1" /> SOC 2 Certified
+                <Star className="h-3 w-3 mr-1" /> Privacy Focused
               </Badge>
               <Badge className="bg-white/10 text-white/90 border-white/15 text-[10px] backdrop-blur-sm px-3 py-1">
                 <Database className="h-3 w-3 mr-1" /> 99.9% Uptime
