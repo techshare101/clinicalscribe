@@ -157,39 +157,80 @@ export function deduplicateTranscript(text: string): string {
 }
 
 /**
+ * Normalized Levenshtein similarity between two strings (0.0 to 1.0).
+ */
+export function stringSimilarity(s1: string, s2: string): number {
+  if (s1 === s2) return 1.0;
+  if (!s1 || !s2) return 0.0;
+  const l1 = s1.length;
+  const l2 = s2.length;
+  const maxLen = Math.max(l1, l2);
+  if (maxLen === 0) return 1.0;
+
+  const track: number[][] = Array(l2 + 1).fill(null).map(() => Array(l1 + 1).fill(0));
+  for (let i = 0; i <= l1; i += 1) track[0][i] = i;
+  for (let j = 0; j <= l2; j += 1) track[j][0] = j;
+  for (let j = 1; j <= l2; j += 1) {
+    for (let i = 1; i <= l1; i += 1) {
+      const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
+      track[j][i] = Math.min(
+        track[j][i - 1] + 1,
+        track[j - 1][i] + 1,
+        track[j - 1][i - 1] + indicator
+      );
+    }
+  }
+  const dist = track[l2][l1];
+  return (maxLen - dist) / maxLen;
+}
+
+/**
  * Remove overlapping text between the tail of the previous chunk and
- * the head of the current chunk using longest matching word n-gram.
- * Prevents overlapping audio chunks from producing repeated sentences.
+ * the head of the current chunk using fuzzy similarity matching (~85%+).
+ * Handles ASR decode discrepancies and leading phantom words across chunk boundaries.
  */
 export function removeChunkOverlap(
   prevSegment: string,
   currentSegment: string,
-  overlapWindowWords: number = 40
+  overlapWindowWords: number = 35,
+  minOverlapWords: number = 2,
+  minSimilarity: number = 0.85
 ): string {
   if (!prevSegment || !currentSegment) return currentSegment;
+
+  const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
 
   const prevWords = prevSegment.trim().split(/\s+/);
   const currWords = currentSegment.trim().split(/\s+/);
 
-  // Take last N words of previous segment
   const tailWords = prevWords.slice(-overlapWindowWords);
-  // Take first N words of current segment
   const headWords = currWords.slice(0, overlapWindowWords);
 
-  // Find longest suffix of tailWords that matches a prefix of headWords (down to 2 words)
-  let bestOverlap = 0;
-  for (let len = Math.min(tailWords.length, headWords.length); len >= 2; len--) {
-    const tailSlice = tailWords.slice(-len).join(" ").toLowerCase().replace(/[.,!?;:]/g, "");
-    const headSlice = headWords.slice(0, len).join(" ").toLowerCase().replace(/[.,!?;:]/g, "");
-    if (tailSlice === headSlice) {
-      bestOverlap = len;
-      break;
+  let bestMatch: { headOffset: number; len: number; sim: number } | null = null;
+
+  // Check headOffset from 0 up to 4 words (handles leading ASR blips like "Tonight," or "Trial,")
+  for (let headOffset = 0; headOffset <= Math.min(4, headWords.length - minOverlapWords); headOffset++) {
+    const maxLen = Math.min(tailWords.length, headWords.length - headOffset);
+
+    for (let len = maxLen; len >= minOverlapWords; len--) {
+      const tailCandidate = clean(tailWords.slice(-len).join(" "));
+      const headCandidate = clean(headWords.slice(headOffset, headOffset + len).join(" "));
+
+      if (tailCandidate.length < 5 || headCandidate.length < 5) continue;
+
+      const sim = stringSimilarity(tailCandidate, headCandidate);
+      if (sim >= minSimilarity) {
+        if (!bestMatch || len > bestMatch.len || (len === bestMatch.len && headOffset < bestMatch.headOffset)) {
+          bestMatch = { headOffset, len, sim };
+          break; // First match iterating downwards is the longest
+        }
+      }
     }
   }
 
-  if (bestOverlap > 0) {
-    // Remove the overlapping prefix from the current segment
-    return currWords.slice(bestOverlap).join(" ");
+  if (bestMatch) {
+    const wordsToCut = bestMatch.headOffset + bestMatch.len;
+    return currWords.slice(wordsToCut).join(" ");
   }
 
   return currentSegment;
@@ -224,6 +265,12 @@ export function stitchTranscriptChunks(chunks: string[]): string {
 // Deterministic regex corrections for corruptions found in tests and real-world audio.
 
 const MEDICAL_CORRECTIONS: Array<{ pattern: RegExp; replacement: string }> = [
+  // ── Intake & Output ("eyes and nose" corruptions) ──
+  { pattern: /\b(?:eye['’]?s?\s+and\s+nos?e?s?)\b/gi, replacement: "I's and O's" },
+
+  // ── Cardiac context: "hypothyroidism" before percentages -> "hypothesized" ──
+  { pattern: /\bhypothyroidism(?=\s*(?:of|at|is|was|estimated\s+at)?\s*\d+(?:\.\d+)?\s*%)/gi, replacement: "hypothesized" },
+
   // ── Specific test corruptions requested ──
   // Lasix corruptions (LASIK's, LASIK, ASICs, ASIC's, etc.)
   { pattern: /\b(?:lasik['’]?s|lasiks|asics|asic['’]?s|lasik)\b/gi, replacement: "Lasix" },

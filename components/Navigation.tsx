@@ -272,7 +272,7 @@ export default function Navigation() {
                   <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <span className="relative flex items-center gap-2">
                     <Sparkles className="h-4 w-4 group-hover:animate-pulse" />
-                    Join Beta
+                    Try ClinicalScribe
                   </span>
                 </Link>
               </div>

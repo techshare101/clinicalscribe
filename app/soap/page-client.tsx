@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { SOAPGenerator } from '@/components/SOAPGenerator';
 import Recorder from '@/components/Recorder';
+import SoapCtaBanner from '@/components/SoapCtaBanner';
 import { 
   Stethoscope, 
   FileText, 
@@ -348,6 +349,9 @@ export default function SOAPPage() {
             </div>
           </div>
         </motion.div>
+
+        {/* Conversion CTA Banner */}
+        <SoapCtaBanner />
       </div>
     </div>
   );

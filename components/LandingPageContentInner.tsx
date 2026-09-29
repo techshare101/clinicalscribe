@@ -255,6 +255,34 @@ export default function LandingPageContentInner() {
         </div>
       </section>
 
+      {/* Ready to Document with Confidence? CTA Banner */}
+      <section className="px-6 py-20 bg-gradient-to-r from-indigo-900 via-purple-950 to-slate-950 text-white relative overflow-hidden border-t border-indigo-900/50">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(147,51,234,0.3),transparent_50%)]" />
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <h2 className="text-4xl sm:text-5xl font-black mb-4 tracking-tight">
+            Ready to Document with Confidence?
+          </h2>
+          <p className="text-lg sm:text-xl text-indigo-200 mb-8 max-w-2xl mx-auto leading-relaxed">
+            Let ClinicalScribe automate your ambient documentation, SOAP generation, and clinical filing so you can focus 100% on patient care.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/auth/signup"
+              className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl shadow-xl hover:shadow-2xl font-bold text-lg transition-all transform hover:scale-105 flex items-center gap-2"
+            >
+              <span>Try ClinicalScribe</span>
+              <ArrowRight className="h-5 w-5" />
+            </Link>
+            <Link
+              href="/pricing"
+              className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl border border-white/20 font-semibold text-lg transition-all"
+            >
+              View Plans &amp; Pricing
+            </Link>
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import SoapEntry2 from '@/components/SoapEntry2'
+import SoapCtaBanner from '@/components/SoapCtaBanner'
 import { motion } from 'framer-motion'
 import {
   Edit3,
@@ -158,6 +159,9 @@ export default function SoapEntryPage() {
         >
           <SoapEntry2 discipline={discipline} />
         </motion.div>
+
+        {/* Conversion CTA Banner */}
+        <SoapCtaBanner />
       </div>
     </div>
   )
