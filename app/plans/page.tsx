@@ -51,8 +51,8 @@ const features = [
   },
   {
     icon: Database,
-    title: "EHR Integration",
-    description: "Seamlessly connect with Epic, Cerner, and other major EHR systems via SMART on FHIR",
+    title: "EHR-Ready Export",
+    description: "Export-ready notes your staff files in minutes into your EHR system",
     color: "amber",
     iconBg: "bg-amber-100 dark:bg-amber-900/40",
     iconColor: "text-amber-600 dark:text-amber-400",
@@ -81,7 +81,7 @@ const features = [
 const benefits = [
   { text: "Save 3+ hours per day on documentation", color: "text-emerald-600 dark:text-emerald-400" },
   { text: "Reduce documentation errors by 85%", color: "text-blue-600 dark:text-blue-400" },
-  { text: "HIPAA compliant with enterprise-grade security", color: "text-emerald-600 dark:text-emerald-400" },
+  { text: "256-bit encryption with audit-ready security", color: "text-emerald-600 dark:text-emerald-400" },
   { text: "Works with any device - desktop, tablet, mobile", color: "text-blue-600 dark:text-blue-400" },
   { text: "24/7 priority support from clinical documentation experts", color: "text-emerald-600 dark:text-emerald-400" },
   { text: "Free training and onboarding for your entire team", color: "text-blue-600 dark:text-blue-400" },
@@ -130,18 +130,18 @@ export default function PlansPage() {
 
             <p className="text-blue-100/80 text-sm sm:text-base max-w-2xl mx-auto mb-5 font-medium leading-relaxed">
               Transform your clinical documentation with AI-powered transcription,
-              automated SOAP note generation, and seamless EHR integration.
+              automated SOAP note generation, and export-ready notes your staff files in minutes.
             </p>
 
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <Badge className="bg-white/20 text-white border-white/25 text-[10px] shadow-sm backdrop-blur-sm px-3 py-1">
-                <Shield className="h-3 w-3 mr-1" /> HIPAA Compliant
+                <Shield className="h-3 w-3 mr-1" /> 256-bit Encrypted
               </Badge>
               <Badge className="bg-white/20 text-white border-white/25 text-[10px] shadow-sm backdrop-blur-sm px-3 py-1">
-                <Star className="h-3 w-3 mr-1" /> Trusted by 1000+ Clinicians
+                <Star className="h-3 w-3 mr-1" /> Trusted by Clinicians
               </Badge>
               <Badge className="bg-white/20 text-white border-white/25 text-[10px] shadow-sm backdrop-blur-sm px-3 py-1">
-                <Award className="h-3 w-3 mr-1" /> SOC 2 Certified
+                <Award className="h-3 w-3 mr-1" /> Audit-Ready Security
               </Badge>
             </div>
           </div>

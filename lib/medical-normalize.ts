@@ -178,6 +178,10 @@ const MEDICAL_CORRECTIONS: Array<{ pattern: RegExp; replacement: string }> = [
   { pattern: /\bamoxicillin\b/gi, replacement: "amoxicillin" },
 
   // Common Whisper phonetic errors
+  { pattern: /\bunstable\s+engine\b/gi, replacement: "unstable angina" },
+  { pattern: /\bhardcatrization\b/gi, replacement: "cardiac catheterization" },
+  { pattern: /\bheart\s+cath(?:eterization)?\b/gi, replacement: "cardiac catheterization" },
+  { pattern: /\bcardiac\s+cath\b/gi, replacement: "cardiac catheterization" },
   { pattern: /\btac of cardio\b/gi, replacement: "tachycardia" },
   { pattern: /\btach(?:y)?[\s-]?cardia\b/gi, replacement: "tachycardia" },
   { pattern: /\bcardia[\s-]?myopathy\b/gi, replacement: "cardiomyopathy" },

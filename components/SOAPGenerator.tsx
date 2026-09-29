@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { formatDate } from '@/lib/formatDate';
 import { auth } from '@/lib/firebase';
+import { toast } from '@/lib/toast';
 
 interface SOAPNote {
   subjective: string;
@@ -234,9 +235,12 @@ export function SOAPGenerator({
     try {
       await navigator.clipboard.writeText(text);
       setCopied(section);
+      const label = section === 'full' ? 'Complete SOAP note' : `${section.charAt(0).toUpperCase() + section.slice(1)}`;
+      toast({ message: `${label} copied to clipboard`, variant: 'success' });
       setTimeout(() => setCopied(null), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
+      toast({ message: 'Failed to copy to clipboard', variant: 'error' });
     }
   };
 

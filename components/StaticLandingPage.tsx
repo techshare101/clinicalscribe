@@ -86,7 +86,7 @@ export default function StaticLandingPage() {
         <div className="flex flex-wrap justify-center items-center gap-8 text-gray-500 dark:text-gray-400 text-sm">
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="font-medium">HIPAA Compliant</span>
+            <span className="font-medium">256-bit Encrypted</span>
           </div>
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />

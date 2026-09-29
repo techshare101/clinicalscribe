@@ -36,24 +36,37 @@ export async function POST(req: Request) {
   const auth = await requireApiUser(req)
   if (auth.response) return auth.response
   try {
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: 'OpenAI API key is missing or not configured on the server. Please check your environment variables.' },
+        { status: 503 }
+      )
+    }
+
     if (isRateLimited(req)) {
       return NextResponse.json(
-        { error: 'Too many requests. Please slow down.' },
+        { error: 'Rate limit reached (5 requests/minute). Please wait a moment and try again.' },
         { status: 429 }
       )
     }
 
     const { soapNote } = await req.json()
+    if (!soapNote || (!soapNote.subjective && !soapNote.objective && !soapNote.assessment && !soapNote.plan)) {
+      return NextResponse.json(
+        { error: 'Please enter at least one SOAP section before running analysis.' },
+        { status: 400 }
+      )
+    }
 
     const prompt = `
       You are a clinical decision support system. Analyze the following SOAP note for potential red flags that might require referral or special attention.
       
       SOAP Note:
-      Subjective: ${soapNote.subjective}
-      Objective: ${soapNote.objective}
-      Assessment: ${soapNote.assessment}
-      Plan: ${soapNote.plan}
-      Pain Level: ${soapNote.painLevel}/10
+      Subjective: ${soapNote.subjective || 'N/A'}
+      Objective: ${soapNote.objective || 'N/A'}
+      Assessment: ${soapNote.assessment || 'N/A'}
+      Plan: ${soapNote.plan || 'N/A'}
+      Pain Level: ${soapNote.painLevel ? `${soapNote.painLevel}/10` : 'Not recorded'}
       
       Please analyze this note and respond with:
       1. A "flagged" boolean indicating if there are any concerning findings
@@ -82,11 +95,12 @@ export async function POST(req: Request) {
     const result = JSON.parse(completion.choices[0].message.content || "{}")
     
     return NextResponse.json(result)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Red flag analysis error:', error)
+    const message = error?.message || 'Failed to analyze SOAP note'
     return NextResponse.json(
-      { error: 'Failed to analyze SOAP note' },
-      { status: 500 }
+      { error: message },
+      { status: error?.status || 500 }
     )
   }
 }
