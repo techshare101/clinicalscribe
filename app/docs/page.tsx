@@ -224,6 +224,12 @@ export default function DocsPage() {
                   Multi-tenant isolation ensures your clinical encounters and notes are accessible only by your authenticated clinic staff.
                 </p>
               </div>
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 sm:col-span-2">
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-1">Sub-Processor Compliance &amp; BAAs</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  All upstream infrastructure and AI transcription providers processing clinical audio operate under Business Associate Agreements (BAAs) with zero data retention for model training.
+                </p>
+              </div>
             </div>
           </section>
 
