@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -214,35 +215,14 @@ export default function PaywallCard({
         </div>
 
         {/* CTA Button */}
-        <Button 
-          onClick={handleUpgrade}
-          disabled={loading || !auth.currentUser || !profile}
-          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            <>
-              <Crown className="mr-2 h-4 w-4" />
-              {upgradeText}
-            </>
-          )}
-        </Button>
-
-        {!auth.currentUser && (
-          <p className="text-sm text-orange-600 font-medium">
-            Please log in to upgrade your subscription
-          </p>
-        )}
-        
-        {auth.currentUser && !profile && (
-          <p className="text-sm text-blue-600 font-medium">
-            Loading your profile...
-          </p>
-        )}
+        <Link href="/pricing" className="w-full block">
+          <Button 
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 cursor-pointer"
+          >
+            <Crown className="mr-2 h-4 w-4" />
+            {upgradeText}
+          </Button>
+        </Link>
 
         <p className="text-xs text-gray-500 mt-3">
           🔒 Secure payment powered by Stripe • Cancel anytime

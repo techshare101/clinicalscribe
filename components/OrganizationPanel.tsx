@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { toast } from "sonner";
 import {
@@ -370,7 +371,11 @@ export default function OrganizationPanel() {
         </form>
         {usedSeats >= org.seats && (
           <p className="text-xs text-red-500 mt-2">
-            All seats are used. Remove a member or upgrade to invite more.
+            All seats are used. Remove a member or{" "}
+            <Link href="/pricing" className="text-indigo-600 dark:text-indigo-400 underline font-semibold hover:text-indigo-700">
+              upgrade
+            </Link>{" "}
+            to invite more.
           </p>
         )}
       </div>
