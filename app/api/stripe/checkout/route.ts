@@ -13,7 +13,11 @@ function getStripe() {
     console.error("❌ Missing STRIPE_SECRET_KEY in environment");
     return null;
   }
-  return new Stripe(stripeKey);
+  return new Stripe(stripeKey, {
+    httpClient: Stripe.createFetchHttpClient(),
+    maxNetworkRetries: 2,
+    timeout: 30000,
+  });
 }
 
 export async function POST(req: Request) {
@@ -153,7 +157,13 @@ export async function POST(req: Request) {
     // Create Stripe checkout session
     let session;
     try {
-      const appUrl = getAppUrl();
+      const origin = req.headers.get("origin") || req.headers.get("referer");
+      let appUrl = getAppUrl();
+      if (origin && !process.env.VERCEL_URL && !process.env.NEXT_PUBLIC_APP_URL) {
+        try {
+          appUrl = new URL(origin).origin;
+        } catch {}
+      }
       console.log('🌐 Using app URL:', appUrl);
       
       session = await stripe.checkout.sessions.create({
@@ -162,7 +172,7 @@ export async function POST(req: Request) {
         line_items: [{ price: priceId, quantity: 1 }],
         success_url: `${appUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${appUrl}/cancel`,
-        customer_email: decoded.email,
+        ...(decoded.email ? { customer_email: decoded.email } : {}),
         metadata: { 
           uid: userId, // 🐈 Use 'uid' to match Firebase and webhook handler
           priceId 

@@ -20,7 +20,7 @@ export default function PricingPage() {
       price: '$29',
       period: '/month',
       originalPrice: '$99',
-      priceId: process.env.NEXT_PUBLIC_STRIPE_LINK_BETA,
+      priceId: process.env.NEXT_PUBLIC_STRIPE_LINK_BETA || process.env.NEXT_PUBLIC_STRIPE_PRICE_BETA,
       description: 'Perfect for individual healthcare professionals getting started',
       features: [
         'AI-powered transcription',

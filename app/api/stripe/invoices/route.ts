@@ -11,6 +11,7 @@ function getStripe() {
   }
   return new Stripe(process.env.STRIPE_SECRET_KEY, {
     apiVersion: "2024-11-20" as any,
+    httpClient: Stripe.createFetchHttpClient(),
   });
 }
 
