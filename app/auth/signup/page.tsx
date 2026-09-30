@@ -36,6 +36,8 @@ function SignUpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteToken = searchParams?.get("invite") ?? null;
+  const planParam = searchParams?.get("plan") ?? null;
+  const redirectParam = searchParams?.get("redirectPath") ?? null;
 
   // If there's an invite token, show a banner
   const [inviteInfo, setInviteInfo] = useState<{ orgName: string; email: string } | null>(null);
@@ -101,7 +103,8 @@ function SignUpContent() {
         }
       }
       
-      router.push("/dashboard");
+      const finalRedirect = redirectParam || (planParam ? `/pricing?checkout=${planParam}` : "/dashboard");
+      window.location.href = finalRedirect;
     } catch (err: any) {
       console.error('❌ Signup: Error occurred:', err);
       
@@ -124,6 +127,12 @@ function SignUpContent() {
       setLoading(false);
     }
   };
+
+  const loginQuery = new URLSearchParams({
+    ...(redirectParam ? { redirectPath: redirectParam } : {}),
+    ...(planParam ? { plan: planParam } : {}),
+  }).toString();
+  const loginUrl = loginQuery ? `/auth/login?${loginQuery}` : "/auth/login";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -173,7 +182,7 @@ function SignUpContent() {
         </form>
         <p className="mt-4 text-center text-sm text-gray-600">
           Already have an account?{" "}
-          <Link href="/" className="text-indigo-600 hover:underline">
+          <Link href={loginUrl} className="text-indigo-600 hover:underline">
             Log in
           </Link>
         </p>

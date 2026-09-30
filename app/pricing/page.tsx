@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useProfile } from '@/hooks/useProfile'
 import { auth } from '@/lib/firebase'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ export default function PricingPage() {
   const { profile, isLoading } = useProfile()
   const [loading, setLoading] = useState<string | null>(null)
   const [isYearly, setIsYearly] = useState(false)
+  const [hasAutoTriggered, setHasAutoTriggered] = useState(false)
 
   // Dynamic pricing based on billing cycle
   const getPlans = () => [
@@ -90,9 +91,43 @@ export default function PricingPage() {
     },
   ]
 
+  // Auto-resume checkout if redirected back with ?checkout=...
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const checkoutParam = params.get('checkout')
+    if (!checkoutParam || hasAutoTriggered || isLoading || !auth.currentUser) return
+
+    const slug = checkoutParam.toLowerCase()
+    if (slug.includes('yearly') && !isYearly) {
+      setIsYearly(true)
+      return
+    }
+
+    const plans = getPlans()
+    const targetPlan = plans.find((p) => {
+      if (slug.includes('beta')) return p.name === 'Beta Access'
+      if (slug.includes('pro')) return p.name === 'Professional'
+      if (slug.includes('team')) return p.name === 'Team'
+      return false
+    })
+
+    if (targetPlan && targetPlan.priceId) {
+      setHasAutoTriggered(true)
+      handleSubscribe(targetPlan.priceId, targetPlan.name)
+    }
+  }, [hasAutoTriggered, isLoading, isYearly])
+
   const handleSubscribe = async (priceId: string, planName: string) => {
     if (!auth.currentUser) {
-      alert('Please log in to subscribe')
+      const planSlug = planName.toLowerCase().includes('beta')
+        ? 'beta'
+        : planName.toLowerCase().includes('pro')
+        ? (isYearly ? 'pro_yearly' : 'pro_monthly')
+        : (isYearly ? 'team_yearly' : 'team_monthly')
+
+      const redirectPath = encodeURIComponent(`/pricing?checkout=${planSlug}`)
+      window.location.href = `/auth/signup?plan=${planSlug}&redirectPath=${redirectPath}`
       return
     }
 

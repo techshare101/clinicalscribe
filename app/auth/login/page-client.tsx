@@ -23,13 +23,26 @@ export function LoginPageContent() {
     setMounted(true);
   }, []);
   
+  const [signupUrl, setSignupUrl] = useState("/auth/signup");
+
   // Get redirect path from URL query parameters
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const pathParam = params.get("redirectPath");
+      const planParam = params.get("plan");
       if (pathParam) {
         setRedirectPath(pathParam);
+      } else if (planParam) {
+        setRedirectPath(`/pricing?checkout=${planParam}`);
+      }
+
+      if (pathParam || planParam) {
+        const signupQuery = new URLSearchParams({
+          ...(pathParam ? { redirectPath: pathParam } : {}),
+          ...(planParam ? { plan: planParam } : {}),
+        }).toString();
+        setSignupUrl(`/auth/signup?${signupQuery}`);
       }
     }
   }, []);
@@ -149,7 +162,7 @@ export function LoginPageContent() {
           </Button>
         </form>
         <div className="text-sm text-gray-600 mt-4">
-          Don't have an account? <a href="/auth/signup" className="text-blue-600 underline">Sign up</a>
+          Don't have an account? <a href={signupUrl} className="text-blue-600 underline">Sign up</a>
         </div>
       </div>
     </div>
