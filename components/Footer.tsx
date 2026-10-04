@@ -10,7 +10,7 @@ export default function Footer() {
         <div className="text-center md:text-left">
           <p className="font-semibold text-white tracking-wide">ClinicalScribe</p>
           <p className="text-slate-400 text-sm mt-1">
-            © 2025 All rights reserved. <br />
+            © 2026 All rights reserved. <br />
             Powered by{' '}
             <span className="text-purple-400 font-medium">MetalMindTech</span>.
           </p>

@@ -150,31 +150,43 @@ export default function StaticLandingPage() {
         </div>
       </section>
 
-      {/* Social Proof */}
+      {/* Workflow Highlights */}
       <section className="px-6 py-20 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:via-purple-950/30 dark:to-pink-950/30">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-black text-center mb-16 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-            Trusted by Healthcare Professionals
+          <h2 className="text-4xl font-black text-center mb-4 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+            Built for Modern Clinical Practices
           </h2>
+          <p className="text-lg text-gray-600 dark:text-gray-400 text-center max-w-2xl mx-auto mb-16">
+            Eliminate after-hours charting with an ambient documentation workflow designed for clinical focus.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <TestimonialCard 
-              name="Sarah Martinez, RN" 
-              role="ICU • Houston Methodist" 
-              quote="ClinicalScribe cut my documentation time in half. The AI understands medical terminology perfectly!" 
-              avatar="👩‍⚕️"
-            />
-            <TestimonialCard 
-              name="Dr. Michael Chen" 
-              role="Emergency Medicine • UCSF" 
-              quote="Best SOAP note generator I've ever used. Accurate, fast, and actually helpful." 
-              avatar="👨‍⚕️"
-            />
-            <TestimonialCard 
-              name="Jennifer Adams, BSN" 
-              role="Pediatric ICU • Children's Hospital" 
-              quote="Privacy-first design gives me confidence. Finally, an AI tool built for real healthcare." 
-              avatar="👩‍⚕️"
-            />
+            <div className="p-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 dark:border-gray-700/50">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg">
+                <Clock className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Save Evening Hours</h3>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm">
+                Speak your findings between visits. Finish your clinical documentation before you head home.
+              </p>
+            </div>
+            <div className="p-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 dark:border-gray-700/50">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg">
+                <Zap className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Structured SOAP Output</h3>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm">
+                Automatic structuring organizes observations, vitals, assessments, and follow-up plans cleanly.
+              </p>
+            </div>
+            <div className="p-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 dark:border-gray-700/50">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg">
+                <Shield className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Enterprise Safeguards</h3>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm">
+                End-to-end encryption in transit and at rest with strict practice-level data isolation.
+              </p>
+            </div>
           </div>
 
           {/* Beta CTA */}
@@ -240,7 +252,7 @@ export default function StaticLandingPage() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-500">
-            <p> 2025 ClinicalScribe by MetalMindTech. All rights reserved. Built with for healthcare professionals.</p>
+            <p>© 2026 ClinicalScribe by MetalMindTech. All rights reserved. Built with ❤️ for healthcare professionals.</p>
           </div>
         </div>
       </footer>
@@ -258,29 +270,4 @@ function FeatureCard({ title, icon, gradient }: { title: string; icon: string; g
       </div>
     </div>
   );
-}
-
-function TestimonialCard({ name, role, quote, avatar }: { name: string; role: string; quote: string; avatar: string }) {
-  return (
-    <div className="group relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 via-purple-500/20 to-indigo-600/20 opacity-0 group-hover:opacity-100 rounded-3xl transition-opacity duration-500"></div>
-      <div className="relative p-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl border border-white/50 dark:border-gray-700/50 transition-all duration-500 group-hover:-translate-y-2">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg">
-            {avatar}
-          </div>
-          <div>
-            <h4 className="font-bold text-gray-900 dark:text-gray-100">{name}</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{role}</p>
-          </div>
-        </div>
-        <p className="italic text-gray-700 dark:text-gray-300 leading-relaxed">"{quote}"</p>
-        <div className="flex gap-1 mt-4">
-          {[...Array(5)].map((_, i) => (
-            <span key={i} className="text-yellow-400 text-lg">⭐</span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+}

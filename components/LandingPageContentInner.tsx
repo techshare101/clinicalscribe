@@ -182,31 +182,43 @@ export default function LandingPageContentInner() {
         </div>
       </section>
 
-      {/* Social Proof */}
+      {/* Workflow Highlights */}
       <section className="px-6 py-20 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/30 dark:via-purple-950/30 dark:to-pink-950/30">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-black text-center mb-16 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-            What Our Beta Users Say
+          <h2 className="text-4xl font-black text-center mb-4 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+            Built for Clinical Workflows
           </h2>
+          <p className="text-lg text-gray-600 dark:text-gray-400 text-center max-w-2xl mx-auto mb-16">
+            Say goodbye to pajama-time charting. Streamline your documentation with tools crafted for busy clinicians.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <TestimonialCard 
-              quote="ClinicalScribe cut my charting time by 70%. I finally leave work on time."
-              author="Dr. J. Smith"
-              role="Cardiologist"
-              avatar="👨‍⚕️"
-            />
-            <TestimonialCard 
-              quote="The transcription accuracy is incredible. My staff loves it."
-              author="Nurse Patricia"
-              role="Beta Tester"
-              avatar="👩‍⚕️"
-            />
-            <TestimonialCard 
-              quote="This feels like the future of healthcare documentation."
-              author="Chief Medical Officer"
-              role="Regional Hospital"
-              avatar="🏥"
-            />
+            <div className="p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 dark:border-gray-700/50">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg">
+                <Clock className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Eliminate Evening Charting</h3>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm">
+                Speak your findings directly between patient visits. Get structured SOAP notes instantly so your workday ends when clinic ends.
+              </p>
+            </div>
+            <div className="p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 dark:border-gray-700/50">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg">
+                <FileText className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Structured SOAP Formatting</h3>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm">
+                Automatically organizes patient encounters into clean Subjective, Objective, Assessment, and Plan drafts formatted for effortless review.
+              </p>
+            </div>
+            <div className="p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 dark:border-gray-700/50">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg">
+                <Shield className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Security &amp; Privacy First</h3>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm">
+                256-bit encryption in transit and at rest, role-based access control, and complete data isolation safeguard your practice documentation.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -220,7 +232,7 @@ export default function LandingPageContentInner() {
           },
           {
             question: "How much time will this save me?",
-            answer: "Beta users report saving 3-4 hours per day on documentation. Most see a 70% reduction in charting time. Instead of spending hours typing, you can simply speak your notes and let our AI handle the formatting and structuring."
+            answer: "ClinicalScribe is designed to eliminate after-hours documentation. Instead of typing notes after a long clinic day, you speak naturally and let our AI handle the structuring, turning verbal notes into structured drafts in seconds."
           },
           {
             question: "Does it work with my EHR?",
@@ -236,7 +248,7 @@ export default function LandingPageContentInner() {
           },
           {
             question: "How accurate is the transcription?",
-            answer: "Our AI achieves 95%+ accuracy for medical terminology using advanced models trained specifically on healthcare conversations. The system learns from corrections and improves over time, adapting to your speaking style and specialty-specific terms."
+            answer: "Our system uses advanced speech recognition and medical vocabulary normalization tuned for clinical terms, medication names, and complex diagnoses. You maintain full oversight with quick review and editing before finalizing."
           }
         ]}
       />
@@ -315,30 +327,6 @@ function FeatureCardV2({ icon: Icon, title, desc, gradient }: { icon: any; title
   );
 }
 
-function TestimonialCard({ quote, author, role, avatar }: { quote: string; author: string; role: string; avatar: string }) {
-  return (
-    <div className="group relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-400/20 via-purple-500/20 to-pink-600/20 opacity-0 group-hover:opacity-100 rounded-3xl transition-opacity duration-500"></div>
-      <div className="relative p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl border border-white/50 dark:border-gray-700/50 transition-all duration-500 group-hover:-translate-y-2">
-        <div className="flex gap-2 mb-6">
-          {[...Array(5)].map((_, i) => (
-            <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-          ))}
-        </div>
-        <p className="text-gray-700 dark:text-gray-300 text-lg mb-6 italic leading-relaxed">"{quote}"</p>
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg">
-            {avatar}
-          </div>
-          <div>
-            <h4 className="font-black text-gray-900 dark:text-gray-100">{author}</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{role}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function DifferentiatorCard({ icon, title }: { icon: string; title: string }) {
   return (
